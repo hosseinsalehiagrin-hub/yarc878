@@ -36,6 +36,8 @@ export function createTabView(session: Session): WebContentsView {
   return view
 }
 
+const IGNORE_APP_REGIONS = '*, *::before, *::after { -webkit-app-region: no-drag !important; app-region: no-drag !important; }'
+
 export class LiveTab {
   readonly view: WebContentsView
   /** Kept separately: a view drops its webContents reference once the page is destroyed. */
@@ -98,6 +100,10 @@ export class LiveTab {
 
   private wire(): void {
     const wc = this.wc
+    // Websites can mark areas as window-drag regions (`-webkit-app-region`, meant for their own
+    // desktop apps, e.g. Linear covers its whole page). Electron would apply them to our window,
+    // above the overlay, swallowing clicks; browsers ignore them, so cancel them as the user.
+    wc.on('dom-ready', () => void wc.insertCSS(IGNORE_APP_REGIONS, { cssOrigin: 'user' }).catch(() => {}))
     wc.on('page-title-updated', (_e, title) => this.host.onTabChanged(this, { title }))
     wc.on('page-favicon-updated', (_e, icons) => {
       this.favicon = icons[0]

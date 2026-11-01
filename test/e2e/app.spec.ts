@@ -332,6 +332,17 @@ test('updates: command bar check, then a notice and menu item once one is found'
   await app.evaluate(() => (globalThis as any).arcBrowser.updater.set({ state: 'none' }))
 })
 
+test('pages cannot turn themselves into window-drag areas', async () => {
+  // Like Linear's web app: a page-sized `-webkit-app-region: drag` would otherwise swallow
+  // every click over the page, including on the overlay panels above it.
+  const html = '<div id="d" style="-webkit-app-region: drag !important; position: fixed; inset: 0">drag me</div>'
+  await dispatch({ type: 'open', url: `data:text/html,${encodeURIComponent(html)}`, where: 'tab' })
+  const page = await pageWithUrl('data:text/html')
+  await expect
+    .poll(() => page.evaluate(() => getComputedStyle(document.getElementById('d')!).getPropertyValue('-webkit-app-region')))
+    .toBe('no-drag')
+})
+
 test('state survives a restart', async () => {
   const before = await state()
   await app.close()
