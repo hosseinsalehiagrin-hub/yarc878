@@ -4,9 +4,9 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 
 ## Commands
 
-- `npm install` (postinstall downloads the Electron binary) · `npm run dev` · `npm run build`
-- `npm run typecheck` · `npm test` (unit, `node --test`) · `npm run test:e2e` (builds, then Playwright drives the real app)
-- `npm run dist:mac` / `dist:win` → installers in `release/`. Releases: bump version, push a `v*` tag, CI fills a draft GitHub release.
+- `pnpm install` (postinstall downloads the Electron binary) · `pnpm dev` · `pnpm build`
+- `pnpm typecheck` · `pnpm test` (unit, `node --test`) · `pnpm test:e2e` (builds, then Playwright drives the real app)
+- `pnpm dist:mac` / `dist:win` → installers in `release/`. Releases: bump version, push a `v*` tag, CI fills a draft GitHub release.
 
 ## Architecture (see README "How it works")
 

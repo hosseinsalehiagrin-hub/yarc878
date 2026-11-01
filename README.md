@@ -240,30 +240,30 @@ No. Blocking is built in (see [Built-in ad and tracker blocking](#built-in-ad-an
 
 ## Building from source
 
-You need **Node.js 22.12+** (24 recommended) and Git.
+You need **Node.js 22.12+** (24 recommended), Git and **pnpm** (`corepack enable` picks up the version pinned in `package.json`).
 
 ```bash
 git clone https://github.com/yenebeb/arc-shell.git
 cd arc-shell
-npm install          # also downloads the Electron binary
-npm run dev          # start with hot reload
+pnpm install         # also downloads the Electron binary
+pnpm dev             # start with hot reload
 ```
 
 | Command | What it does |
 | --- | --- |
-| `npm run dev` | Run the app in development mode, with a separate `Arc Shell (dev)` profile |
-| `npm run build` | Production build into `out/` |
-| `npm start` | Run the production build |
-| `npm run typecheck` | TypeScript check |
-| `npm test` | Unit tests: URL handling, shortcuts, sidebar model, Arc parser |
-| `npm run test:e2e` | Build, then drive the real app with Playwright (tabs, spaces, splits, Little Arc, persistence) |
-| `npm run dist:win` | Windows installers in `release/` |
-| `npm run dist:mac` | macOS DMGs in `release/` (run on a Mac) |
-| `npm run dist:dir` | Unpacked app for quick local testing |
+| `pnpm dev` | Run the app in development mode, with a separate `Arc Shell (dev)` profile |
+| `pnpm build` | Production build into `out/` |
+| `pnpm start` | Run the production build |
+| `pnpm typecheck` | TypeScript check |
+| `pnpm test` | Unit tests: URL handling, shortcuts, sidebar model, Arc parser |
+| `pnpm test:e2e` | Build, then drive the real app with Playwright (tabs, spaces, splits, Little Arc, persistence) |
+| `pnpm dist:win` | Windows installers in `release/` |
+| `pnpm dist:mac` | macOS DMGs in `release/` (run on a Mac) |
+| `pnpm dist:dir` | Unpacked app for quick local testing |
 
 ### Releasing
 
-1. Bump the version: `npm version patch` (or `minor` / `major`).
+1. Bump the version: `pnpm version patch` (or `minor` / `major`).
 2. `git push --follow-tags`
 3. GitHub Actions builds Windows, macOS and Linux and attaches them to a **draft release**. Review it on GitHub and click **Publish release**.
 
@@ -316,7 +316,7 @@ Planned or open for contributions:
 
 Issues and pull requests are welcome. If you're an Arc user and something doesn't behave the way Arc did, please open an issue describing what Arc did. [docs/arc-reference.md](docs/arc-reference.md) collects what we know about Arc's behavior, and is worth correcting too.
 
-Before opening a PR, run `npm run typecheck && npm test && npm run test:e2e`.
+Before opening a PR, run `pnpm typecheck && pnpm test && pnpm test:e2e`.
 
 ## License
 

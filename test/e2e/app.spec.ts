@@ -1,4 +1,4 @@
-// End-to-end tests against the built app (run `npm run build` first; `npm run test:e2e` does).
+// End-to-end tests against the built app (run `pnpm build` first; `pnpm test:e2e` does).
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { mkdtempSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
