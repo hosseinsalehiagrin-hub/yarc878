@@ -1,0 +1,114 @@
+# electron-builder 26.18 configuration for Arc Shell.
+# Docs: https://www.electron.build/configuration  ·  background: docs/electron-notes.md section 5
+#
+#   npm run dist:win   -> release/Arc-Shell-Setup-<version>-x64.exe and -arm64.exe
+#   npm run dist:mac   -> release/Arc-Shell-<version>-arm64.dmg and -x64.dmg   (must run on macOS)
+#   npm run dist:linux -> release/Arc-Shell-<version>-<arch>.AppImage    (run on Linux)
+appId: org.arcshell.browser
+productName: Arc Shell
+copyright: Copyright © 2026 Arc Shell contributors. Licensed under GPL-3.0-or-later.
+
+directories:
+  output: release
+  buildResources: build # icon.png / icon.ico / installer.nsh live here
+
+# Only the electron-vite output and package.json go in the app. Production "dependencies"
+# (electron-chrome-extensions, electron-chrome-web-store and their deps) are added from
+# node_modules automatically; do NOT exclude them: the main bundle keeps them external and the
+# libraries resolve their preloads at runtime with
+#   createRequire(__dirname).resolve('electron-chrome-extensions/preload')   (and .../web-store/preload)
+# Both libraries' READMEs ("Packaging the preload script") only require that node_modules is
+# shipped. Electron reads preload scripts (frame, sandboxed and service-worker) through its
+# asar-aware fs, exactly like our own out/preload/ui.js, so no asarUnpack is needed.
+# There are no native (.node) modules: SQLite comes from node:sqlite.
+files:
+  - out/**
+  - package.json
+asar: true
+npmRebuild: false # nothing native to rebuild; skips @electron/rebuild (and the need for build tools)
+compression: normal
+
+# http/https URL schemes. Used for macOS (CFBundleURLTypes, required to appear in
+# "Default web browser") and Linux (.desktop MimeType x-scheme-handler/*). electron-builder's
+# NSIS target ignores this key; Windows registration is done in build/installer.nsh.
+protocols:
+  - name: Web URL
+    schemes: [http, https]
+    role: Viewer
+
+# ---------------------------------------------------------------- Windows
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch: [x64, arm64]
+  # .html/.htm are registered by build/installer.nsh (ProgID ArcShellHTML + OpenWithProgids +
+  # Capabilities\FileAssociations), not via `fileAssociations` here: electron-builder's NSIS
+  # associate macro overwrites HKCU\Software\Classes\.html's default value and never restores it
+  # on uninstall. The .nsh route lists Arc Shell in "Open with"/Default apps without hijacking.
+
+nsis:
+  oneClick: true # no wizard: double-click, it installs and launches
+  perMachine: false # per-user: %LOCALAPPDATA%\Programs\Arc Shell, no UAC prompt
+  allowElevation: false # never ask for admin
+  buildUniversalInstaller: false # one small installer per arch instead of one 2x-size exe
+  artifactName: Arc-Shell-Setup-${version}-${arch}.${ext}
+  shortcutName: Arc Shell
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false # keep profiles/history if someone reinstalls
+  include: build/installer.nsh # StartMenuInternet + Capabilities + RegisteredApplications (HKCU)
+
+# ---------------------------------------------------------------- macOS
+mac:
+  icon: build/icon.png # electron-builder generates the .icns from the 1024 PNG
+  category: public.app-category.productivity
+  target:
+    - target: dmg
+      arch: [arm64, x64]
+  # No Apple Developer ID: sign ad-hoc. In 26.x an unset identity with no certificate means
+  # "not signed at all", and an unsigned arm64 app is reported as "damaged". "-" = ad-hoc.
+  identity: "-"
+  hardenedRuntime: false # ad-hoc + hardened runtime would need disable-library-validation
+  notarize: false
+  gatekeeperAssess: false
+  minimumSystemVersion: "13.0" # Electron 44+ floor
+  # CFBundleDocumentTypes: needed (with the URL types above) to be offered as the default browser.
+  fileAssociations:
+    - ext: [html, htm]
+      name: HTML Document
+      description: HTML Document
+      mimeType: text/html
+      role: Viewer
+      rank: Default
+  extendInfo:
+    # Shown by macOS when a website asks for the camera/microphone via Arc Shell.
+    NSCameraUsageDescription: Websites you visit in Arc Shell can ask to use your camera.
+    NSMicrophoneUsageDescription: Websites you visit in Arc Shell can ask to use your microphone.
+
+dmg:
+  artifactName: Arc-Shell-${version}-${arch}.${ext}
+
+# ---------------------------------------------------------------- Linux (best effort)
+linux:
+  icon: build/icon.png
+  category: Network
+  synopsis: Open-source, Arc-style web browser
+  target:
+    - target: AppImage
+      arch: [x64]
+  fileAssociations:
+    - ext: [html, htm]
+      name: HTML Document
+      mimeType: text/html
+
+appImage:
+  artifactName: Arc-Shell-${version}-${arch}.${ext}
+
+# ---------------------------------------------------------------- Publishing
+# Owner/repo come from package.json "repository" or, if absent, the git "origin" remote
+# (actions/checkout sets it in CI). Releases are created as drafts: review, then publish.
+publish:
+  provider: github
+  releaseType: draft

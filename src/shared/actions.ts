@@ -1,0 +1,71 @@
+// Everything a UI renderer can ask the main process to do.
+import type { ID, OverlayMode, SearchEngine, Settings } from './types'
+
+/** Where a moved item should land. `index` is within the target list. */
+export type DropTarget =
+  | { section: 'favorites'; index: number }
+  | { section: 'pinned'; folderId?: ID; index: number }
+  | { section: 'today'; index: number }
+
+export type Action =
+  // tabs
+  | { type: 'activate'; id: ID }
+  | { type: 'close'; id: ID }
+  | { type: 'open'; url: string; where?: 'tab' | 'current' | 'split' | 'background' | 'little' }
+  | { type: 'reopenClosed' }
+  | { type: 'togglePin'; id: ID }
+  | { type: 'addFavorite'; id: ID }
+  | { type: 'resetToSaved'; id: ID }
+  | { type: 'duplicate'; id: ID }
+  | { type: 'rename'; id: ID; title: string }
+  | { type: 'move'; id: ID; to: DropTarget }
+  | { type: 'moveToSpace'; id: ID; spaceId: ID }
+  | { type: 'clearToday' }
+  | { type: 'unload'; id: ID }
+  | { type: 'mute'; id: ID }
+  // navigation on the active tab
+  | { type: 'back' }
+  | { type: 'forward' }
+  | { type: 'reload'; hard?: boolean }
+  | { type: 'stop' }
+  | { type: 'zoom'; delta: 1 | -1 | 0 }
+  | { type: 'copyUrl'; markdown?: boolean }
+  | { type: 'devtools' }
+  // folders
+  | { type: 'newFolder'; name?: string }
+  | { type: 'toggleFolder'; id: ID }
+  | { type: 'renameFolder'; id: ID; name: string }
+  | { type: 'deleteFolder'; id: ID }
+  // spaces & profiles
+  | { type: 'switchSpace'; id: ID }
+  | { type: 'switchSpaceRelative'; delta: 1 | -1 }
+  | { type: 'switchSpaceIndex'; index: number }
+  | { type: 'createSpace'; name: string; emoji?: string; color: string; profileId?: ID | 'new'; profileName?: string }
+  | { type: 'updateSpace'; id: ID; name?: string; emoji?: string; color?: string; profileId?: ID }
+  | { type: 'deleteSpace'; id: ID }
+  | { type: 'renameProfile'; id: ID; name: string }
+  // split view
+  | { type: 'splitWith'; id: ID }
+  | { type: 'unsplit'; id?: ID }
+  | { type: 'resizeSplit'; splitId: ID; sizes: number[] }
+  // window & chrome
+  | { type: 'toggleSidebar' }
+  | { type: 'sidebarPeek'; show: boolean }
+  | { type: 'overlay'; mode: OverlayMode }
+  | { type: 'window'; op: 'minimize' | 'maximize' | 'close' }
+  | { type: 'settings'; patch: Partial<Settings> }
+  | { type: 'searchEngine'; engine: SearchEngine }
+  | { type: 'littleArc'; url?: string }
+  | { type: 'openInChrome'; id?: ID }
+  | { type: 'find'; query: string; forward?: boolean; findNext?: boolean }
+  | { type: 'stopFind' }
+  | { type: 'downloadOpen'; id: ID; reveal?: boolean }
+  | { type: 'downloadsClear' }
+  | { type: 'archiveRestore'; id: ID }
+  | { type: 'archiveClear' }
+  | { type: 'import'; source: 'arc' | 'chrome'; path?: string }
+  | { type: 'command'; id: string }
+  | { type: 'itemMenu'; id: ID }
+  | { type: 'folderMenu'; id: ID }
+  | { type: 'spaceMenu'; id: ID }
+  | { type: 'extensionsStore' }

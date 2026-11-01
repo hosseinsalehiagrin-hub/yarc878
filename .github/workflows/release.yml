@@ -1,0 +1,80 @@
+name: release
+
+# Push a tag equal to "v" + package.json version (e.g. `npm version patch && git push --follow-tags`),
+# or run manually from the Actions tab. Installers are uploaded to a DRAFT GitHub release
+# named v<version>; review it and click "Publish release".
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write # create the draft release and upload assets
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # Create the draft once, up front, so the three parallel build jobs upload into the same
+  # release instead of racing to create duplicate drafts.
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: version
+        name: Read version / check tag
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          if [ "${GITHUB_REF_TYPE}" = "tag" ] && [ "${GITHUB_REF_NAME}" != "$tag" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match package.json version ($tag)."
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Ensure draft release exists
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          existing=$(gh api "repos/${GITHUB_REPOSITORY}/releases" --paginate \
+            --jq ".[] | select(.tag_name == \"${TAG}\") | .id" | head -n1)
+          if [ -z "$existing" ]; then
+            gh release create "$TAG" --draft --title "Arc Shell ${TAG}" --target "$GITHUB_SHA" \
+              --notes "Downloads: Windows \`Arc-Shell-Setup-*-x64.exe\` (or \`-arm64.exe\`), macOS \`Arc-Shell-*-arm64.dmg\` (Apple silicon) or \`-x64.dmg\` (Intel), Linux \`.AppImage\`. Not code-signed: on Windows click More info > Run anyway; on macOS open it once, then System Settings > Privacy & Security > Open Anyway."
+          else
+            echo "Draft/release for $TAG already exists (id $existing)."
+          fi
+
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: --win
+          - os: macos-latest # Apple silicon runner; builds both arm64 and x64 DMGs
+            platform: --mac
+          - os: ubuntu-latest
+            platform: --linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: Package & upload to draft release
+        run: npx electron-builder ${{ matrix.platform }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # No Apple certificate: never pick one up from the keychain; electron-builder.yml
+          # sets identity "-" (ad-hoc), which is used regardless of this flag.
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'

@@ -1,0 +1,84 @@
+// Chrome extensions per profile: chrome.* APIs via electron-chrome-extensions and installs
+// straight from the Chrome Web Store via electron-chrome-web-store.
+import { session, type BaseWindow, type ContextMenuParams, type MenuItem } from 'electron'
+import { ElectronChromeExtensions } from 'electron-chrome-extensions'
+import { installChromeWebStore, updateExtensions } from 'electron-chrome-web-store'
+import { join } from 'node:path'
+import type { ID } from '../shared/types'
+import type { Browser } from './browser'
+import type { ProfileRuntime } from './profiles'
+import type { LiveTab } from './tab'
+
+export class Extensions {
+  private byProfile = new Map<ID, ElectronChromeExtensions>()
+
+  constructor(private browser: Browser) {}
+
+  /** The UI session shows extension icons with <browser-action-list>, which needs crx:// there. */
+  static prepareUiSession(): void {
+    ElectronChromeExtensions.handleCRXProtocol(session.defaultSession)
+  }
+
+  async setup(rt: ProfileRuntime): Promise<void> {
+    const b = this.browser
+    const ext = new ElectronChromeExtensions({
+      session: rt.session,
+      createTab: async (details) => {
+        const item = b.newTab(details.url || 'about:blank', { activate: details.active !== false })
+        const tab = b.liveFor(item)
+        return [tab.wc, b.window.win]
+      },
+      selectTab: (wc) => {
+        const id = b.itemIdFor(wc)
+        if (id) b.activate(id)
+      },
+      removeTab: (wc) => {
+        const id = b.itemIdFor(wc)
+        if (id) b.close(id)
+      },
+      createWindow: async (details) => {
+        const url = Array.isArray(details.url) ? details.url[0] : details.url
+        return b.openLittle(url).win
+      },
+      removeWindow: (win) => {
+        if (win !== b.window.win) win.close()
+      }
+    })
+    this.byProfile.set(rt.id, ext)
+
+    const refresh = () => {
+      b.extensionList[rt.id] = rt.session.extensions
+        .getAllExtensions()
+        .map((e) => ({ id: e.id, name: e.name }))
+      b.emitSoon()
+    }
+    rt.session.extensions.on('extension-loaded', refresh)
+    rt.session.extensions.on('extension-unloaded', refresh)
+    try {
+      await installChromeWebStore({
+        session: rt.session,
+        extensionsPath: join(b.profiles.dir(rt.id), 'Extensions'),
+        // The library's own updater only tracks one session; we update each profile ourselves.
+        autoUpdate: false
+      })
+    } catch (err) {
+      console.error('[extensions] web store setup failed', err)
+    }
+    refresh()
+    const update = () => updateExtensions(rt.session).catch((err: unknown) => console.warn('[extensions] update failed', err))
+    setTimeout(update, 60_000)
+    setInterval(update, 5 * 3600_000)
+  }
+
+  addTab(tab: LiveTab, win: BaseWindow): void {
+    this.byProfile.get(tab.profileId)?.addTab(tab.wc, win)
+  }
+
+  selectTab(tab: LiveTab): void {
+    this.byProfile.get(tab.profileId)?.selectTab(tab.wc)
+  }
+
+  contextMenuItems(tab: LiveTab, params: ContextMenuParams): MenuItem[] {
+    return this.byProfile.get(tab.profileId)?.getContextMenuItems(tab.wc, params) ?? []
+  }
+}

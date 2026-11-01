@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  push:
+    branches: ['**']
+    tags-ignore: ['v*'] # tags are handled by release.yml
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      # --ignore-scripts: the Electron binary (postinstall) is not needed to typecheck, test or build.
+      - run: npm ci --ignore-scripts
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

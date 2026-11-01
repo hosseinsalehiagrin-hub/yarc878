@@ -1,0 +1,26 @@
+# Dependencies
+node_modules/
+
+# Build output (electron-vite) and packaged installers (electron-builder)
+out/
+release/
+
+# Test artifacts (Playwright)
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local env files
+.env
+.env.*
+!.env.example

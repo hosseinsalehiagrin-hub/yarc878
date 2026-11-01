@@ -1,0 +1,115 @@
+// Browsing history, one SQLite database per profile (node:sqlite, no native modules).
+import { mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+
+export interface HistoryEntry {
+  url: string
+  title: string
+  visitCount: number
+  lastVisit: number
+}
+
+export interface ImportedVisit {
+  url: string
+  title: string
+  time: number
+}
+
+export class History {
+  private db: DatabaseSync
+
+  constructor(dir: string) {
+    mkdirSync(dir, { recursive: true })
+    this.db = new DatabaseSync(join(dir, 'history.sqlite'))
+    this.db.exec(`
+      PRAGMA journal_mode = WAL;
+      CREATE TABLE IF NOT EXISTS urls (
+        url TEXT PRIMARY KEY,
+        title TEXT NOT NULL DEFAULT '',
+        visit_count INTEGER NOT NULL DEFAULT 0,
+        last_visit INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS visits (id INTEGER PRIMARY KEY, url TEXT NOT NULL, time INTEGER NOT NULL);
+      CREATE INDEX IF NOT EXISTS visits_time ON visits(time);
+      CREATE INDEX IF NOT EXISTS urls_last ON urls(last_visit);
+    `)
+  }
+
+  visit(url: string, title: string, time = Date.now()): void {
+    if (!/^https?:/.test(url)) return
+    this.db
+      .prepare(
+        `INSERT INTO urls (url, title, visit_count, last_visit) VALUES (?, ?, 1, ?)
+         ON CONFLICT(url) DO UPDATE SET visit_count = visit_count + 1, last_visit = excluded.last_visit,
+           title = CASE WHEN excluded.title != '' THEN excluded.title ELSE urls.title END`
+      )
+      .run(url, title, time)
+    this.db.prepare('INSERT INTO visits (url, time) VALUES (?, ?)').run(url, time)
+  }
+
+  setTitle(url: string, title: string): void {
+    if (title) this.db.prepare('UPDATE urls SET title = ? WHERE url = ?').run(title, url)
+  }
+
+  search(query: string, limit = 8): HistoryEntry[] {
+    const like = `%${query.replace(/[%_]/g, (m) => `\\${m}`)}%`
+    const weekAgo = Date.now() - 7 * 864e5
+    return this.db
+      .prepare(
+        `SELECT url, title, visit_count AS visitCount, last_visit AS lastVisit FROM urls
+         WHERE url LIKE ? ESCAPE '\\' OR title LIKE ? ESCAPE '\\'
+         ORDER BY (visit_count + CASE WHEN last_visit > ? THEN 10 ELSE 0 END) DESC, last_visit DESC
+         LIMIT ?`
+      )
+      .all(like, like, weekAgo, limit) as unknown as HistoryEntry[]
+  }
+
+  recent(limit = 200, offset = 0, query = ''): (HistoryEntry & { time: number })[] {
+    const like = `%${query}%`
+    return this.db
+      .prepare(
+        `SELECT v.url, u.title, u.visit_count AS visitCount, u.last_visit AS lastVisit, v.time FROM visits v
+         JOIN urls u ON u.url = v.url
+         WHERE ? = '' OR v.url LIKE ? OR u.title LIKE ?
+         ORDER BY v.time DESC LIMIT ? OFFSET ?`
+      )
+      .all(query, like, like, limit, offset) as unknown as (HistoryEntry & { time: number })[]
+  }
+
+  import(visits: ImportedVisit[]): number {
+    const upsert = this.db.prepare(
+      `INSERT INTO urls (url, title, visit_count, last_visit) VALUES (?, ?, 1, ?)
+       ON CONFLICT(url) DO UPDATE SET visit_count = visit_count + 1,
+         last_visit = MAX(last_visit, excluded.last_visit),
+         title = CASE WHEN urls.title = '' THEN excluded.title ELSE urls.title END`
+    )
+    const insert = this.db.prepare('INSERT INTO visits (url, time) VALUES (?, ?)')
+    this.db.exec('BEGIN')
+    try {
+      for (const v of visits) {
+        if (!/^https?:/.test(v.url)) continue
+        upsert.run(v.url, v.title, v.time)
+        insert.run(v.url, v.time)
+      }
+      this.db.exec('COMMIT')
+    } catch (err) {
+      this.db.exec('ROLLBACK')
+      throw err
+    }
+    return visits.length
+  }
+
+  deleteUrl(url: string): void {
+    this.db.prepare('DELETE FROM visits WHERE url = ?').run(url)
+    this.db.prepare('DELETE FROM urls WHERE url = ?').run(url)
+  }
+
+  clear(): void {
+    this.db.exec('DELETE FROM visits; DELETE FROM urls;')
+  }
+
+  close(): void {
+    this.db.close()
+  }
+}

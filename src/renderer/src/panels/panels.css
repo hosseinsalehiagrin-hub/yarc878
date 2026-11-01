@@ -1,0 +1,466 @@
+/* Settings, Library and Space editor panels. Builds on .panel.sheet in styles.css. */
+
+.sheet header .title-emoji {
+  font-size: 18px;
+}
+
+.sheet .body {
+  min-height: 0;
+  flex: 1;
+}
+
+.sheet .section-label {
+  margin: 18px 0 4px;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.sheet .section-label:first-child {
+  margin-top: 4px;
+}
+
+.sheet .note {
+  color: var(--text-2);
+  line-height: 1.55;
+  margin: 8px 0 12px;
+}
+
+.sheet .note.warn {
+  color: color-mix(in oklab, #d97706 80%, var(--text));
+}
+
+.sheet .muted {
+  color: var(--text-3);
+}
+
+.sheet .toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0 10px;
+}
+
+.sheet .toolbar .text-input {
+  flex: 1;
+}
+
+.sheet .actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 8px;
+  padding-top: 16px;
+}
+
+.sheet .actions .spacer {
+  flex: 1;
+}
+
+.sheet .btn:disabled {
+  opacity: 0.45;
+}
+
+.sheet .btn.primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, #000);
+}
+
+.sheet .btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.sheet input[type='range'] {
+  accent-color: var(--accent);
+  width: 160px;
+}
+
+/* toggle switch on a checkbox */
+.switch {
+  appearance: none;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--line);
+  position: relative;
+  transition: background 0.15s;
+  outline: none;
+}
+
+.switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  transition: transform 0.15s;
+}
+
+.switch:checked {
+  background: var(--accent);
+}
+
+.switch:checked::before {
+  transform: translateX(14px);
+}
+
+.switch:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
+}
+
+.range-value {
+  display: inline-block;
+  width: 48px;
+  text-align: right;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* list rows used by every panel */
+.sheet .list-row {
+  min-height: 36px;
+}
+
+.sheet .list-row.click:hover {
+  background: color-mix(in oklab, var(--space) 14%, var(--field));
+}
+
+.sheet .list-row .t small {
+  color: var(--text-3);
+  margin-left: 8px;
+  font-size: 12px;
+}
+
+.sheet .list-row .hover-x {
+  opacity: 0;
+  width: 24px;
+  height: 24px;
+}
+
+.sheet .list-row:hover .hover-x {
+  opacity: 1;
+}
+
+.day-label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel);
+  padding: 12px 8px 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.empty-state {
+  padding: 36px 0;
+  text-align: center;
+  color: var(--text-3);
+}
+
+.load-more {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0 0;
+}
+
+/* downloads */
+.dl-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.dl-main .t {
+  flex: none;
+}
+
+.progress {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--line);
+  overflow: hidden;
+}
+
+.progress > div {
+  height: 100%;
+  border-radius: 2px;
+  background: var(--accent);
+  transition: width 0.2s;
+}
+
+.progress.indeterminate > div {
+  width: 30%;
+  animation: indeterminate 1.1s ease-in-out infinite;
+}
+
+@keyframes indeterminate {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(340%);
+  }
+}
+
+/* spaces list */
+.space-emoji {
+  width: 24px;
+  height: 24px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  font-size: 15px;
+  flex: none;
+}
+
+.space-emoji .dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  flex: none;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+}
+
+.list-row.current .t {
+  font-weight: 600;
+}
+
+/* profiles */
+.profile-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--panel-line);
+}
+
+.profile-row .text-input {
+  width: 220px;
+}
+
+.profile-row .used-by {
+  flex: 1;
+  min-width: 0;
+  color: var(--text-2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--field);
+  border: 1px solid var(--panel-line);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* shortcuts */
+.shortcuts {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.shortcuts td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--panel-line);
+}
+
+.shortcuts td:last-child {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.shortcuts .kbd {
+  display: inline-block;
+  min-width: 22px;
+  text-align: center;
+}
+
+.about {
+  padding: 28px 0 12px;
+  text-align: center;
+  line-height: 1.6;
+}
+
+.about .logo {
+  width: 56px;
+  height: 56px;
+  margin: 0 auto 12px;
+  border-radius: 16px;
+  background: linear-gradient(140deg, var(--space), color-mix(in oklab, var(--space) 50%, #fff));
+  box-shadow: var(--active-shadow);
+}
+
+.about h2 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+/* space editor */
+.space-editor {
+  width: min(520px, calc(100vw - 48px));
+}
+
+.space-editor .body {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.space-editor .field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.space-editor .field > span {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+}
+
+.space-editor .name-input {
+  font-size: 15px;
+  padding: 9px 12px;
+}
+
+.preview-chip {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  display: grid;
+  place-items: center;
+  background: color-mix(in oklab, var(--space) 30%, var(--field));
+  font-size: 17px;
+  flex: none;
+}
+
+.preview-chip .dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--space);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(32px, 1fr));
+  gap: 2px;
+}
+
+.emoji-grid button {
+  height: 32px;
+  border-radius: 8px;
+  font-size: 17px;
+  display: grid;
+  place-items: center;
+}
+
+.emoji-grid button:hover {
+  background: var(--field);
+}
+
+.emoji-grid button.on {
+  background: color-mix(in oklab, var(--space) 26%, var(--field));
+  box-shadow: inset 0 0 0 1.5px var(--accent);
+}
+
+.emoji-grid button.none {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.emoji-custom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+  color: var(--text-3);
+  font-size: 12px;
+}
+
+.emoji-custom .text-input {
+  width: 64px;
+  text-align: center;
+  font-size: 15px;
+  padding: 4px 6px;
+}
+
+.color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.color-row .sw {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 0.12);
+  transition: transform 0.1s;
+}
+
+.color-row .sw:hover {
+  transform: scale(1.08);
+}
+
+.color-row .sw.on {
+  box-shadow: 0 0 0 2px var(--panel), 0 0 0 4px var(--accent);
+}
+
+.color-row input[type='color'] {
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid var(--panel-line);
+  border-radius: 50%;
+  background: none;
+  overflow: hidden;
+  cursor: default;
+}
+
+.color-row input[type='color']::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.color-row input[type='color']::-webkit-color-swatch {
+  border: 0;
+  border-radius: 50%;
+}
+
+.color-row .hex {
+  color: var(--text-3);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.space-editor select {
+  width: 100%;
+}
+
+.contents {
+  display: contents;
+}

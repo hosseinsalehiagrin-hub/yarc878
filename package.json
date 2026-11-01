@@ -1,0 +1,44 @@
+{
+  "name": "arc-shell",
+  "productName": "Arc Shell",
+  "version": "0.1.0",
+  "description": "An open-source, Arc-style browser built on Electron: vertical sidebar, spaces with separate profiles, command bar, split view and Little Arc.",
+  "license": "GPL-3.0-or-later",
+  "author": "Arc Shell contributors",
+  "main": "./out/main/index.js",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "start": "electron-vite preview",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "node --test --experimental-strip-types \"test/unit/**/*.test.ts\"",
+    "test:e2e": "npm run build && playwright test",
+    "postinstall": "node node_modules/electron/install.js",
+    "dist:dir": "npm run build && electron-builder --dir --publish never",
+    "dist": "npm run build && electron-builder --publish never",
+    "dist:win": "npm run build && electron-builder --win --publish never -c.nsis.publish=null",
+    "dist:mac": "npm run build && electron-builder --mac --publish never",
+    "dist:linux": "npm run build && electron-builder --linux --publish never"
+  },
+  "dependencies": {
+    "electron-chrome-extensions": "4.10.0",
+    "electron-chrome-web-store": "0.13.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.64.1",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.1.2",
+    "electron": "45.2.1",
+    "electron-builder": "26.18.0",
+    "electron-vite": "6.0.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "typescript": "7.0.2",
+    "vite": "8.3.5"
+  }
+}

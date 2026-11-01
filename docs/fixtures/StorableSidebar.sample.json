@@ -1,0 +1,391 @@
+{
+  "version": 1,
+  "sidebar": {
+    "containers": [
+      {
+        "global": {}
+      },
+      {
+        "topAppsContainerIDs": [
+          { "default": true },
+          "6F4D75C2-C6C3-4713-A070-2E4154B12584",
+          { "custom": { "_0": { "machineID": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13", "directoryBasename": "Profile 1" } } },
+          "55BB425B-C8D6-46B0-8FD8-6690066FD3E9"
+        ],
+        "spaces": [
+          "thebrowser.company.defaultPersonalSpaceID",
+          {
+            "id": "thebrowser.company.defaultPersonalSpaceID",
+            "title": "Personal",
+            "profile": { "default": true },
+            "containerIDs": [
+              "unpinned",
+              "C3064FC3-A61A-4BA7-BC5D-E88CDB3F109A",
+              "pinned",
+              "05FA0C99-11CC-4110-AA29-D58121C67492"
+            ],
+            "newContainerIDs": [
+              { "unpinned": {} },
+              "C3064FC3-A61A-4BA7-BC5D-E88CDB3F109A",
+              { "pinned": {} },
+              "05FA0C99-11CC-4110-AA29-D58121C67492"
+            ],
+            "customInfo": {
+              "iconType": { "emoji_v2": "🏠" },
+              "windowTheme": {
+                "background": {
+                  "single": {
+                    "_0": {
+                      "style": {
+                        "color": {
+                          "_0": {
+                            "blendedGradient": {
+                              "_0": {
+                                "baseColors": [
+                                  { "red": 0.332, "green": 0.686, "blue": 1.027, "alpha": 1, "colorSpace": "extendedSRGB" },
+                                  { "red": 1.077, "green": 0.414, "blue": 0.398, "alpha": 1, "colorSpace": "extendedSRGB" }
+                                ],
+                                "overlayColors": [
+                                  { "red": 0, "green": 0, "blue": 0, "alpha": 0, "colorSpace": "extendedSRGB" }
+                                ],
+                                "modifiers": { "overlay": "grain", "noiseFactor": 0.5, "intensityFactor": 0.8 }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "primaryColorPalette": {
+                  "midTone": { "red": 0.3317, "green": 0.6862, "blue": 1.0271, "alpha": 1, "colorSpace": "extendedSRGB" },
+                  "tint": { "red": 1, "green": 1, "blue": 1, "alpha": 1, "colorSpace": "extendedSRGB" }
+                }
+              }
+            }
+          },
+          "235E9467-D8F1-46F0-A855-EB9EC2BFFCB0",
+          {
+            "id": "235E9467-D8F1-46F0-A855-EB9EC2BFFCB0",
+            "title": "Work",
+            "profile": { "custom": { "_0": { "machineID": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13", "directoryBasename": "Profile 1" } } },
+            "containerIDs": [
+              "pinned",
+              "108B3320-A457-4226-A2E8-8DE7332158DF",
+              "unpinned",
+              "B383C068-86F9-4030-AF51-851C1CCEC5C7"
+            ],
+            "newContainerIDs": [
+              { "pinned": {} },
+              "108B3320-A457-4226-A2E8-8DE7332158DF",
+              { "unpinned": {} },
+              "B383C068-86F9-4030-AF51-851C1CCEC5C7"
+            ],
+            "customInfo": {
+              "iconType": { "emoji": 128188, "emoji_v2": "💼" },
+              "windowTheme": {
+                "background": {
+                  "single": {
+                    "_0": {
+                      "style": {
+                        "color": {
+                          "_0": {
+                            "blendedSingleColor": {
+                              "_0": {
+                                "color": { "red": 0.2, "green": 0.4, "blue": 0.6, "alpha": 1, "colorSpace": "extendedSRGB" },
+                                "modifiers": { "noiseFactor": 0, "intensityFactor": 0.3 }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                },
+                "primaryColorPalette": {
+                  "midTone": { "red": 0.2, "green": 0.4, "blue": 0.6, "alpha": 1, "colorSpace": "extendedSRGB" }
+                }
+              }
+            }
+          }
+        ],
+        "items": [
+          "6F4D75C2-C6C3-4713-A070-2E4154B12584",
+          {
+            "id": "6F4D75C2-C6C3-4713-A070-2E4154B12584",
+            "parentID": null,
+            "childrenIds": ["E37420AA-A321-4CFC-837B-75861B1C24B8", "83A8F3F3-B95C-4E64-8748-0735952E14CE"],
+            "title": null,
+            "createdAt": 762480000.125,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "itemContainer": { "containerType": { "topApps": { "_0": { "default": true } } } } }
+          },
+          "E37420AA-A321-4CFC-837B-75861B1C24B8",
+          {
+            "id": "E37420AA-A321-4CFC-837B-75861B1C24B8",
+            "parentID": "6F4D75C2-C6C3-4713-A070-2E4154B12584",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762480100.5,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://mail.google.com/mail/u/0/#inbox", "savedTitle": "Inbox (3) - Gmail", "timeLastActiveAt": 783000000.25 } }
+          },
+          "83A8F3F3-B95C-4E64-8748-0735952E14CE",
+          {
+            "id": "83A8F3F3-B95C-4E64-8748-0735952E14CE",
+            "parentID": "6F4D75C2-C6C3-4713-A070-2E4154B12584",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762480101.5,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://www.youtube.com/", "savedTitle": "YouTube", "timeLastActiveAt": 782990000 } }
+          },
+          "55BB425B-C8D6-46B0-8FD8-6690066FD3E9",
+          {
+            "id": "55BB425B-C8D6-46B0-8FD8-6690066FD3E9",
+            "parentID": null,
+            "childrenIds": ["A2594805-79C3-4F4D-8C48-4DE563453FC4"],
+            "title": null,
+            "createdAt": 762480200,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "itemContainer": { "containerType": { "topApps": { "_0": { "custom": { "_0": { "machineID": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13", "directoryBasename": "Profile 1" } } } } } } }
+          },
+          "A2594805-79C3-4F4D-8C48-4DE563453FC4",
+          {
+            "id": "A2594805-79C3-4F4D-8C48-4DE563453FC4",
+            "parentID": "55BB425B-C8D6-46B0-8FD8-6690066FD3E9",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762480210,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://calendar.google.com/calendar/u/0/r", "savedTitle": "Google Calendar - Week of October 26, 2026", "timeLastActiveAt": 783100000 } }
+          },
+          "05FA0C99-11CC-4110-AA29-D58121C67492",
+          {
+            "id": "05FA0C99-11CC-4110-AA29-D58121C67492",
+            "parentID": null,
+            "childrenIds": ["5EBAD2A9-E2BA-49D4-97D2-49109BA34AF2", "DD96DC5E-72ED-4956-BAF0-D013DB19DB67"],
+            "title": null,
+            "createdAt": 762480000,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "itemContainer": { "containerType": { "spaceItems": { "_0": "thebrowser.company.defaultPersonalSpaceID" } } } }
+          },
+          "5EBAD2A9-E2BA-49D4-97D2-49109BA34AF2",
+          {
+            "id": "5EBAD2A9-E2BA-49D4-97D2-49109BA34AF2",
+            "parentID": "05FA0C99-11CC-4110-AA29-D58121C67492",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762500000,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://news.ycombinator.com/", "savedTitle": "Hacker News", "timeLastActiveAt": 783050000 } }
+          },
+          "DD96DC5E-72ED-4956-BAF0-D013DB19DB67",
+          {
+            "id": "DD96DC5E-72ED-4956-BAF0-D013DB19DB67",
+            "parentID": "05FA0C99-11CC-4110-AA29-D58121C67492",
+            "childrenIds": ["AFEDAF7F-4DE8-49B7-9E57-EE8C7473D2A9", "C2CE4D3C-3F5C-46EE-B45C-7957F16DC149", "49A40BD0-1366-43B6-AEE4-EFA6262F9FF6"],
+            "title": "Reading",
+            "createdAt": 762510000,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "list": {} }
+          },
+          "AFEDAF7F-4DE8-49B7-9E57-EE8C7473D2A9",
+          {
+            "id": "AFEDAF7F-4DE8-49B7-9E57-EE8C7473D2A9",
+            "parentID": "DD96DC5E-72ED-4956-BAF0-D013DB19DB67",
+            "childrenIds": [],
+            "title": "MDN",
+            "createdAt": 762510100,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://developer.mozilla.org/en-US/", "savedTitle": "MDN Web Docs", "timeLastActiveAt": 782000000 } }
+          },
+          "C2CE4D3C-3F5C-46EE-B45C-7957F16DC149",
+          {
+            "id": "C2CE4D3C-3F5C-46EE-B45C-7957F16DC149",
+            "parentID": "DD96DC5E-72ED-4956-BAF0-D013DB19DB67",
+            "childrenIds": ["EA9DA5C2-6D53-4BB5-88E3-CE884377DAAE"],
+            "title": "Recipes",
+            "createdAt": 762510200,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "list": {} }
+          },
+          "EA9DA5C2-6D53-4BB5-88E3-CE884377DAAE",
+          {
+            "id": "EA9DA5C2-6D53-4BB5-88E3-CE884377DAAE",
+            "parentID": "C2CE4D3C-3F5C-46EE-B45C-7957F16DC149",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762510300,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://www.seriouseats.com/", "savedTitle": "Serious Eats", "timeLastActiveAt": 781000000 } }
+          },
+          "49A40BD0-1366-43B6-AEE4-EFA6262F9FF6",
+          {
+            "id": "49A40BD0-1366-43B6-AEE4-EFA6262F9FF6",
+            "parentID": "DD96DC5E-72ED-4956-BAF0-D013DB19DB67",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762510400,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "arc://extensions", "savedTitle": "Extensions", "timeLastActiveAt": 780000000 } }
+          },
+          "C3064FC3-A61A-4BA7-BC5D-E88CDB3F109A",
+          {
+            "id": "C3064FC3-A61A-4BA7-BC5D-E88CDB3F109A",
+            "parentID": null,
+            "childrenIds": ["D59201BF-374A-44EC-8F1C-130CF30D1C76", "BE9C9836-75C2-45C8-B414-73C59FD79B85"],
+            "title": null,
+            "createdAt": 762480000,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "itemContainer": { "containerType": { "spaceItems": { "_0": "thebrowser.company.defaultPersonalSpaceID" } } } }
+          },
+          "D59201BF-374A-44EC-8F1C-130CF30D1C76",
+          {
+            "id": "D59201BF-374A-44EC-8F1C-130CF30D1C76",
+            "parentID": "C3064FC3-A61A-4BA7-BC5D-E88CDB3F109A",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 783140000,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://github.com/electron/electron", "savedTitle": "electron/electron: Build cross-platform desktop apps", "timeLastActiveAt": 783150000 } }
+          },
+          "BE9C9836-75C2-45C8-B414-73C59FD79B85",
+          {
+            "id": "BE9C9836-75C2-45C8-B414-73C59FD79B85",
+            "parentID": "C3064FC3-A61A-4BA7-BC5D-E88CDB3F109A",
+            "childrenIds": ["8007C696-BA4C-47A0-8ABD-4D842B28A580", "E3C87038-0E13-4077-BA24-7B2973519DC1"],
+            "title": null,
+            "createdAt": 783141000,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": {
+              "splitView": {
+                "focusItemID": "8007C696-BA4C-47A0-8ABD-4D842B28A580",
+                "layoutOrientation": "horizontal",
+                "timeLastActiveAt": 783152000,
+                "itemWidthFactors": ["8007C696-BA4C-47A0-8ABD-4D842B28A580", 0.5, "E3C87038-0E13-4077-BA24-7B2973519DC1", 0.5],
+                "customInfo": null
+              }
+            }
+          },
+          "8007C696-BA4C-47A0-8ABD-4D842B28A580",
+          {
+            "id": "8007C696-BA4C-47A0-8ABD-4D842B28A580",
+            "parentID": "BE9C9836-75C2-45C8-B414-73C59FD79B85",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 783141001,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://www.electronjs.org/docs/latest/", "savedTitle": "Introduction | Electron", "timeLastActiveAt": 783152000 } }
+          },
+          "E3C87038-0E13-4077-BA24-7B2973519DC1",
+          {
+            "id": "E3C87038-0E13-4077-BA24-7B2973519DC1",
+            "parentID": "BE9C9836-75C2-45C8-B414-73C59FD79B85",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 783141002,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://www.typescriptlang.org/docs/handbook/intro.html", "savedTitle": "TypeScript: Handbook - The TypeScript Handbook", "timeLastActiveAt": 783151000 } }
+          },
+          "108B3320-A457-4226-A2E8-8DE7332158DF",
+          {
+            "id": "108B3320-A457-4226-A2E8-8DE7332158DF",
+            "parentID": null,
+            "childrenIds": ["7BC03BED-ADEF-4F38-BA96-57DD5C298EB4", "A446B82E-9E6B-4B74-9071-5E90E2EF320C"],
+            "title": null,
+            "createdAt": 762480300,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "itemContainer": { "containerType": { "spaceItems": { "_0": "235E9467-D8F1-46F0-A855-EB9EC2BFFCB0" } } } }
+          },
+          "7BC03BED-ADEF-4F38-BA96-57DD5C298EB4",
+          {
+            "id": "7BC03BED-ADEF-4F38-BA96-57DD5C298EB4",
+            "parentID": "108B3320-A457-4226-A2E8-8DE7332158DF",
+            "childrenIds": ["5320AB8E-AD2D-4613-82C1-337C1F4A0DB8", "868F7091-37E3-4B12-91F1-EB5760F35D3A"],
+            "title": "Project X",
+            "createdAt": 762600000,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "list": {} }
+          },
+          "5320AB8E-AD2D-4613-82C1-337C1F4A0DB8",
+          {
+            "id": "5320AB8E-AD2D-4613-82C1-337C1F4A0DB8",
+            "parentID": "7BC03BED-ADEF-4F38-BA96-57DD5C298EB4",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762600100,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://linear.app/acme/team/PX/active", "savedTitle": "Project X › Active issues", "timeLastActiveAt": 783120000 } }
+          },
+          "868F7091-37E3-4B12-91F1-EB5760F35D3A",
+          {
+            "id": "868F7091-37E3-4B12-91F1-EB5760F35D3A",
+            "parentID": "7BC03BED-ADEF-4F38-BA96-57DD5C298EB4",
+            "childrenIds": [],
+            "title": "Designs",
+            "createdAt": 762600200,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://www.figma.com/files/team/1234567890/Project-X", "savedTitle": "Project X – Figma", "timeLastActiveAt": 783110000 } }
+          },
+          "A446B82E-9E6B-4B74-9071-5E90E2EF320C",
+          {
+            "id": "A446B82E-9E6B-4B74-9071-5E90E2EF320C",
+            "parentID": "108B3320-A457-4226-A2E8-8DE7332158DF",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 762600300,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://www.notion.so/acme/Team-Wiki-0123456789abcdef0123456789abcdef", "savedTitle": "Team Wiki", "timeLastActiveAt": 783100500 } }
+          },
+          "B383C068-86F9-4030-AF51-851C1CCEC5C7",
+          {
+            "id": "B383C068-86F9-4030-AF51-851C1CCEC5C7",
+            "parentID": null,
+            "childrenIds": ["42C0A6F2-DA8D-440C-B2DE-D71F7000364E"],
+            "title": null,
+            "createdAt": 762480300,
+            "isUnread": false,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "itemContainer": { "containerType": { "spaceItems": { "_0": "235E9467-D8F1-46F0-A855-EB9EC2BFFCB0" } } } }
+          },
+          "42C0A6F2-DA8D-440C-B2DE-D71F7000364E",
+          {
+            "id": "42C0A6F2-DA8D-440C-B2DE-D71F7000364E",
+            "parentID": "B383C068-86F9-4030-AF51-851C1CCEC5C7",
+            "childrenIds": [],
+            "title": null,
+            "createdAt": 783130000,
+            "isUnread": true,
+            "originatingDevice": "A1CDEB33-367C-43E0-A3FC-978F3FBB3B13",
+            "data": { "tab": { "savedURL": "https://app.slack.com/client/T0000000/C0000000", "savedTitle": "general (Channel) - Acme - Slack", "timeLastActiveAt": 783140500 } }
+          }
+        ]
+      }
+    ]
+  },
+  "sidebarSyncState": {},
+  "firebaseSyncState": {}
+}
