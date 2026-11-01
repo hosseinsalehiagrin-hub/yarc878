@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type Reac
 import type { DropTarget } from '../../shared/actions'
 import type { EditRequest } from '../../shared/ipc'
 import { isAwayFromSaved } from '../../shared/tree'
-import type { AppState, ID, PinnedNode, Space, TabItem } from '../../shared/types'
+import { SIDEBAR_WIDTH, type AppState, type ID, type PinnedNode, type Space, type TabItem } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac } from './api'
 import { Favicon, Icon } from './icons'
 
@@ -91,6 +91,7 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
       }}
       onMouseLeave={floating ? () => dispatch({ type: 'sidebarPeek', show: false }) : undefined}
     >
+      {floating ? null : <ResizeHandle width={state.settings.sidebarWidth} right={right} />}
       <TopBar state={state} />
 
       <div className="urlbar" onClick={() => void arc.dispatch({ type: 'command', id: 'editUrl' })} title={url}>
@@ -201,6 +202,29 @@ function findTab(state: AppState, space: Space, id: ID): TabItem | undefined {
     return undefined
   }
   return walk(space.pinned)
+}
+
+/** The sidebar's inner edge: drag it to make the sidebar wider or narrower, like Arc. */
+function ResizeHandle({ width, right }: { width: number; right: boolean }) {
+  const drag = useRef<{ startX: number; width: number } | undefined>(undefined)
+  return (
+    <div
+      className="sidebar-resize"
+      style={right ? { left: 0 } : { right: 0 }}
+      onPointerDown={(e) => {
+        e.currentTarget.setPointerCapture(e.pointerId)
+        drag.current = { startX: e.clientX, width }
+      }}
+      onPointerMove={(e) => {
+        const d = drag.current
+        if (!d) return
+        const delta = right ? d.startX - e.clientX : e.clientX - d.startX
+        const next = Math.round(Math.min(SIDEBAR_WIDTH.max, Math.max(SIDEBAR_WIDTH.min, d.width + delta)))
+        if (next !== width) dispatch({ type: 'settings', patch: { sidebarWidth: next } })
+      }}
+      onPointerUp={() => (drag.current = undefined)}
+    />
+  )
 }
 
 function TopBar({ state }: { state: AppState }) {

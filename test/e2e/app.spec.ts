@@ -141,6 +141,27 @@ test('Ctrl/Cmd+S toggles the sidebar and the page grows', async () => {
   await expect.poll(async () => (await state()).settings.sidebarVisible).toBe(true)
 })
 
+test('dragging the sidebar edge resizes the sidebar and the page', async () => {
+  const ui = app.windows().find((w) => w.url().endsWith('index.html'))!
+  const drag = async (dx: number) => {
+    const box = (await ui.locator('.sidebar-resize').boundingBox())!
+    const x = box.x + box.width / 2
+    const y = box.y + 200
+    await ui.mouse.move(x, y)
+    await ui.mouse.down()
+    await ui.mouse.move(x + dx, y, { steps: 5 })
+    await ui.mouse.up()
+  }
+  const before = (await state()).settings.sidebarWidth
+  await drag(60)
+  await expect.poll(async () => (await state()).settings.sidebarWidth).toBe(before + 60)
+  await expect.poll(async () => (await state()).layout.content.x).toBe(before + 60)
+  // Clamped at the minimum width.
+  await drag(-1000)
+  await expect.poll(async () => (await state()).settings.sidebarWidth).toBe(200)
+  await dispatch({ type: 'settings', patch: { sidebarWidth: before } })
+})
+
 test('pinning keeps the saved URL; closing a pinned tab resets it', async () => {
   const one = (await space()).today.find((t) => t.url.endsWith('/one'))!
   await dispatch({ type: 'activate', id: one.id })

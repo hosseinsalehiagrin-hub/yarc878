@@ -6,7 +6,7 @@ import { readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { Browser } from '../browser'
 import { newId, SPACE_COLORS } from '../store'
-import type { ArchivedTab, PersistedState, Profile, Space } from '../../shared/types'
+import { SIDEBAR_WIDTH, type ArchivedTab, type PersistedState, type Profile, type Space } from '../../shared/types'
 import { parseArcSidebar, readArcJson } from './arc-sidebar'
 import { countTabs, findArcRoot, findChromiumBrowsers, listProfiles, readBookmarks, readHistory, readProfileNames } from './chromium'
 
@@ -221,7 +221,7 @@ async function importArc(browser: Browser, path?: string): Promise<string | unde
     const focused = typeof prefs?.lastFocusedSpaceID === 'string' ? spaceIds.get(prefs.lastFocusedSpaceID) : undefined
     state.activeSpaceId = focused ?? added[0].id
     const width = prefs?.sidebarViewPreferences?.sidebarWidth
-    if (typeof width === 'number' && width >= 180 && width <= 480) state.settings.sidebarWidth = Math.round(width)
+    if (typeof width === 'number') state.settings.sidebarWidth = Math.round(Math.min(SIDEBAR_WIDTH.max, Math.max(SIDEBAR_WIDTH.min, width)))
   }
   browser.store.save()
   browser.emit()
