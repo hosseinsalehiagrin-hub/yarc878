@@ -33,6 +33,7 @@ import type {
   TabItem
 } from '../shared/types'
 import { resolveInput } from '../shared/url'
+import { AdBlock, hostOf } from './adblock'
 import { openInChrome } from './chrome'
 import { Extensions } from './extensions'
 import { runImport } from './importers'
@@ -57,6 +58,7 @@ export class Browser implements TabHost {
   readonly store: Store
   readonly profiles: Profiles
   readonly extensions: Extensions
+  readonly adblock: AdBlock
   window!: MainWindow
   readonly live = new Map<ID, LiveTab>()
   private mru: ID[] = []
@@ -75,6 +77,9 @@ export class Browser implements TabHost {
     this.store = new Store(join(userData, 'state.json'))
     this.windowFile = join(userData, 'window.json')
     this.extensions = new Extensions(this)
+    this.adblock = new AdBlock(join(userData, 'adblock', 'engine.bin'), () => this.emitSoon())
+    this.syncAdblock()
+    void this.adblock.load()
     this.profiles = new Profiles((rt) => this.onProfileCreated(rt))
     nativeTheme.themeSource = this.store.state.settings.theme
   }
@@ -172,6 +177,7 @@ export class Browser implements TabHost {
       })
       this.emitSoon()
     })
+    this.adblock.attach(rt.session)
     void this.extensions.setup(rt)
   }
 
@@ -179,7 +185,13 @@ export class Browser implements TabHost {
 
   snapshot(): AppState {
     const live: AppState['live'] = {}
-    for (const [id, t] of this.live) if (!t.destroyed) live[id] = t.info()
+    for (const [id, t] of this.live) {
+      if (t.destroyed) continue
+      const info = t.info()
+      info.blocked = this.adblock.count(t.wc)
+      info.shielded = this.adblock.enabled && !this.adblock.isAllowed(info.url)
+      live[id] = info
+    }
     const win = this.window?.win
     return {
       ...this.state,
@@ -970,6 +982,7 @@ export class Browser implements TabHost {
       }
       case 'settings': {
         Object.assign(this.state.settings, a.patch)
+        this.syncAdblock()
         if (a.patch.theme) nativeTheme.themeSource = a.patch.theme
         if (isMac && a.patch.sidebarVisible !== undefined) this.window.win.setWindowButtonVisibility(a.patch.sidebarVisible)
         this.layout()
@@ -1031,6 +1044,18 @@ export class Browser implements TabHost {
       case 'command':
         this.setOverlay({ kind: 'none' }, false)
         return this.runCommand(a.id)
+      case 'adblockToggleSite': {
+        const t = a.id ? this.live.get(a.id) : tab
+        const host = t ? hostOf(t.wc.getURL()) : ''
+        if (!host) return
+        const list = this.state.settings.adblockAllowlist
+        const allowed = list.includes(host)
+        this.state.settings.adblockAllowlist = allowed ? list.filter((h) => h !== host) : [...list, host]
+        this.syncAdblock()
+        this.toast(allowed ? `Blocking ads on ${host}` : `Ads allowed on ${host}`)
+        t!.wc.reload()
+        return this.changed()
+      }
       case 'itemMenu':
         return buildItemMenu(this, a.id)?.popup({ window: this.window.win })
       case 'folderMenu':
@@ -1063,7 +1088,10 @@ export class Browser implements TabHost {
       item.favicon = change.favicon
       persist = true
     }
-    if (change.navigated && change.url) this.profiles.get(tab.profileId).history.visit(change.url, tab.wc.getTitle())
+    if (change.navigated && change.url) {
+      this.profiles.get(tab.profileId).history.visit(change.url, tab.wc.getTitle())
+      this.adblock.resetCount(tab.wc)
+    }
     if (persist) this.store.save()
     this.emitSoon()
   }
@@ -1181,6 +1209,11 @@ export class Browser implements TabHost {
     ipcMain.handle(IPC.littleOp, (e, op: LittleOp) => {
       for (const l of this.littles) if (l.win.webContents === e.sender) return l.op(op)
     })
+  }
+
+  private syncAdblock(): void {
+    this.adblock.enabled = this.state.settings.adblock
+    this.adblock.allowlist = new Set(this.state.settings.adblockAllowlist)
   }
 
   /** Windows doesn't let apps claim the default themselves; macOS asks the user to confirm. */

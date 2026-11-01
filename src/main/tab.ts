@@ -84,7 +84,9 @@ export class LiveTab {
       muted: wc.isAudioMuted(),
       canGoBack: wc.navigationHistory.canGoBack(),
       canGoForward: wc.navigationHistory.canGoForward(),
-      zoom: wc.getZoomLevel()
+      zoom: wc.getZoomLevel(),
+      blocked: 0,
+      shielded: false
     }
   }
 

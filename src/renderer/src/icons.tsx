@@ -96,7 +96,8 @@ const paths: Record<string, ReactNode> = {
     </>
   ),
   puzzle: <path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4h2a2 2 0 1 0 0-4H6V6h4z" />,
-  pin: <path d="M12 17v5M8 3h8l-1 6 3 4H6l3-4z" />
+  pin: <path d="M12 17v5M8 3h8l-1 6 3 4H6l3-4z" />,
+  shield: <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
 }
 
 export type IconName = keyof typeof paths

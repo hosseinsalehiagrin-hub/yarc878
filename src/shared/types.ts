@@ -82,6 +82,10 @@ export interface Settings {
   /** Profile used by Little Arc windows; empty = profile of the active space. */
   littleArcProfileId: ID | ''
   theme: 'system' | 'light' | 'dark'
+  /** Built-in ad & tracker blocking. */
+  adblock: boolean
+  /** Hostnames where blocking is turned off. */
+  adblockAllowlist: string[]
 }
 
 export interface PersistedState {
@@ -106,6 +110,10 @@ export interface LiveInfo {
   canGoBack: boolean
   canGoForward: boolean
   zoom: number
+  /** Ads/trackers blocked on the current page. */
+  blocked: number
+  /** Blocking is on for this page (globally enabled and the site isn't allowlisted). */
+  shielded: boolean
 }
 
 export interface DownloadItemInfo {

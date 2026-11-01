@@ -219,6 +219,29 @@ test('Little Arc opens a mini window and can move the page into the main window'
   expect((await space()).today[0].url).toBe(`${base}/little`)
 })
 
+test('built-in ad blocking blocks ad requests and can be turned off per site', async () => {
+  test.setTimeout(90_000)
+  // The filter lists download on first start; wait for the engine.
+  await expect.poll(() => app.evaluate(() => !!(globalThis as any).arcBrowser.adblock.engine), { timeout: 60_000 }).toBe(true)
+  await dispatch({ type: 'open', url: `${base}/ads`, where: 'tab' })
+  const tab = await pageWithUrl('/ads')
+  await tab.evaluate(() => {
+    for (const src of ['https://securepubads.g.doubleclick.net/tag/js/gpt.js', 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js']) {
+      const s = document.createElement('script')
+      s.src = src
+      document.head.appendChild(s)
+    }
+  })
+  const id = (await space()).activeItemId!
+  await expect.poll(async () => (await state()).live[id]?.blocked ?? 0).toBeGreaterThanOrEqual(2)
+  expect((await state()).live[id].shielded).toBe(true)
+  await dispatch({ type: 'adblockToggleSite' })
+  expect((await state()).settings.adblockAllowlist).toContain('127.0.0.1')
+  await expect.poll(async () => (await state()).live[id]?.shielded).toBe(false)
+  await dispatch({ type: 'adblockToggleSite' })
+  expect((await state()).settings.adblockAllowlist).not.toContain('127.0.0.1')
+})
+
 test('state survives a restart', async () => {
   const before = await state()
   await app.close()

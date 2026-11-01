@@ -126,6 +126,9 @@ function General({ state }: { state: AppState }) {
           <span className="range-value">{width}px</span>
         </span>
       </Row>
+      <Row title="Block ads and trackers" hint="Built in, using uBlock Origin / EasyList-compatible lists. Turn it off per site from the shield in the URL bar.">
+        <Toggle label="Block ads and trackers" checked={s.adblock} onChange={(v) => patch({ adblock: v })} />
+      </Row>
       <Row title="Sidebar on the right" hint="Arc never had this.">
         <Toggle label="Sidebar on the right" checked={s.sidebarRight} onChange={(v) => patch({ sidebarRight: v })} />
       </Row>

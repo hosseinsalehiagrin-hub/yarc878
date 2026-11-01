@@ -91,6 +91,19 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
       <div className="urlbar" onClick={() => void arc.dispatch({ type: 'command', id: 'editUrl' })} title={url}>
         {url.startsWith('https:') ? <Icon name="lock" size={13} /> : <Icon name="globe" size={13} />}
         <span className="host">{url ? displayHost(url) : 'Search or enter URL…'}</span>
+        {live && /^https?:/.test(live.url) ? (
+          <button
+            className={`icon-btn shield${live.shielded ? '' : ' off'}`}
+            title={live.shielded ? `${live.blocked} ads & trackers blocked. Click to allow ads on this site.` : 'Ads allowed on this site. Click to block them again.'}
+            onClick={(e) => {
+              e.stopPropagation()
+              dispatch({ type: 'adblockToggleSite' })
+            }}
+          >
+            <Icon name="shield" size={14} />
+            {live.shielded && live.blocked > 0 ? <span className="count">{live.blocked > 99 ? '99+' : live.blocked}</span> : null}
+          </button>
+        ) : null}
         <span onClick={(e) => e.stopPropagation()}>
           {state.extensions[space.profileId]?.length ? <browser-action-list partition={`persist:profile-${space.profileId}`} tab={live ? String(live.wcId) : undefined} alignment="bottom left" /> : null}
         </span>

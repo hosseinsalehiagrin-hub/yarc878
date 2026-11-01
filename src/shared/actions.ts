@@ -69,3 +69,4 @@ export type Action =
   | { type: 'folderMenu'; id: ID }
   | { type: 'spaceMenu'; id: ID }
   | { type: 'extensionsStore' }
+  | { type: 'adblockToggleSite'; id?: ID }

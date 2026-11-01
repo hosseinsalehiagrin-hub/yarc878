@@ -96,6 +96,10 @@ Drag the gap between panes to resize them, and double-click it to make them equa
 
 A small, minimal window for quick lookups. Open one with `Ctrl+Alt+N` / `⌘⌥N`. When Arc Shell is your default browser, links from other apps (Slack, Discord, email) open here too, so your sidebar stays tidy. If you want to keep the page, click **Open in Arc Shell**: it moves into your Today tabs as it is, without reloading. If you don't, just close the window.
 
+### Built-in ad and tracker blocking
+
+Ads and trackers are blocked out of the box, in every profile, using the same kind of filter lists as uBlock Origin and EasyList (via [Ghostery's open-source engine](https://github.com/ghostery/adblocker)). That includes network blocking, cosmetic filtering that hides empty ad slots, and the scriptlets used against YouTube-style ads. The shield in the URL pill shows how many requests were blocked on the current page. Click it to allow ads on that site, for example if the site breaks, and click again to block them again. The lists update daily. You can turn blocking off completely in Settings.
+
 ### Chrome extensions
 
 Install extensions straight from the **Chrome Web Store** by visiting it and clicking *Add to Chrome*, or run the *Get Extensions* command. Extensions are installed **per profile**, so your work space can have different extensions from your personal one. They're kept up to date automatically, and their buttons appear in the URL pill.
@@ -218,10 +222,10 @@ Not yet. Each install keeps its own data. Syncing is on the [roadmap](#roadmap-a
 Electron is real Chromium, so sites behave as they do in Chrome, and Chrome extensions work. It also let a small project build a fully custom interface without maintaining a fork of Chromium. The trade-off is memory use roughly on par with Chrome. Arc itself was Chromium too.
 
 **Is it private?**
-Arc Shell has no account and no telemetry, and sends no data anywhere. Network requests come from the sites you visit, from search suggestions (sent to the search engine you chose) and from Chrome Web Store update checks for installed extensions.
+Arc Shell has no account and no telemetry, and sends no data anywhere. Its own network requests are search suggestions (sent to the search engine you chose), Chrome Web Store update checks for installed extensions, and a daily download of the ad-blocking filter lists from GitHub.
 
-**My ad blocker doesn't block anything.**
-Extensions built on Manifest V3's `declarativeNetRequest`, such as uBlock Origin Lite, install but can't block yet, because Electron doesn't support that API. See the roadmap.
+**Do I need an ad-blocker extension?**
+No. Blocking is built in (see [Built-in ad and tracker blocking](#built-in-ad-and-tracker-blocking)). Ad-blocker *extensions* built on Manifest V3's `declarativeNetRequest`, such as uBlock Origin Lite, install but can't block, because Electron doesn't support that API.
 
 ## Where your data lives
 
@@ -231,6 +235,7 @@ Extensions built on Manifest V3's `declarativeNetRequest`, such as uBlock Origin
 | Sidebar, spaces, settings | `state.json` | `state.json` |
 | Per-profile history | `Profiles/<id>/history.sqlite` | same |
 | Per-profile extensions | `Profiles/<id>/Extensions` | same |
+| Ad-blocking filter cache | `adblock/engine.bin` | same |
 | Cookies, site storage, cache | `Partitions/profile-<id>` | same |
 
 ## Building from source
@@ -286,6 +291,7 @@ npm run dev          # start with hot reload
 | `src/main/tab.ts` | A live page attached to a sidebar item |
 | `src/main/profiles.ts` | Sessions, permissions, downloads |
 | `src/main/extensions.ts` | Chrome extension APIs and the Web Store, per profile |
+| `src/main/adblock.ts` | Built-in ad and tracker blocking for every profile |
 | `src/main/little.ts` | Little Arc windows |
 | `src/main/importers/` | Arc and Chromium importers |
 | `src/shared/` | State types, actions, keymap, URL helpers (unit tested) |
@@ -298,7 +304,6 @@ Already done: everything in [Features](#features).
 
 Planned or open for contributions:
 
-- [ ] Built-in ad blocking, since MV3 `declarativeNetRequest` isn't available in Electron
 - [ ] Peek (a preview window for links from pinned tabs)
 - [ ] Boosts (custom CSS/JS per site)
 - [ ] Multiple main windows
