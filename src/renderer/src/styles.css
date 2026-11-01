@@ -739,17 +739,41 @@ browser-action-list::part(action):hover {
   -webkit-app-region: drag;
 }
 
-.toast {
+.notices {
   position: absolute;
   bottom: 52px;
   left: 12px;
   max-width: 236px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.toast {
   padding: 8px 12px;
   border-radius: 9px;
   background: var(--panel);
   box-shadow: var(--shadow-lg);
   font-size: 12.5px;
   animation: toast-in 0.18s ease-out;
+}
+
+.update-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 8px;
+}
+
+.update-notice .btn {
+  padding: 4px 10px;
+}
+
+.update-notice .icon-btn {
+  width: 22px;
+  height: 22px;
+  margin-left: auto;
 }
 
 @keyframes toast-in {

@@ -19,6 +19,7 @@ export const DEFAULT_SETTINGS: Settings = {
   littleArcProfileId: '',
   adblock: true,
   adblockAllowlist: [],
+  autoUpdate: true,
   theme: 'system'
 }
 

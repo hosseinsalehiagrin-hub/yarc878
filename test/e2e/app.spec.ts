@@ -285,6 +285,32 @@ test('links and .html files from other apps open in Little Arc', async () => {
   await expect.poll(littles).toBe(0)
 })
 
+test('updates: command bar check, then a notice and menu item once one is found', async () => {
+  await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
+  const overlay = await pageWithUrl('overlay.html')
+  await overlay.locator('.command input').fill('updates')
+  await expect(overlay.locator('.result', { hasText: 'Check for Updates' })).toHaveCount(1)
+  await expect(overlay.locator('.result', { hasText: 'Download Arc Shell' })).toHaveCount(0)
+  await dispatch({ type: 'overlay', mode: { kind: 'none' } })
+
+  // The real check needs the installed app; pretend it found a release.
+  await app.evaluate(() => (globalThis as any).arcBrowser.updater.set({ state: 'available', version: '99.0.0' }))
+  const ui = await pageWithUrl('index.html')
+  await expect(ui.locator('.update-notice')).toContainText('Arc Shell 99.0.0 is available')
+  if (process.platform === 'darwin') {
+    const labels = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()!.items[0].submenu!.items.map((i) => i.label))
+    expect(labels).toContain('Update Available…')
+  }
+  await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
+  await overlay.locator('.command input').fill('download arc')
+  await expect(overlay.locator('.result', { hasText: 'Download Arc Shell 99.0.0…' })).toHaveCount(1)
+  await dispatch({ type: 'overlay', mode: { kind: 'none' } })
+
+  await ui.locator('.update-notice .icon-btn').click()
+  await expect(ui.locator('.update-notice')).toHaveCount(0)
+  await app.evaluate(() => (globalThis as any).arcBrowser.updater.set({ state: 'none' }))
+})
+
 test('state survives a restart', async () => {
   const before = await state()
   await app.close()

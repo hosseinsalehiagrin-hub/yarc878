@@ -42,4 +42,6 @@ Still needs a human on a Mac:
 
 Comparing with real Arc: with Screen Recording and Accessibility granted to the Claude Code `claude.app` (not Claude.app), `screencapture -R` and System Events work. Arc's menu bar (via System Events, `AXMenuItemCmdChar`/`AXMenuItemCmdModifiers`) is the source for its default shortcuts; they aren't stored in any file.
 
+Updates (`src/main/updater.ts`): Windows auto-updates with electron-updater (NSIS, unsigned is fine) from the GitHub release's `latest.yml`. macOS is notify-only until there's a Developer ID (Squirrel.Mac refuses ad-hoc signatures): it polls `releases/latest` on the GitHub API and opens the arch's DMG. Packaged builds only; not yet tried end to end against a real published release.
+
 Releases: v0.1.2 is the latest manual release; from then on every merge to `main` releases automatically (see Commands).

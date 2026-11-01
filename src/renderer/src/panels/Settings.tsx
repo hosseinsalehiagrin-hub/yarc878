@@ -129,6 +129,16 @@ function General({ state }: { state: AppState }) {
       <Row title="Block ads and trackers" hint="Built in, using uBlock Origin / EasyList-compatible lists. Turn it off per site from the shield in the URL bar.">
         <Toggle label="Block ads and trackers" checked={s.adblock} onChange={(v) => patch({ adblock: v })} />
       </Row>
+      <Row
+        title="Check for updates automatically"
+        hint={
+          state.platform === 'win32'
+            ? 'New versions download in the background and install when you restart Arc Shell.'
+            : 'You’re told when a new version is out, and install it yourself.'
+        }
+      >
+        <Toggle label="Check for updates automatically" checked={s.autoUpdate} onChange={(v) => patch({ autoUpdate: v })} />
+      </Row>
       <Row title="Sidebar on the right" hint="Arc never had this.">
         <Toggle label="Sidebar on the right" checked={s.sidebarRight} onChange={(v) => patch({ sidebarRight: v })} />
       </Row>

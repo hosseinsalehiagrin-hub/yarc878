@@ -1,8 +1,9 @@
 // The main window UI: docked sidebar plus what sits around the web page views.
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import type { AppState } from '../../shared/types'
+import type { AppState, UpdateStatus } from '../../shared/types'
 import { activeSpace, arc, dispatch, isMac, useAppState, useSpaceTheme } from './api'
+import { Icon } from './icons'
 import { Sidebar } from './Sidebar'
 import './styles.css'
 
@@ -33,7 +34,10 @@ function App() {
         </>
       ) : null}
       <ContentDecor state={state} />
-      {toast ? <div className="toast">{toast}</div> : null}
+      <div className="notices">
+        {toast ? <div className="toast">{toast}</div> : null}
+        <UpdateNotice update={state.update} />
+      </div>
     </div>
   )
 }
@@ -51,6 +55,27 @@ function useToast(): string | undefined {
     []
   )
   return text
+}
+
+/** Stays above the sidebar footer while an update waits, until dismissed for that version. */
+function UpdateNotice({ update }: { update: UpdateStatus }) {
+  const [dismissed, setDismissed] = useState('')
+  if (update.state !== 'ready' && update.state !== 'available') return null
+  if (dismissed === update.version) return null
+  const ready = update.state === 'ready'
+  return (
+    <div className="toast update-notice">
+      <span>
+        Arc Shell {update.version} is {ready ? 'ready' : 'available'}
+      </span>
+      <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}>
+        {ready ? 'Restart to Update' : 'Download…'}
+      </button>
+      <button className="icon-btn" title="Dismiss" onClick={() => setDismissed(update.version)}>
+        <Icon name="x" />
+      </button>
+    </div>
+  )
 }
 
 /** Empty state, split view handles and the focus ring around the active split pane. */

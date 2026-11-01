@@ -99,11 +99,19 @@ export function installAppMenu(browser: Browser): void {
     browser.openWindow()
     browser.window.win.once('show', () => browser.runCommand(cmd))
   }
+  // Like Arc: "Update Available…" replaces "Check for Updates…" once a new version is known.
+  const updateItem = (): MenuItemConstructorOptions => {
+    const { state } = browser.updater.status
+    if (state === 'available') return { label: 'Update Available…', click: run('installUpdate') }
+    if (state === 'ready') return { label: 'Restart to Update', click: run('installUpdate') }
+    return { label: 'Check for Updates…', click: run('checkForUpdates') }
+  }
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name,
       submenu: [
         { role: 'about' },
+        updateItem(),
         { type: 'separator' },
         { label: 'Settings…', click: run('settings') },
         { type: 'separator' },
