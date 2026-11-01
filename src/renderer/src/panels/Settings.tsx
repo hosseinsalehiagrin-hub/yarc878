@@ -1,7 +1,7 @@
 // Settings sheet: general options, profiles, import, extensions, shortcuts, about.
 import { useState, type ReactNode } from 'react'
 import { BINDINGS, bindingLabel } from '../../../shared/keymap'
-import type { AppState, Profile, SearchEngine, Settings as SettingsT } from '../../../shared/types'
+import { SIDEBAR_WIDTH, type AppState, type Profile, type SearchEngine, type Settings as SettingsT } from '../../../shared/types'
 import { SEARCH_ENGINES } from '../../../shared/url'
 import { activeSpace, dispatch, isMac } from '../api'
 import { Icon } from '../icons'
@@ -113,8 +113,8 @@ function General({ state }: { state: AppState }) {
         <span>
           <input
             type="range"
-            min={220}
-            max={360}
+            min={SIDEBAR_WIDTH.min}
+            max={SIDEBAR_WIDTH.max}
             step={2}
             value={width}
             onChange={(e) => {

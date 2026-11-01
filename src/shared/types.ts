@@ -72,6 +72,9 @@ export interface ArchivedTab {
 
 export type SearchEngine = 'google' | 'duckduckgo' | 'bing' | 'kagi' | 'brave'
 
+/** Sidebar width limits in px: dragging its edge, the Settings slider and the Arc import. */
+export const SIDEBAR_WIDTH = { min: 200, max: 480 }
+
 export interface Settings {
   sidebarVisible: boolean
   sidebarWidth: number
