@@ -56,6 +56,7 @@ export type Action =
   | { type: 'settings'; patch: Partial<Settings> }
   | { type: 'searchEngine'; engine: SearchEngine }
   | { type: 'littleArc'; url?: string }
+  | { type: 'peek'; op: 'close' | 'expand' | 'split' }
   | { type: 'openInChrome'; id?: ID }
   | { type: 'find'; query: string; forward?: boolean; findNext?: boolean }
   | { type: 'stopFind' }

@@ -181,6 +181,42 @@ test('pinning keeps the saved URL; closing a pinned tab resets it', async () => 
   expect((await state()).live[one.id]).toBeUndefined()
 })
 
+test('links from a pinned tab to another site open in Peek', async () => {
+  await dispatch({ type: 'open', url: `${base}/peekhome`, where: 'tab' })
+  const home = (await space()).today[0]
+  await dispatch({ type: 'togglePin', id: home.id })
+  // localhost is another site than 127.0.0.1.
+  const away = `${base.replace('127.0.0.1', 'localhost')}/elsewhere`
+  const tab = await pageWithUrl('/peekhome')
+  await tab.evaluate((href) => document.body.insertAdjacentHTML('beforeend', `<a id="away" href="${href}">away</a>`), away)
+  // A real click: Playwright's would wait for the navigation Peek cancels, and its page handle
+  // stays stuck on it afterwards.
+  const clickAway = async () => {
+    await app.evaluate(async (_e, id) => {
+      const wc = (globalThis as any).arcBrowser.live.get(id).wc
+      const r = await wc.executeJavaScript('JSON.parse(JSON.stringify(document.getElementById("away").getBoundingClientRect()))')
+      const at = { x: Math.round(r.x + 4), y: Math.round(r.y + 4) }
+      for (const type of ['mouseDown', 'mouseUp']) wc.sendInputEvent({ type, ...at, button: 'left', clickCount: 1 })
+    }, home.id)
+    await expect.poll(async () => (await state()).peek?.url).toBe(away)
+  }
+
+  await clickAway()
+  expect((await state()).live[home.id]?.url).toBe(`${base}/peekhome`)
+  const overlay = await pageWithUrl('overlay.html')
+  await expect(overlay.locator('.peek-buttons button')).toHaveCount(3)
+  await pressInActiveTab('Escape', [])
+  await expect.poll(async () => (await state()).peek).toBeUndefined()
+
+  await clickAway()
+  await overlay.locator('.peek-buttons button[title^="Open as a tab"]').click()
+  await expect.poll(async () => (await space()).today[0]?.url).toBe(away)
+  const s = await space()
+  expect(s.activeItemId).toBe(s.today[0].id)
+  expect((await state()).peek).toBeUndefined()
+  expect((await state()).live[home.id]?.url).toBe(`${base}/peekhome`)
+})
+
 test('favorites live at the top and belong to the profile', async () => {
   const two = (await space()).today.find((t) => t.url.endsWith('/two'))!
   await dispatch({ type: 'addFavorite', id: two.id })

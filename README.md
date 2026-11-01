@@ -59,6 +59,10 @@ Switch spaces by swiping two fingers sideways on the sidebar, by clicking the ic
 - A pinned tab remembers its **pinned URL**. When you browse away, a `/` appears in front of its title. Hover over its icon and click the arrow to go back to the pinned URL.
 - **Closing a pinned tab** (`Ctrl/⌘+W`) only unloads it to free memory. It stays in the sidebar, and clicking it opens the pinned URL again.
 - `Ctrl/⌘+D` pins or unpins the current tab.
+- **Links to other sites open in Peek.** When you click a link in a pinned tab or a favorite that leads to another website, the page opens in a floating card over your tab, so the pinned page stays where it was. Links within the same site still open in the tab itself.
+  - Close Peek with `Esc`, the × button, or a click outside the card.
+  - Keep the page with the expand button (or `Ctrl/⌘+O`): it becomes a new Today tab. The split button opens it next to the current tab.
+  - Turn this off in Settings: "Open other sites from pinned tabs and favorites in Peek".
 
 ### Today tabs archive themselves
 
@@ -215,6 +219,8 @@ These are Arc's shortcuts. **Mod** means `⌘` on macOS and `Ctrl` on Windows. T
 
 In a Little Arc window: `Mod+O` moves the page into the main window, `Mod+W` closes the window, and `Mod+Shift+C` copies the URL.
 
+In Peek: `Esc` or `Mod+W` closes it, and `Mod+O` opens the page as a tab.
+
 ## FAQ
 
 **Can I sign in to Google, Gmail, YouTube or Google Workspace?**
@@ -307,6 +313,7 @@ Installed copies only see published releases: Windows downloads the update via `
 | `src/main/extensions.ts` | Chrome extension APIs and the Web Store, per profile |
 | `src/main/adblock.ts` | Built-in ad and tracker blocking for every profile |
 | `src/main/little.ts` | Little Arc windows |
+| `src/main/peek.ts` | Peek: pages from pinned tabs and favorites floating over the current tab |
 | `src/main/importers/` | Arc and Chromium importers |
 | `src/shared/` | State types, actions, keymap, URL helpers (unit tested) |
 | `src/renderer/` | React UI: `index` (sidebar), `overlay` (command bar and panels), `little` |
