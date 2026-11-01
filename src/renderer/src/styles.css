@@ -16,11 +16,19 @@
   --field: rgb(255 255 255 / 0.55);
   --accent: color-mix(in oklab, var(--space) 85%, #000);
   --shadow-lg: 0 24px 64px rgb(20 10 40 / 0.28), 0 2px 8px rgb(20 10 40 / 0.12);
+  /* Arc's sidebar: a darker search field, lighter favorite tiles, the theme laid translucent over the desktop. */
+  --urlfield: rgb(0 0 0 / 0.07);
+  --tile: rgb(255 255 255 / 0.1);
+  /* The space color darkened at full saturation: Arc's selected command row and folder icons. */
+  --space-strong: oklch(from var(--space) calc(l * 0.67) c h);
+  --vibrant-1: color-mix(in srgb, var(--space) 74%, transparent);
+  --vibrant-2: color-mix(in srgb, var(--space) 62%, transparent);
   color-scheme: light;
 }
 
+/* Dark: the system's, unless the space's theme says light (Arc themes carry their own appearance). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-appearance='light']) {
     --bg: color-mix(in oklab, var(--space) 22%, #1b1a20);
     --bg-2: color-mix(in oklab, var(--space) 34%, #16151a);
     --text: #f1eff6;
@@ -36,7 +44,33 @@
     --accent: color-mix(in oklab, var(--space) 70%, #fff);
     --shadow-lg: 0 24px 64px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
     color-scheme: dark;
+    --urlfield: rgb(0 0 0 / 0.18);
+    --tile: rgb(255 255 255 / 0.07);
+    --vibrant-1: color-mix(in srgb, color-mix(in oklab, var(--space) 32%, #17161b) 84%, transparent);
+    --vibrant-2: color-mix(in srgb, color-mix(in oklab, var(--space) 24%, #131217) 88%, transparent);
   }
+}
+
+:root[data-appearance='dark'] {
+  --bg: color-mix(in oklab, var(--space) 22%, #1b1a20);
+  --bg-2: color-mix(in oklab, var(--space) 34%, #16151a);
+  --text: #f1eff6;
+  --text-2: rgb(241 239 246 / 0.62);
+  --text-3: rgb(241 239 246 / 0.4);
+  --hover: rgb(255 255 255 / 0.07);
+  --active: rgb(255 255 255 / 0.15);
+  --active-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
+  --line: rgb(255 255 255 / 0.1);
+  --panel: #26242c;
+  --panel-line: rgb(255 255 255 / 0.09);
+  --field: rgb(255 255 255 / 0.07);
+  --accent: color-mix(in oklab, var(--space) 70%, #fff);
+  --shadow-lg: 0 24px 64px rgb(0 0 0 / 0.55), 0 2px 8px rgb(0 0 0 / 0.3);
+  color-scheme: dark;
+  --urlfield: rgb(0 0 0 / 0.18);
+  --tile: rgb(255 255 255 / 0.07);
+  --vibrant-1: color-mix(in srgb, color-mix(in oklab, var(--space) 32%, #17161b) 84%, transparent);
+  --vibrant-2: color-mix(in srgb, color-mix(in oklab, var(--space) 24%, #131217) 88%, transparent);
 }
 
 * {
@@ -59,6 +93,25 @@ body,
 body.page-index {
   background: linear-gradient(160deg, var(--bg) 0%, var(--bg-2) 100%);
   transition: background 0.35s ease;
+  isolation: isolate;
+}
+
+/* macOS: the window has vibrancy, so the theme goes on translucent, as in Arc. */
+body.page-index.vibrant {
+  background: linear-gradient(170deg, var(--vibrant-1) 0%, var(--vibrant-2) 100%);
+}
+
+/* Arc's grain overlay. */
+body.page-index::before,
+.sidebar.floating::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.22;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1.4 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 body.page-overlay,
@@ -122,6 +175,7 @@ input {
 }
 
 .sidebar.floating {
+  isolation: isolate;
   left: 4px !important;
   top: 4px;
   bottom: 4px;
@@ -142,7 +196,7 @@ input {
 .topbar {
   display: flex;
   align-items: center;
-  gap: 2px;
+  gap: 6px;
   height: 32px;
   -webkit-app-region: drag;
   flex: none;
@@ -193,7 +247,7 @@ input {
 .urlbar {
   height: 36px;
   border-radius: 10px;
-  background: var(--field);
+  background: var(--urlfield);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -204,7 +258,7 @@ input {
 }
 
 .urlbar:hover {
-  background: color-mix(in oklab, var(--field) 70%, var(--active));
+  background: color-mix(in oklab, var(--urlfield) 80%, var(--text-3));
 }
 
 .urlbar .host {
@@ -214,6 +268,11 @@ input {
   white-space: nowrap;
   color: var(--text);
   font-weight: 500;
+}
+
+.urlbar .host.placeholder {
+  color: var(--text-2);
+  font-weight: 400;
 }
 
 .urlbar .lock {
@@ -272,22 +331,22 @@ browser-action-list::part(action):hover {
 
 .favorites {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  margin: 4px 0 6px;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: 8px;
+  margin: 4px 0 8px;
 }
 
 .favorite {
-  height: 46px;
+  height: 48px;
   border-radius: 10px;
-  background: var(--field);
+  background: var(--tile);
   display: grid;
   place-items: center;
   position: relative;
 }
 
 .favorite:hover {
-  background: color-mix(in oklab, var(--field) 50%, var(--active));
+  background: color-mix(in oklab, var(--tile) 50%, var(--active));
 }
 
 .favorite.active {
@@ -297,8 +356,8 @@ browser-action-list::part(action):hover {
 
 .favorite img,
 .favorite .letter {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 4px;
 }
 
@@ -328,12 +387,13 @@ browser-action-list::part(action):hover {
 }
 
 .row {
-  height: 34px;
-  border-radius: 9px;
+  height: 40px;
+  border-radius: 10px;
   display: flex;
   align-items: center;
-  gap: 9px;
+  gap: 10px;
   padding: 0 4px 0 10px;
+  font-size: 14px;
   position: relative;
   flex: none;
 }
@@ -360,10 +420,6 @@ browser-action-list::part(action):hover {
   mask-image: linear-gradient(90deg, #000 85%, transparent);
 }
 
-.row.unloaded .title {
-  color: var(--text-2);
-}
-
 .row .slash {
   color: var(--text-3);
   margin-right: 2px;
@@ -378,6 +434,11 @@ browser-action-list::part(action):hover {
 .row:hover .close,
 .row.active .close {
   opacity: 1;
+}
+
+/* Titles use the full width until the close button is needed, as in Arc. */
+.row:not(:hover):not(.active) .close {
+  display: none;
 }
 
 .row input.rename {
@@ -453,13 +514,13 @@ browser-action-list::part(action):hover {
   }
 }
 
-.folder .chev {
-  transition: transform 0.15s;
-  color: var(--text-3);
+.folder > .icon {
+  color: var(--space-strong);
+  fill: color-mix(in srgb, var(--space-strong) 18%, transparent);
 }
 
-.folder.open .chev {
-  transform: rotate(90deg);
+.folder .title {
+  font-weight: 600;
 }
 
 .children {
@@ -503,6 +564,10 @@ browser-action-list::part(action):hover {
 
 .newtab {
   color: var(--text-2);
+}
+
+.newtab.active {
+  color: var(--text);
 }
 
 .drop-before::before,
@@ -572,9 +637,13 @@ browser-action-list::part(action):hover {
   background: var(--hover);
 }
 
+.space-dot:not(.active) .emoji {
+  opacity: 0.5;
+  filter: grayscale(1);
+}
+
 .space-dot.active {
   color: var(--text);
-  background: var(--hover);
 }
 
 .space-dot.drop-into {
@@ -582,8 +651,8 @@ browser-action-list::part(action):hover {
 }
 
 .space-name {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-2);
   padding: 2px 10px;
   display: flex;
@@ -596,7 +665,8 @@ browser-action-list::part(action):hover {
 .content-empty {
   position: absolute;
   border-radius: 8px;
-  background: rgb(255 255 255 / 0.35);
+  background: rgb(255 255 255 / 0.16);
+  box-shadow: 0 0 0 0.5px rgb(0 0 0 / 0.08), 0 1px 3px rgb(0 0 0 / 0.06);
   display: grid;
   place-items: center;
   color: var(--text-2);
@@ -605,7 +675,7 @@ browser-action-list::part(action):hover {
 }
 
 @media (prefers-color-scheme: dark) {
-  .content-empty {
+  :root:not([data-appearance='light']) .content-empty {
     background: rgb(0 0 0 / 0.18);
   }
 }
@@ -729,17 +799,34 @@ browser-action-list::part(action):hover {
   }
 }
 
+/* Arc's command bar: wide, a third of the way down, tinted by the space; no dimming behind it. */
+.scrim.clear {
+  background: transparent;
+  animation: none;
+}
+
 .command {
-  top: 16vh;
-  width: min(680px, calc(100vw - 48px));
+  top: 30vh;
+  width: min(766px, calc(100vw - 64px));
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--space) 10%, var(--panel));
 }
 
 .command .field {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 0 18px;
-  height: 58px;
+  gap: 14px;
+  padding: 0 22px;
+  height: 64px;
+  position: relative;
+}
+
+.command .field::after {
+  content: '';
+  position: absolute;
+  left: 52px;
+  right: 22px;
+  bottom: 0;
   border-bottom: 1px solid var(--panel-line);
 }
 
@@ -748,7 +835,68 @@ browser-action-list::part(action):hover {
   border: 0;
   outline: 0;
   background: none;
-  font-size: 18px;
+  font-size: 20px;
+}
+
+.command .field input::selection {
+  background: color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.command .results {
+  padding: 8px 10px 10px;
+  max-height: none;
+}
+
+.command .result {
+  height: 50px;
+  padding: 0 14px;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.command .result .t {
+  font-weight: 500;
+}
+
+.command .result .ico {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+}
+
+.command .result.sel {
+  background: var(--space-strong);
+  color: #fff;
+}
+
+.command .result.sel .ico {
+  background: #fff;
+  color: #1d1b22;
+}
+
+.command .result.sel .s,
+.command .result.sel .hint {
+  color: rgb(255 255 255 / 0.85);
+}
+
+.command .result .hint {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.command .result .go {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+  flex: none;
+}
+
+.command .result.sel .go {
+  background: #fff;
+  color: var(--space-strong);
 }
 
 .command .field .target {

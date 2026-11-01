@@ -38,6 +38,8 @@ Still needs a human on a Mac:
 3. Real keystrokes through the native menu: Cmd+C/V/X/A/Z in pages and the command bar, Cmd+Q, Arc shortcuts not also firing a menu item.
 4. Default browser from the installed app; `.html` via `open-file`.
 5. Gatekeeper first launch of the DMG from the release; README instructions accurate.
-6. Visual polish vs. Arc on macOS (vibrancy, sidebar colors, fonts, dark mode).
+6. Visual polish vs. Arc on macOS: matched side by side with Arc (2026-11-01): vibrancy + grain, per-space light/dark appearance, sidebar metrics, Arc favicons, ⌘T command bar (position, colors, inline completion). Still to compare: dark-appearance spaces, hover/active states, split view, Little Arc.
+
+Comparing with real Arc: with Screen Recording and Accessibility granted to the Claude Code `claude.app` (not Claude.app), `screencapture -R` and System Events work. Arc's menu bar (via System Events, `AXMenuItemCmdChar`/`AXMenuItemCmdModifiers`) is the source for its default shortcuts; they aren't stored in any file.
 
 Releases: v0.1.2 is the first release meant for publishing (ad blocking plus the Windows fixes from #3; CI drafts it from the `v0.1.2` tag). The v0.1.0 and v0.1.1 drafts predate those fixes and are to be deleted.

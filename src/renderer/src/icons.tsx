@@ -9,8 +9,9 @@ const paths: Record<string, ReactNode> = {
       <path d="M9 4v16" />
     </>
   ),
-  back: <path d="M15 18l-6-6 6-6" />,
-  forward: <path d="M9 18l6-6-6-6" />,
+  // Arrows, not chevrons, like Arc.
+  back: <path d="M19 12H5M11 18l-6-6 6-6" />,
+  forward: <path d="M5 12h14M13 6l6 6-6 6" />,
   reload: (
     <>
       <path d="M20 11a8 8 0 1 0-2.3 5.7" />

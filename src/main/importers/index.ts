@@ -1,6 +1,7 @@
 // Importers for Arc (spaces, pinned tabs, favorites, archive, history) and Chromium browsers (history, bookmarks).
 import { dialog, type BrowserWindow, type MessageBoxOptions, type OpenDialogOptions } from 'electron'
-import { existsSync, statSync } from 'node:fs'
+import { createHash } from 'node:crypto'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import { readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { Browser } from '../browser'
@@ -114,6 +115,19 @@ async function chooseArcSource(browser: Browser, path?: string): Promise<ArcSour
   return picked ? resolveArcSource(picked) : undefined
 }
 
+/** Arc caches sidebar icons as PNGs named md5(sidebar item id). */
+function arcFavicons(root: string): (arcItemId: string) => string | undefined {
+  const dir = join(root, 'SidebarItemsFaviconCache')
+  return (id) => {
+    const file = join(dir, createHash('md5').update(id).digest('hex'))
+    try {
+      return `data:image/png;base64,${readFileSync(file).toString('base64')}`
+    } catch {
+      return undefined
+    }
+  }
+}
+
 /** A fresh install: one empty 'Personal' space and nothing else worth keeping. */
 function isUntouchedDefault(state: PersistedState): boolean {
   const [space] = state.spaces
@@ -142,7 +156,7 @@ async function importArc(browser: Browser, path?: string): Promise<string | unde
       console.warn('[import] could not read Arc archive', err)
     }
   }
-  const parsed = parseArcSidebar(json, { archive, palette: SPACE_COLORS })
+  const parsed = parseArcSidebar(json, { archive, palette: SPACE_COLORS, favicon: arcFavicons(src.root) })
   if (parsed.warnings.length) console.warn(`[import] Arc: ${parsed.warnings.length} warnings\n  ${parsed.warnings.slice(0, 50).join('\n  ')}`)
   if (!parsed.spaces.length) throw new Error(`No spaces found in ${src.sidebarFile}`)
 
@@ -178,6 +192,7 @@ async function importArc(browser: Browser, path?: string): Promise<string | unde
       name: s.name,
       emoji: s.emoji,
       color: s.color,
+      appearance: s.appearance,
       profileId: profileIds.get(s.profileKey)!,
       pinned: s.pinned,
       today: s.today,
@@ -199,10 +214,18 @@ async function importArc(browser: Browser, path?: string): Promise<string | unde
     state.archive = [...state.archive, ...archived].sort((a, b) => b.archivedAt - a.archivedAt).slice(0, MAX_ARCHIVE)
   }
 
-  if (replace) state.activeSpaceId = added[0].id
+  if (replace) {
+    // Open where Arc was: its last focused space and sidebar width.
+    const windows = await readJson(join(src.root, 'StorableWindows.json')).catch(() => undefined)
+    const prefs = windows as { lastFocusedSpaceID?: unknown; sidebarViewPreferences?: { sidebarWidth?: unknown } } | undefined
+    const focused = typeof prefs?.lastFocusedSpaceID === 'string' ? spaceIds.get(prefs.lastFocusedSpaceID) : undefined
+    state.activeSpaceId = focused ?? added[0].id
+    const width = prefs?.sidebarViewPreferences?.sidebarWidth
+    if (typeof width === 'number' && width >= 180 && width <= 480) state.settings.sidebarWidth = Math.round(width)
+  }
   browser.store.save()
   browser.emit()
-  if (replacedActive) browser.switchSpace(added[0].id)
+  if (replacedActive) browser.switchSpace(state.activeSpaceId)
 
   // History per Arc profile, from `User Data/<dir>/History` next to the sidebar file.
   let visits = 0

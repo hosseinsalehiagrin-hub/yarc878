@@ -1,6 +1,6 @@
 // The main browser window: the UI (sidebar + frame) underneath, web page views in the
 // content area, and a transparent overlay view on top for the command bar and panels.
-import { BrowserWindow, WebContentsView, nativeTheme, screen, type Rectangle, type WebContents } from 'electron'
+import { BrowserWindow, WebContentsView, nativeTheme, screen, type BrowserWindowConstructorOptions, type Rectangle, type WebContents } from 'electron'
 import { join } from 'node:path'
 import type { OverlayMode } from '../shared/types'
 
@@ -49,7 +49,7 @@ export class MainWindow {
     const area = screen.getPrimaryDisplay().workArea
     // Ignore saved positions on a monitor that's no longer connected.
     if (bounds?.x !== undefined && bounds.y !== undefined && !onSomeDisplay(bounds as Rectangle)) bounds = { width: bounds.width, height: bounds.height }
-    this.win = new BrowserWindow({
+    const options: BrowserWindowConstructorOptions = {
       width: bounds?.width ?? Math.min(1440, area.width - 80),
       height: bounds?.height ?? Math.min(920, area.height - 80),
       x: bounds?.x,
@@ -58,10 +58,19 @@ export class MainWindow {
       minHeight: 360,
       show: false,
       titleBarStyle: mac ? 'hiddenInset' : 'hidden',
-      trafficLightPosition: { x: 16, y: 16 },
-      backgroundColor: nativeTheme.shouldUseDarkColors ? '#1f1e24' : '#e9e7f3',
+      // Same spot as Arc's traffic lights.
+      trafficLightPosition: { x: 13, y: 16 },
       webPreferences: uiWebPreferences()
-    })
+    }
+    if (mac) {
+      // The theme is painted translucent over the desktop, like Arc's vibrant themes.
+      options.vibrancy = 'under-window'
+      options.visualEffectState = 'active'
+      options.backgroundColor = '#00000000'
+    } else {
+      options.backgroundColor = nativeTheme.shouldUseDarkColors ? '#1f1e24' : '#e9e7f3'
+    }
+    this.win = new BrowserWindow(options)
     this.win.setMenuBarVisibility(false)
     loadRenderer(this.win.webContents, 'index')
     this.win.once('ready-to-show', () => this.win.show())

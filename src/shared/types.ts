@@ -51,6 +51,8 @@ export interface Space {
   emoji?: string
   /** Theme color (hex). */
   color: string
+  /** Sidebar text appearance over the theme color, from Arc; unset follows the system. */
+  appearance?: 'light' | 'dark'
   profileId: ID
   pinned: PinnedNode[]
   /** Unpinned ("Today") tabs, newest first. */
@@ -142,6 +144,8 @@ export interface AppState extends PersistedState {
   fullscreen: boolean
   /** True while the collapsed sidebar is temporarily shown over the page. */
   sidebarPeek: boolean
+  /** The command bar is open to make a new tab (the sidebar highlights "New Tab", like Arc). */
+  newTabOpen: boolean
   /** Where web pages currently sit in the window, so the UI can draw split handles and focus rings. */
   layout: { content: Rect; views: { id: ID; rect: Rect }[]; splitId?: ID }
 }
