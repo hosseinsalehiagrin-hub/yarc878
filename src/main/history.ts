@@ -18,6 +18,8 @@ export interface ImportedVisit {
 
 export class History {
   private db: DatabaseSync
+  /** Pages can still report navigations while the app quits; writes after close are dropped. */
+  private closed = false
 
   constructor(dir: string) {
     mkdirSync(dir, { recursive: true })
@@ -37,7 +39,7 @@ export class History {
   }
 
   visit(url: string, title: string, time = Date.now()): void {
-    if (!/^https?:/.test(url)) return
+    if (this.closed || !/^https?:/.test(url)) return
     this.db
       .prepare(
         `INSERT INTO urls (url, title, visit_count, last_visit) VALUES (?, ?, 1, ?)
@@ -49,7 +51,7 @@ export class History {
   }
 
   setTitle(url: string, title: string): void {
-    if (title) this.db.prepare('UPDATE urls SET title = ? WHERE url = ?').run(title, url)
+    if (title && !this.closed) this.db.prepare('UPDATE urls SET title = ? WHERE url = ?').run(title, url)
   }
 
   search(query: string, limit = 8): HistoryEntry[] {
@@ -110,6 +112,8 @@ export class History {
   }
 
   close(): void {
+    if (this.closed) return
+    this.closed = true
     this.db.close()
   }
 }

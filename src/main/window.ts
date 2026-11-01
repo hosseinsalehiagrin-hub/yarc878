@@ -29,6 +29,14 @@ export function uiWebPreferences() {
   return { preload: preloadPath(), sandbox: false, contextIsolation: true, nodeIntegration: false, spellcheck: false }
 }
 
+function onSomeDisplay(r: Rectangle): boolean {
+  return screen.getAllDisplays().some(({ workArea: a }) => {
+    const w = Math.min(r.x + (r.width ?? 0), a.x + a.width) - Math.max(r.x, a.x)
+    const h = Math.min(r.y + (r.height ?? 0), a.y + a.height) - Math.max(r.y, a.y)
+    return w >= 100 && h >= 50
+  })
+}
+
 export class MainWindow {
   readonly win: BrowserWindow
   readonly overlay: WebContentsView
@@ -39,6 +47,8 @@ export class MainWindow {
   constructor(bounds: Partial<Rectangle> | undefined) {
     const mac = process.platform === 'darwin'
     const area = screen.getPrimaryDisplay().workArea
+    // Ignore saved positions on a monitor that's no longer connected.
+    if (bounds?.x !== undefined && bounds.y !== undefined && !onSomeDisplay(bounds as Rectangle)) bounds = { width: bounds.width, height: bounds.height }
     this.win = new BrowserWindow({
       width: bounds?.width ?? Math.min(1440, area.width - 80),
       height: bounds?.height ?? Math.min(920, area.height - 80),

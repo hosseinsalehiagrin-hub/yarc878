@@ -102,12 +102,13 @@ export class Browser implements TabHost {
   }
 
   openWindow(): void {
-    let bounds: Partial<Rectangle> | undefined
+    let saved: (Partial<Rectangle> & { maximized?: boolean }) | undefined
     try {
-      if (existsSync(this.windowFile)) bounds = JSON.parse(readFileSync(this.windowFile, 'utf8'))
+      if (existsSync(this.windowFile)) saved = JSON.parse(readFileSync(this.windowFile, 'utf8'))
     } catch {}
-    this.window = new MainWindow(bounds)
+    this.window = new MainWindow(saved)
     const win = this.window.win
+    if (saved?.maximized) win.maximize()
     if (isMac) win.setWindowButtonVisibility(this.state.settings.sidebarVisible)
     for (const wc of [win.webContents, this.window.overlay.webContents]) {
       wc.on('before-input-event', (e, input) => this.handleInput(e, input))
@@ -122,6 +123,7 @@ export class Browser implements TabHost {
       win.on(ev as 'maximize', () => {
         this.layout()
         this.emit()
+        this.saveWindowBounds()
       })
     }
     win.on('closed', () => {
@@ -143,9 +145,10 @@ export class Browser implements TabHost {
 
   private saveWindowBounds(): void {
     const win = this.window?.win
-    if (!win || win.isDestroyed() || win.isMaximized() || win.isFullScreen()) return
+    if (!win || win.isDestroyed() || win.isFullScreen()) return
     try {
-      writeFileSync(this.windowFile, JSON.stringify(win.getBounds()))
+      // Normal bounds, so un-maximizing after a restart returns to the old size.
+      writeFileSync(this.windowFile, JSON.stringify({ ...win.getNormalBounds(), maximized: win.isMaximized() }))
     } catch {}
   }
 
@@ -1056,7 +1059,7 @@ export class Browser implements TabHost {
         this.state.settings.adblockAllowlist = allowed ? list.filter((h) => h !== host) : [...list, host]
         this.syncAdblock()
         this.toast(allowed ? `Blocking ads on ${host}` : `Ads allowed on ${host}`)
-        t!.wc.reload()
+        this.reloadSoon(t!)
         return this.changed()
       }
       case 'itemMenu':
@@ -1085,14 +1088,14 @@ export class Browser implements TabHost {
     if (change.title && change.title !== item.title) {
       item.title = change.title
       persist = true
-      this.profiles.get(tab.profileId).history.setTitle(tab.wc.getURL(), change.title)
+      this.recordHistory(tab, (h) => h.setTitle(tab.wc.getURL(), change.title!))
     }
     if (change.favicon && change.favicon !== item.favicon) {
       item.favicon = change.favicon
       persist = true
     }
     if (change.navigated && change.url) {
-      this.profiles.get(tab.profileId).history.visit(change.url, tab.wc.getTitle())
+      this.recordHistory(tab, (h) => h.visit(change.url!, tab.wc.getTitle()))
       this.adblock.resetCount(tab.wc)
     }
     if (persist) this.store.save()
@@ -1108,6 +1111,16 @@ export class Browser implements TabHost {
       this.live.delete(tab.itemId)
       this.layout()
       this.emitSoon()
+    }
+  }
+
+  /** History is best-effort: a failing write must never take down the main process. */
+  private recordHistory(tab: LiveTab, write: (h: ProfileRuntime['history']) => void): void {
+    if (this.quitting) return
+    try {
+      write(this.profiles.get(tab.profileId).history)
+    } catch (err) {
+      console.warn('[history]', (err as Error).message)
     }
   }
 
@@ -1216,6 +1229,25 @@ export class Browser implements TabHost {
     })
   }
 
+  private pendingReloads = new Map<LiveTab, NodeJS.Timeout>()
+
+  /**
+   * Reloads once after rapid repeated requests (e.g. double-clicking the shield). Overlapping
+   * reloads while the ad blocker rewrites requests can crash Electron's browser process.
+   */
+  private reloadSoon(tab: LiveTab): void {
+    clearTimeout(this.pendingReloads.get(tab))
+    this.pendingReloads.set(
+      tab,
+      setTimeout(() => {
+        this.pendingReloads.delete(tab)
+        if (tab.destroyed) return
+        if (tab.wc.isLoading()) tab.wc.stop()
+        tab.wc.reload()
+      }, 250)
+    )
+  }
+
   private syncAdblock(): void {
     this.adblock.enabled = this.state.settings.adblock
     this.adblock.allowlist = new Set(this.state.settings.adblockAllowlist)
@@ -1232,7 +1264,10 @@ export class Browser implements TabHost {
     app.setAsDefaultProtocolClient('https')
   }
 
+  private quitting = false
+
   shutdown(): void {
+    this.quitting = true
     this.store.flush()
     this.profiles.closeAll()
   }

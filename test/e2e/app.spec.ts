@@ -1,6 +1,7 @@
 // End-to-end tests against the built app (run `pnpm build` first; `pnpm test:e2e` does).
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
-import { mkdtempSync } from 'node:fs'
+import { spawn } from 'node:child_process'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer, type Server } from 'node:http'
 import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
@@ -19,8 +20,10 @@ const page = (name: string) =>
   `<a id="same" href="/next-${name}">same tab</a><p>findme findme findme</p>`
 
 async function launch(): Promise<ElectronApplication> {
+  // ARC_SHELL_EXE runs the suite against a packaged app (e.g. release/win-unpacked/Arc Shell.exe).
+  const exe = process.env.ARC_SHELL_EXE
   const a = await electron.launch({
-    args: ['out/main/index.js'],
+    ...(exe ? { executablePath: exe, args: [] } : { args: ['out/main/index.js'] }),
     env: { ...process.env, ARC_SHELL_USER_DATA: userData, ARC_SHELL_TEST: '1' }
   })
   await a.firstWindow()
@@ -224,15 +227,15 @@ test('built-in ad blocking blocks ad requests and can be turned off per site', a
   // The filter lists download on first start; wait for the engine.
   await expect.poll(() => app.evaluate(() => !!(globalThis as any).arcBrowser.adblock.engine), { timeout: 60_000 }).toBe(true)
   await dispatch({ type: 'open', url: `${base}/ads`, where: 'tab' })
-  const tab = await pageWithUrl('/ads')
-  await tab.evaluate(() => {
-    for (const src of ['https://securepubads.g.doubleclick.net/tag/js/gpt.js', 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js']) {
-      const s = document.createElement('script')
-      s.src = src
-      document.head.appendChild(s)
-    }
-  })
+  await expect.poll(async () => (await state()).live[(await space()).activeItemId!]?.loading).toBe(false)
   const id = (await space()).activeItemId!
+  // Injected from the main process: a Playwright-attached page doesn't survive the reload below in packaged builds.
+  await app.evaluate(
+    (_e, src) => (globalThis as any).arcBrowser.activeTab().wc.executeJavaScript(src),
+    `for (const src of ['https://securepubads.g.doubleclick.net/tag/js/gpt.js', 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js']) {
+      const s = document.createElement('script'); s.src = src; document.head.appendChild(s)
+    }`
+  )
   await expect.poll(async () => (await state()).live[id]?.blocked ?? 0).toBeGreaterThanOrEqual(2)
   expect((await state()).live[id].shielded).toBe(true)
   await dispatch({ type: 'adblockToggleSite' })
@@ -240,6 +243,33 @@ test('built-in ad blocking blocks ad requests and can be turned off per site', a
   await expect.poll(async () => (await state()).live[id]?.shielded).toBe(false)
   await dispatch({ type: 'adblockToggleSite' })
   expect((await state()).settings.adblockAllowlist).not.toContain('127.0.0.1')
+})
+
+// What Windows/macOS do when Arc Shell is the default browser: start a second instance with the URL.
+function launchSecondInstance(arg: string): void {
+  const exe = process.env.ARC_SHELL_EXE
+  const env = { ...process.env, ARC_SHELL_USER_DATA: userData, ARC_SHELL_TEST: '1' }
+  const child = exe
+    ? spawn(exe, ['--', arg], { env, stdio: 'ignore' })
+    : spawn(require('electron') as unknown as string, ['out/main/index.js', arg], { env, stdio: 'ignore' })
+  child.unref()
+}
+
+test('links and .html files from other apps open in Little Arc', async () => {
+  const littles = () => app.evaluate(() => (globalThis as any).arcBrowser.littles.size as number)
+  const before = await littles()
+  launchSecondInstance(`${base}/from-slack`)
+  await expect.poll(littles, { timeout: 15_000 }).toBe(before + 1)
+  await pageWithUrl('/from-slack')
+  const file = join(userData, 'local page.html')
+  writeFileSync(file, '<title>Local file</title><h1>local</h1>')
+  launchSecondInstance(file)
+  await expect.poll(littles, { timeout: 15_000 }).toBe(before + 2)
+  await pageWithUrl('local%20page.html')
+  await app.evaluate(() => {
+    for (const l of (globalThis as any).arcBrowser.littles) l.win.close()
+  })
+  await expect.poll(littles).toBe(0)
 })
 
 test('state survives a restart', async () => {
