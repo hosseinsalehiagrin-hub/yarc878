@@ -40,8 +40,13 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
   const [hint, setHint] = useState<DropHint>()
   const [dragging, setDragging] = useState(false)
   const swipe = useRef({ x: 0, t: 0 })
+  const newTabRow = useRef<HTMLDivElement>(null)
 
   useEffect(() => arc.onEdit(setEdit), [])
+  // Like Arc, show the highlighted "New Tab" row while the command bar makes a new tab.
+  useEffect(() => {
+    if (state.newTabOpen) newTabRow.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [state.newTabOpen])
 
   const ctx: Ctx = { state, space, edit, setEdit, hint, setHint, dragging }
   const activeId = space.activeItemId
@@ -89,8 +94,8 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
       <TopBar state={state} />
 
       <div className="urlbar" onClick={() => void arc.dispatch({ type: 'command', id: 'editUrl' })} title={url}>
-        {url.startsWith('https:') ? <Icon name="lock" size={13} /> : <Icon name="globe" size={13} />}
-        <span className="host">{url ? displayHost(url) : 'Search or enter URL…'}</span>
+        <Icon name={!url ? 'search' : url.startsWith('https:') ? 'lock' : 'globe'} size={13} />
+        <span className={`host${url ? '' : ' placeholder'}`}>{url ? displayHost(url) : 'Search or Enter URL…'}</span>
         {live && /^https?:/.test(live.url) ? (
           <button
             className={`icon-btn shield${live.shielded ? '' : ' off'}`}
@@ -158,7 +163,7 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
           ) : null}
         </div>
 
-        <div className="row newtab" onClick={() => dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })}>
+        <div ref={newTabRow} className={`row newtab${state.newTabOpen ? ' active' : ''}`} onClick={() => dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })}>
           <Icon name="plus" size={15} />
           <span className="title">New Tab</span>
         </div>
@@ -348,10 +353,7 @@ function FolderRow({
         onDoubleClick={() => ctx.setEdit({ kind: 'renameFolder', id: node.id })}
         onContextMenu={() => dispatch({ type: 'folderMenu', id: node.id })}
       >
-        <span className="chev">
-          <Icon name="chevron" size={12} stroke={2.4} />
-        </span>
-        <Icon name="folder" size={15} />
+        <Icon name="folder" size={16} />
         {editing ? (
           <RenameInput
             initial={node.name}
@@ -489,7 +491,6 @@ function BottomBar({ ctx }: { ctx: Ctx }) {
               key={s.id}
               className={`space-dot${s.id === space.id ? ' active' : ''}${over ? ' drop-into' : ''}`}
               title={s.name}
-              style={s.id === space.id ? undefined : { color: s.color }}
               onClick={() => dispatch({ type: 'switchSpace', id: s.id })}
               onContextMenu={() => dispatch({ type: 'spaceMenu', id: s.id })}
               onDragOver={(e) => {
@@ -503,7 +504,7 @@ function BottomBar({ ctx }: { ctx: Ctx }) {
                 if (id) dispatch({ type: 'moveToSpace', id, spaceId: s.id })
               }}
             >
-              {s.emoji ? s.emoji : <span className="dot" />}
+              {s.emoji ? <span className="emoji">{s.emoji}</span> : <span className="dot" />}
             </button>
           )
         })}

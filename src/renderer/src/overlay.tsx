@@ -1,6 +1,6 @@
 // The transparent overlay above web pages: command bar, find bar, tab switcher, the
 // floating sidebar and the settings/library/space panels.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindingLabel, type CommandId } from '../../shared/keymap'
 import { findItem } from '../../shared/tree'
@@ -19,7 +19,8 @@ function App() {
   const state = useAppState()
   const mode = useOverlayMode()
   const space = state ? activeSpace(state) : undefined
-  useSpaceTheme(space?.color)
+  // The command bar and panels follow the system, like Arc; only the peeking sidebar takes the space's appearance.
+  useSpaceTheme(space?.color, mode.kind === 'sidebar' ? space?.appearance : undefined)
   // Remount panels each time they open so inputs start fresh.
   const [generation, setGeneration] = useState(0)
   const last = useRef<OverlayMode['kind']>('none')
@@ -44,7 +45,7 @@ function App() {
     case 'command':
       return (
         <>
-          <div className="scrim" onMouseDown={close} />
+          <div className="scrim clear" onMouseDown={close} />
           <CommandBar key={key} state={state} mode={mode} />
         </>
       )
@@ -74,6 +75,12 @@ function App() {
 
 // ------------------------------------------------------------------ command bar
 
+/** Arc shows five rows: the top hit, the search for what was typed, then the rest. */
+const MAX_RESULTS = 5
+
+/** What Arc's inline completion shows for a URL: no scheme, no www., no trailing slash. */
+const completionText = (url: string) => url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '')
+
 const KIND_ICON: Partial<Record<SearchResult['kind'], IconName>> = {
   suggestion: 'search',
   history: 'clock',
@@ -87,6 +94,9 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
   const [local, setLocal] = useState<SearchResult[]>([])
   const [suggestions, setSuggestions] = useState<string[]>([])
   const [sel, setSel] = useState(0)
+  /** Arc-style inline completion after the typed text, shown selected. */
+  const [suffix, setSuffix] = useState('')
+  const typing = useRef(false)
   const input = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
   const target = mode.target ?? 'tab'
@@ -115,9 +125,24 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
     const extra: SearchResult[] = suggestions
       .filter((s) => !seen.has(s.toLowerCase()))
       .map((s) => ({ kind: 'suggestion', id: `sug:${s}`, title: s, url: s, subtitle: '' }))
-    // Keep the top hit first, then tabs/commands/history, then the remaining suggestions.
-    return [...local, ...extra]
+    // The top hit first, then the search for the query, then tabs/commands/history and the other suggestions.
+    const all = [...local, ...extra]
+    const search = all.findIndex((r, i) => i > 0 && r.kind === 'suggestion')
+    if (search > 1) all.splice(1, 0, ...all.splice(search, 1))
+    return all.slice(0, MAX_RESULTS)
   }, [local, suggestions])
+
+  // Complete the top hit's URL inline while typing forward (not after deleting).
+  useEffect(() => {
+    const top = results[0]
+    if (!typing.current || !query || !top?.url || !/^https?:/i.test(top.url)) return setSuffix('')
+    const shown = completionText(top.url)
+    setSuffix(shown.toLowerCase().startsWith(query.toLowerCase()) ? shown.slice(query.length) : '')
+  }, [results, query])
+
+  useLayoutEffect(() => {
+    if (suffix) input.current?.setSelectionRange(query.length, query.length + suffix.length)
+  }, [suffix, query])
 
   useEffect(() => {
     listRef.current?.querySelector('.result.sel')?.scrollIntoView({ block: 'nearest' })
@@ -145,7 +170,7 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
     dispatch({ type: 'open', url: r.url ?? r.title, where })
   }
 
-  const placeholder = target === 'split' ? 'Open in split view…' : target === 'current' ? 'Edit URL or search…' : 'Search or enter URL…'
+  const placeholder = target === 'split' ? 'Open in split view…' : target === 'current' ? 'Edit URL or search…' : 'Search or Enter URL…'
 
   return (
     <div className="panel command" onMouseDown={(e) => e.stopPropagation()}>
@@ -153,12 +178,24 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
         <Icon name="search" size={18} />
         <input
           ref={input}
-          value={query}
+          value={query + suffix}
           placeholder={placeholder}
           spellCheck={false}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            const value = e.target.value
+            typing.current = (e.nativeEvent as InputEvent).inputType?.startsWith('insert') ?? false
+            // Typing through the completion keeps the rest of it until new results arrive.
+            const shown = query + suffix
+            setSuffix(typing.current && suffix && shown.toLowerCase().startsWith(value.toLowerCase()) ? shown.slice(value.length) : '')
+            setQuery(value)
+          }}
           onKeyDown={(e) => {
-            if (e.key === 'ArrowDown') {
+            if (suffix && (e.key === 'ArrowRight' || e.key === 'End')) {
+              // Accept the completion.
+              typing.current = false
+              setQuery(query + suffix)
+              setSuffix('')
+            } else if (e.key === 'ArrowDown') {
               e.preventDefault()
               setSel((s) => Math.min(results.length - 1, s + 1))
             } else if (e.key === 'ArrowUp') {
@@ -201,7 +238,9 @@ function ResultRow({
   if (r.kind === 'tab' || r.kind === 'pinned' || r.kind === 'favorite') hint = r.spaceId && r.spaceId !== activeSpaceId ? 'Switch to Space & Tab' : 'Switch to Tab'
   else if (r.kind === 'command' && r.target && !r.target.startsWith('space:')) hint = bindingLabel(r.target as CommandId, isMac)
   else if (r.kind === 'archive') hint = 'Restore'
-  const subtitle = r.kind === 'history' && r.url ? displayHost(r.url) : r.subtitle
+  const isTab = r.kind === 'tab' || r.kind === 'pinned' || r.kind === 'favorite'
+  // Arc shows tabs by title only, and history as "Title — host".
+  const subtitle = isTab ? '' : r.kind === 'history' && r.url ? `— ${displayHost(r.url)}` : r.subtitle
   return (
     <div className={`result${sel ? ' sel' : ''}`} onMouseMove={sel ? undefined : onHover} onMouseDown={(e) => e.preventDefault()} onClick={onClick}>
       <span className="ico">{icon ? <Icon name={icon} /> : <Favicon url={r.url ?? ''} favicon={r.favicon} />}</span>
@@ -210,6 +249,11 @@ function ResultRow({
         {subtitle ? <span className="s">{subtitle}</span> : null}
       </span>
       {hint ? <span className="hint">{hint}</span> : null}
+      {isTab ? (
+        <span className="go">
+          <Icon name="forward" size={14} />
+        </span>
+      ) : null}
     </div>
   )
 }

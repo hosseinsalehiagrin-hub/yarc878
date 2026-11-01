@@ -6,10 +6,13 @@ import { activeSpace, arc, dispatch, isMac, useAppState, useSpaceTheme } from '.
 import { Sidebar } from './Sidebar'
 import './styles.css'
 
+// The window has vibrancy on macOS; the theme is drawn translucent over it.
+if (isMac) document.body.classList.add('vibrant')
+
 function App() {
   const state = useAppState()
   const space = state ? activeSpace(state) : undefined
-  useSpaceTheme(space?.color)
+  useSpaceTheme(space?.color, space?.appearance)
   const toast = useToast()
   if (!state || !space) return null
   const s = state.settings
@@ -58,16 +61,8 @@ function ContentDecor({ state }: { state: AppState }) {
 
   if (views.length === 0) {
     return (
-      <div className="content-empty" style={{ left: content.x, top: content.y, width: content.width, height: content.height }}>
-        <div>
-          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)' }}>
-            {space.emoji} {space.name}
-          </div>
-          Press <kbd>{isMac ? '⌘T' : 'Ctrl+T'}</kbd> to open a tab
-          <br />
-          <kbd>{isMac ? '⌘S' : 'Ctrl+S'}</kbd> toggles the sidebar · <kbd>{isMac ? '⌃⇧=' : 'Ctrl+Shift+='}</kbd> splits the view
-        </div>
-      </div>
+      // An empty space is a blank card, as in Arc.
+      <div className="content-empty" style={{ left: content.x, top: content.y, width: content.width, height: content.height }} />
     )
   }
   if (!splitId || views.length < 2) return null
