@@ -43,6 +43,7 @@ import { Profiles, type ProfileRuntime } from './profiles'
 import { search, suggest } from './search'
 import { newId, SPACE_COLORS, Store } from './store'
 import { LiveTab, type OpenDisposition, type TabHost } from './tab'
+import { Updater } from './updater'
 import { MainWindow, PAD } from './window'
 
 const isMac = process.platform === 'darwin'
@@ -59,6 +60,7 @@ export class Browser implements TabHost {
   readonly profiles: Profiles
   readonly extensions: Extensions
   readonly adblock: AdBlock
+  readonly updater = new Updater(this)
   window!: MainWindow
   readonly live = new Map<ID, LiveTab>()
   private mru: ID[] = []
@@ -99,6 +101,7 @@ export class Browser implements TabHost {
     this.openWindow()
     setInterval(() => this.autoArchive(), 5 * 60_000)
     this.autoArchive()
+    this.updater.sync()
   }
 
   openWindow(): void {
@@ -207,7 +210,8 @@ export class Browser implements TabHost {
       maximized: !!win && !win.isDestroyed() && win.isMaximized(),
       fullscreen: !!win && !win.isDestroyed() && win.isFullScreen(),
       sidebarPeek: this.sidebarPeek,
-      layout: this.currentLayout
+      layout: this.currentLayout,
+      update: this.updater.status
     }
   }
 
@@ -805,6 +809,10 @@ export class Browser implements TabHost {
         return void tab?.wc.focus()
       case 'setDefaultBrowser':
         return this.makeDefaultBrowser()
+      case 'checkForUpdates':
+        return void this.updater.check(true)
+      case 'installUpdate':
+        return void this.updater.apply()
     }
   }
 
@@ -991,6 +999,7 @@ export class Browser implements TabHost {
         this.syncAdblock()
         if (a.patch.theme) nativeTheme.themeSource = a.patch.theme
         if (isMac && a.patch.sidebarVisible !== undefined) this.window.win.setWindowButtonVisibility(a.patch.sidebarVisible)
+        if (a.patch.autoUpdate !== undefined) this.updater.sync()
         this.layout()
         return this.changed()
       }

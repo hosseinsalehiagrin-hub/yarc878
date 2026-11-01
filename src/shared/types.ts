@@ -86,6 +86,8 @@ export interface Settings {
   adblock: boolean
   /** Hostnames where blocking is turned off. */
   adblockAllowlist: string[]
+  /** Check for new versions at startup and every few hours (installed app only). */
+  autoUpdate: boolean
 }
 
 export interface PersistedState {
@@ -144,7 +146,18 @@ export interface AppState extends PersistedState {
   sidebarPeek: boolean
   /** Where web pages currently sit in the window, so the UI can draw split handles and focus rings. */
   layout: { content: Rect; views: { id: ID; rect: Rect }[]; splitId?: ID }
+  update: UpdateStatus
 }
+
+/**
+ * A newer Arc Shell. Windows downloads it in the background ('downloading', then 'ready' to
+ * restart into); macOS and Linux only learn it exists ('available') and download it by hand.
+ */
+export type UpdateStatus =
+  | { state: 'none' }
+  | { state: 'downloading'; version: string }
+  | { state: 'ready'; version: string }
+  | { state: 'available'; version: string }
 
 export interface Rect {
   x: number

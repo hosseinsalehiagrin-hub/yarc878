@@ -40,4 +40,6 @@ Still needs a human on a Mac:
 5. Gatekeeper first launch of the DMG from the release; README instructions accurate.
 6. Visual polish vs. Arc on macOS (vibrancy, sidebar colors, fonts, dark mode).
 
+Updates (`src/main/updater.ts`): Windows auto-updates with electron-updater (NSIS, unsigned is fine) from the GitHub release's `latest.yml`. macOS is notify-only until there's a Developer ID (Squirrel.Mac refuses ad-hoc signatures): it polls `releases/latest` on the GitHub API and opens the arch's DMG. Packaged builds only; not yet tried end to end against a real published release.
+
 Releases: v0.1.2 is the first release meant for publishing (ad blocking plus the Windows fixes from #3; CI drafts it from the `v0.1.2` tag). The v0.1.0 and v0.1.1 drafts predate those fixes and are to be deleted.

@@ -148,6 +148,14 @@ Download the latest version from the **[Releases page](https://github.com/yenebe
 
 There's an `.AppImage` for x64 on the Releases page. Make it executable (`chmod +x`) and run it. On Ubuntu 24.04+ you may need to allow unprivileged user namespaces for Chromium's sandbox.
 
+### Updating
+
+Arc Shell checks for a new version when it starts and every few hours. You can turn that off in **Settings → General → Check for updates automatically**, and check by hand with *Check for Updates…* in the command bar (or the **Arc Shell** menu on macOS).
+
+- **Windows** updates itself. The new version downloads in the background; then a *Restart to Update* button appears at the bottom of the sidebar and in the command bar. If you don't click it, the update installs the next time you quit.
+- **macOS** can't update itself yet: replacing the app in place needs an Apple Developer ID signature, and the builds are only ad-hoc signed. When a new version is out, a notice appears at the bottom of the sidebar and the **Arc Shell** menu shows *Update Available…*. Click either to download the right `.dmg` for your Mac, quit Arc Shell, drag the new **Arc Shell** to **Applications** (replace the old one), and run `xattr -dr com.apple.quarantine "/Applications/Arc Shell.app"` again before opening it. Your spaces, tabs and logins are kept.
+- **Linux:** you're told when a new version is out; download the new `.AppImage` and use it instead of the old one.
+
 ## Moving from Arc
 
 > **Do this before 22 December 2026.** After that date Arc no longer opens, but its files stay on disk, so the import keeps working on a copy of the folder.
@@ -222,7 +230,7 @@ Not yet. Each install keeps its own data. Syncing is on the [roadmap](#roadmap-a
 Electron is real Chromium, so sites behave as they do in Chrome, and Chrome extensions work. It also let a small project build a fully custom interface without maintaining a fork of Chromium. The trade-off is memory use roughly on par with Chrome. Arc itself was Chromium too.
 
 **Is it private?**
-Arc Shell has no account and no telemetry, and sends no data anywhere. Its own network requests are search suggestions (sent to the search engine you chose), Chrome Web Store update checks for installed extensions, and a daily download of the ad-blocking filter lists from GitHub.
+Arc Shell has no account and no telemetry, and sends no data anywhere. Its own network requests are search suggestions (sent to the search engine you chose), Chrome Web Store update checks for installed extensions, a daily download of the ad-blocking filter lists from GitHub, and update checks for Arc Shell itself against its GitHub releases (which you can turn off in Settings).
 
 **Do I need an ad-blocker extension?**
 No. Blocking is built in (see [Built-in ad and tracker blocking](#built-in-ad-and-tracker-blocking)). Ad-blocker *extensions* built on Manifest V3's `declarativeNetRequest`, such as uBlock Origin Lite, install but can't block, because Electron doesn't support that API.
@@ -267,6 +275,8 @@ pnpm dev             # start with hot reload
 2. `git push --follow-tags`
 3. GitHub Actions builds Windows, macOS and Linux and attaches them to a **draft release**. Review it on GitHub and click **Publish release**.
 
+Installed copies only see published releases: Windows downloads the update via `latest.yml`, macOS and Linux get a notice that links to the new `.dmg` / `.AppImage`.
+
 ## How it works
 
 ```
@@ -309,8 +319,7 @@ Planned or open for contributions:
 - [ ] Multiple main windows
 - [ ] Sync between your own devices
 - [ ] Notes / Easels
-- [ ] Code signing and notarization, to remove the install warnings
-- [ ] Auto-update
+- [ ] Code signing and notarization, to remove the install warnings (and let macOS update itself, like Windows already does)
 
 ## Contributing
 

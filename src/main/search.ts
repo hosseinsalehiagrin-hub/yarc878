@@ -79,8 +79,10 @@ export function search(browser: Browser, raw: string): SearchResult[] {
   const commands: (SearchResult & { score: number })[] = []
   for (const b of BINDINGS) {
     if (!b.palette) continue
-    const s = score(b.title, query)
-    if (s >= 60) commands.push({ kind: 'command', id: `cmd:${b.id}`, title: b.title, target: b.id, score: s })
+    const title = b.id === 'installUpdate' ? browser.updater.actionTitle() : b.title
+    if (!title) continue
+    const s = score(title, query)
+    if (s >= 60) commands.push({ kind: 'command', id: `cmd:${b.id}`, title, target: b.id, score: s })
   }
   for (const space of state.spaces) {
     const s = score(`Switch to ${space.name}`, query) || score(space.name, query)
