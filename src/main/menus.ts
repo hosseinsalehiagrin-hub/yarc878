@@ -3,6 +3,7 @@ import { app, clipboard, dialog, Menu, type ContextMenuParams, type MenuItemCons
 import { IPC, type EditRequest } from '../shared/ipc'
 import { findFolder, findItem, isAwayFromSaved } from '../shared/tree'
 import { SEARCH_ENGINES, searchUrl } from '../shared/url'
+import type { CommandId } from '../shared/keymap'
 import type { Browser } from './browser'
 import type { LiveTab } from './tab'
 
@@ -87,13 +88,24 @@ export function installAppMenu(browser: Browser): void {
     Menu.setApplicationMenu(null)
     return
   }
+  // The app outlives its last window on macOS; menu commands reopen it first, like Arc.
+  // Wait until it shows: showing moves focus, which would close a just-opened command bar.
+  const run = (cmd: CommandId) => () => {
+    const win = browser.window?.win
+    if (win && !win.isDestroyed()) {
+      browser.focusWindow()
+      return browser.runCommand(cmd)
+    }
+    browser.openWindow()
+    browser.window.win.once('show', () => browser.runCommand(cmd))
+  }
   const template: MenuItemConstructorOptions[] = [
     {
       label: app.name,
       submenu: [
         { role: 'about' },
         { type: 'separator' },
-        { label: 'Settings…', click: () => browser.runCommand('settings') },
+        { label: 'Settings…', click: run('settings') },
         { type: 'separator' },
         { role: 'services' },
         { type: 'separator' },
@@ -107,21 +119,21 @@ export function installAppMenu(browser: Browser): void {
     {
       label: 'File',
       submenu: [
-        { label: 'New Tab', click: () => browser.runCommand('newTab') },
-        { label: 'New Little Arc Window', click: () => browser.runCommand('littleArc') },
-        { label: 'New Space', click: () => browser.runCommand('newSpace') },
+        { label: 'New Tab', click: run('newTab') },
+        { label: 'New Little Arc Window', click: run('littleArc') },
+        { label: 'New Space', click: run('newSpace') },
         { type: 'separator' },
-        { label: 'Import from Arc…', click: () => browser.runCommand('importArc') },
-        { label: 'Import from Chrome…', click: () => browser.runCommand('importChrome') }
+        { label: 'Import from Arc…', click: run('importArc') },
+        { label: 'Import from Chrome…', click: run('importChrome') }
       ]
     },
     { role: 'editMenu' },
     {
       label: 'View',
       submenu: [
-        { label: 'Toggle Sidebar', click: () => browser.runCommand('toggleSidebar') },
+        { label: 'Toggle Sidebar', click: run('toggleSidebar') },
         { role: 'togglefullscreen' },
-        { label: 'Developer Tools', click: () => browser.runCommand('devtools') }
+        { label: 'Developer Tools', click: run('devtools') }
       ]
     },
     { role: 'windowMenu' }

@@ -108,6 +108,16 @@ test('legacy integer emoji, missing title and no theme', () => {
   assert.equal(out.spaces[1].color, '#abcdef')
 })
 
+test('named Arc icons become emoji; unknown ones fall back to the initial', () => {
+  const json = structuredClone(fixture)
+  const spaces = json.sidebar.containers[1].spaces
+  spaces[1].customInfo = { iconType: { icon: 'planet' } }
+  spaces[3].customInfo = { iconType: { icon: 'notAnIcon' } }
+  const out = parseArcSidebar(json)
+  assert.equal(out.spaces[0].emoji, '🪐')
+  assert.equal(out.spaces[1].emoji, undefined)
+})
+
 test('falls back to newContainerIDs and parentID scanning', () => {
   const json = structuredClone(fixture)
   const c = json.sidebar.containers[1]

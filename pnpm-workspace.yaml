@@ -1,0 +1,12 @@
+# Electron's binary is fetched by our own postinstall; Squirrel.Windows isn't used (NSIS is).
+allowBuilds:
+  electron-winstaller: false
+
+# Security overrides until upstream bumps these.
+overrides:
+  # electron-chrome-web-store unpacks CRX zips with adm-zip ^0.5 (GHSA-c6fg-446q-cg94 and others).
+  adm-zip: 0.6.1
+  # electron-builder's copies on minimatch 9/10 share 11's named-export API (GHSA-g3hv-75wg-m249).
+  # The 3.x/5.x copies (glob 7, @electron/asar 3, dir-compare, filelist) use the default
+  # export that 11 dropped, so they stay until electron-builder moves off them.
+  "minimatch@>=9 <11.0.1": 11.0.3

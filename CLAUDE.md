@@ -4,9 +4,9 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 
 ## Commands
 
-- `npm install` (postinstall downloads the Electron binary) · `npm run dev` · `npm run build`
-- `npm run typecheck` · `npm test` (unit, `node --test`) · `npm run test:e2e` (builds, then Playwright drives the real app)
-- `npm run dist:mac` / `dist:win` → installers in `release/`. Releases: bump version, push a `v*` tag, CI fills a draft GitHub release.
+- `pnpm install` (postinstall downloads the Electron binary) · `pnpm dev` · `pnpm build`
+- `pnpm typecheck` · `pnpm test` (unit, `node --test`) · `pnpm test:e2e` (builds, then Playwright drives the real app)
+- `pnpm dist:mac` / `dist:win` → installers in `release/`. Releases: bump version, push a `v*` tag, CI fills a draft GitHub release.
 
 ## Architecture (see README "How it works")
 
@@ -24,15 +24,20 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 
 ## Status / next steps
 
-Built and tested on Windows only (unit + e2e + installed). The macOS build comes from CI but has **never been run by hand**. Next session (on a Mac), verify and fix:
+Windows: unit + e2e + installed. macOS (2026-11-01, Apple silicon): unit + e2e pass, `dist:mac --dir` packages and launches. Checked on macOS by driving the app through `ARC_SHELL_TEST` (no real keyboard/trackpad/screen capture available to the agent):
 
-1. Traffic lights: position in the sidebar top bar, hidden with the sidebar, shown during hover-peek; window dragging from the sidebar.
-2. Two-finger horizontal swipe on the sidebar switches spaces (direction and sensitivity like Arc).
-3. App menu (Edit → Cmd+C/V/X/A/Z in pages and in the command bar), Cmd+Q, Cmd+W closing tabs not the window, Cmd+, settings.
-4. Arc shortcuts while focus is in a page text field (Cmd+T/L/S/D etc.), Ctrl+1–9 spaces, Ctrl+Tab switcher keyup on Ctrl.
-5. Default browser (`setAsDefaultProtocolClient`), links from other apps → Little Arc (`open-url`), `.html` via `open-file`.
-6. Gatekeeper first launch of the DMG from the release; README instructions accurate.
-7. **Import from Arc with real data** (`~/Library/Application Support/Arc`) — the parser was written from docs/fixtures only; check spaces, profiles, favorites, folders, colors/emoji, history.
-8. Visual polish vs. Arc on macOS (vibrancy, sidebar colors, fonts, dark mode).
+- Import from Arc with real data: spaces in Arc's order, profile names, favorites, pinned tabs and folders, archive and history all import. Arc's named space icons (`customInfo.iconType.icon`, Ionicons names) are mapped to emoji. Gaps: untitled spaces become "Space N"; spaces without a theme get palette colors.
+- Shortcuts from a focused page `<input>` via `sendInputEvent`: Cmd+L/D/S/W/, , Ctrl+2, Ctrl+Tab with Ctrl keyup. Cmd+W never closes the window (the Window menu role has no Close item on macOS).
+- Traffic lights: hidden with the sidebar, shown during hover-peek and back after; no gap in native fullscreen. Links from other apps open Little Arc.
+- Fixed: the closed main window (app keeps running on macOS) crashed menu-bar commands, the overlay blur handler, toasts, Little Arc's "Open in Arc Shell" and external links.
+
+Still needs a human on a Mac:
+
+1. Traffic lights' visual alignment with the top bar; window dragging from the sidebar and from the drag strip when the sidebar is hidden.
+2. Two-finger horizontal swipe on the sidebar (direction and sensitivity like Arc).
+3. Real keystrokes through the native menu: Cmd+C/V/X/A/Z in pages and the command bar, Cmd+Q, Arc shortcuts not also firing a menu item.
+4. Default browser from the installed app; `.html` via `open-file`.
+5. Gatekeeper first launch of the DMG from the release; README instructions accurate.
+6. Visual polish vs. Arc on macOS (vibrancy, sidebar colors, fonts, dark mode).
 
 Pending: v0.1.0 is an unpublished draft release without ad blocking; plan was to release v0.1.1 (with ad blocking) and delete the v0.1.0 draft.

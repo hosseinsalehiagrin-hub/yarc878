@@ -33,7 +33,7 @@ function App() {
   switch (mode.kind) {
     case 'sidebar':
       return (
-        <div className={isMac ? 'mac' : 'win'} style={{ height: '100%' }}>
+        <div className={`${isMac ? 'mac' : 'win'}${state.fullscreen ? ' fullscreen' : ''}`} style={{ height: '100%' }}>
           <Sidebar state={state} floating />
         </div>
       )

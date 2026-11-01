@@ -264,7 +264,7 @@ http(s). Non-web pinned items such as `arc://…` and `chrome-extension://…` e
 |---|---|---|
 | `customInfo.iconType.emoji_v2` | string (grapheme, may include ZWJ and variation selectors) | preferred **[confirmed]** |
 | `customInfo.iconType.emoji` | integer Unicode scalar | older format: `String.fromCodePoint(n)` in a try/catch **[confirmed by Zen]** |
-| `customInfo.iconType.icon` | string | read by arc-to-vivaldi (Windows); probably a named symbol, not an emoji **[uncertain]**. Keep as a hint only |
+| `customInfo.iconType.icon` | string | a named icon from Arc's `CustomIcon` enum, drawn from its bundled `ionicons.ttf`: `star`, `bookmark`, `heart`, `bulb`, `planet`, `musicalNote`, `github`, … (61 names, camelCase) **[confirmed in the macOS Arc binary and real data]**. We map them to the closest emoji |
 | none | | no icon; the space shows its initial |
 
 ### 2.8 Space color / theme
@@ -772,7 +772,7 @@ result without throwing. `null`, `{}` and `{sidebar:{containers:"nope"}}` return
    `background.single._0.style.color._0.{blendedSingleColor,blendedGradient}` is unknown. Other
    theme kinds (for example image or dynamic backgrounds) may exist. Zen's depth-first color scan
    is a safe fallback.
-4. `iconType.icon` (non-emoji icons) is seen only in arc-to-vivaldi; its meaning is not known.
+4. ~~`iconType.icon` meaning unknown~~ — resolved: Ionicons names, see §2.7.
 5. The `StorableArchiveItems.json` schema rests on a single parser. `StorableWindows.json` has
    no known schema, and it is not needed.
 6. Whether Windows Arc writes exactly the same schema: arc-export-windows and arc-to-vivaldi

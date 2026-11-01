@@ -160,6 +160,11 @@ input {
   padding-left: 70px;
 }
 
+/* Native fullscreen hides the traffic lights. */
+.mac.fullscreen .topbar {
+  padding-left: 0;
+}
+
 .win-controls {
   display: flex;
   margin-left: 2px;
