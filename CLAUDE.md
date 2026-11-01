@@ -21,6 +21,7 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 - Google sign-in needs Electron's own UA (only the app-name token stripped); a spoofed Chrome UA is rejected. Chrome Sync is impossible for non-Chrome browsers → import instead.
 - Built-in ad blocking (Ghostery engine) because Electron has no `declarativeNetRequest`. Uses a custom adapter, not `enableBlockingInSession` (global IPC handlers break with multiple sessions).
 - Unsigned builds: macOS ad-hoc signed (`identity: "-"`), not notarized.
+- Repository rulesets, with no bypass for anyone: `main` changes only through a PR whose `check` CI job passed (no approval needed, no force-push or deletion); `v*` tags can be created (the release workflow does) but never moved or deleted. A failed release leaves its tag: fix forward with the next merge.
 
 ## Status / next steps
 

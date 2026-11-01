@@ -329,7 +329,7 @@ Planned or open for contributions:
 
 Issues and pull requests are welcome. If you're an Arc user and something doesn't behave the way Arc did, please open an issue describing what Arc did. [docs/arc-reference.md](docs/arc-reference.md) collects what we know about Arc's behavior, and is worth correcting too.
 
-Before opening a PR, run `pnpm typecheck && pnpm test && pnpm test:e2e`.
+Before opening a PR, run `pnpm typecheck && pnpm test && pnpm test:e2e`. `main` only accepts pull requests whose CI (`check`) passes, and release tags (`v*`) can't be moved or deleted.
 
 ## License
 
