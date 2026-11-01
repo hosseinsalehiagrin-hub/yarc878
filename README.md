@@ -263,9 +263,13 @@ pnpm dev             # start with hot reload
 
 ### Releasing
 
-1. Bump the version: `pnpm version patch` (or `minor` / `major`).
-2. `git push --follow-tags`
-3. GitHub Actions builds Windows, macOS and Linux and attaches them to a **draft release**. Review it on GitHub and click **Publish release**.
+Releases are automatic: every pull request merged into `main` becomes a release.
+
+1. The [release workflow](.github/workflows/release.yml) tags the merge commit with the next version: a patch bump by default (`v0.1.2` → `v0.1.3`). Add the PR label `release:minor` or `release:major` for a bigger bump, or `release:skip` (or put `[skip release]` in the commit message) to not release.
+2. It builds Windows, macOS and Linux from that tag and uploads them to the release.
+3. Once all three builds succeed, the release is published. If one fails, the release stays a draft.
+
+The version lives in git tags; `package.json` says `0.0.0-dev` and CI stamps the tag's version into it at build time. To release by hand, run the workflow from the Actions tab and pick the bump.
 
 ## How it works
 
