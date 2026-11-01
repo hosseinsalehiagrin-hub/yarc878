@@ -6,7 +6,7 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 
 - `pnpm install` (postinstall downloads the Electron binary) · `pnpm dev` · `pnpm build`
 - `pnpm typecheck` · `pnpm test` (unit, `node --test`) · `pnpm test:e2e` (builds, then Playwright drives the real app)
-- `pnpm dist:mac` / `dist:win` → installers in `release/`. Releases: bump version, push a `v*` tag, CI fills a draft GitHub release.
+- `pnpm dist:mac` / `dist:win` → installers in `release/`. Releases are automatic: each merge to `main` gets the next semver tag (patch; PR labels `release:minor` / `release:major` / `release:skip`), CI builds it and publishes once all platforms pass. The version comes from the tag (`package.json` is `0.0.0-dev`).
 
 ## Architecture (see README "How it works")
 
@@ -42,4 +42,4 @@ Still needs a human on a Mac:
 
 Comparing with real Arc: with Screen Recording and Accessibility granted to the Claude Code `claude.app` (not Claude.app), `screencapture -R` and System Events work. Arc's menu bar (via System Events, `AXMenuItemCmdChar`/`AXMenuItemCmdModifiers`) is the source for its default shortcuts; they aren't stored in any file.
 
-Releases: v0.1.2 is the first release meant for publishing (ad blocking plus the Windows fixes from #3; CI drafts it from the `v0.1.2` tag). The v0.1.0 and v0.1.1 drafts predate those fixes and are to be deleted.
+Releases: v0.1.2 is the latest manual release; from then on every merge to `main` releases automatically (see Commands).
