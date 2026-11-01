@@ -98,7 +98,7 @@ export const BINDINGS: Binding[] = [
   { id: 'reload', title: 'Reload Page', ...both('Mod+R', 'F5'), palette: true },
   { id: 'hardReload', title: 'Hard Reload', ...both('Mod+Shift+R', 'Ctrl+F5'), palette: true },
   { id: 'stop', title: 'Stop Loading', mac: ['Cmd+Period'], other: [] },
-  { id: 'zoomIn', title: 'Zoom In', ...both('Mod+Equal', 'Mod+Shift+Equal', 'Mod+NumpadAdd'), palette: true },
+  { id: 'zoomIn', title: 'Zoom In', mac: ['Cmd+Equal', 'Cmd+Shift+Equal', 'Cmd+NumpadAdd'], other: ['Ctrl+Equal', 'Ctrl+NumpadAdd'], palette: true },
   { id: 'zoomOut', title: 'Zoom Out', ...both('Mod+Minus', 'Mod+NumpadSubtract'), palette: true },
   { id: 'zoomReset', title: 'Actual Size', ...both('Mod+Digit0', 'Mod+Numpad0'), palette: true },
   { id: 'back', title: 'Back', mac: ['Cmd+BracketLeft'], other: ['Alt+Left', 'Ctrl+BracketLeft'] },

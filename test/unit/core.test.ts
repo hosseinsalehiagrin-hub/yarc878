@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { commandForInput, type KeyInput } from '../../src/shared/keymap.ts'
+import { BINDINGS, commandForInput, type KeyInput } from '../../src/shared/keymap.ts'
 import { findItem, isAwayFromSaved, profileOfItem, spaceItems } from '../../src/shared/tree.ts'
 import type { PersistedState } from '../../src/shared/types.ts'
 import { queryFromSearchUrl, resolveInput, toUrl } from '../../src/shared/url.ts'
@@ -48,6 +48,19 @@ test('keymap matches Arc bindings per platform', () => {
   assert.equal(commandForInput({ ...key('KeyT', { meta: true }), type: 'keyUp' }, true), undefined)
   // Plain typing never triggers commands.
   assert.equal(commandForInput(key('KeyC', { meta: true }), true), undefined)
+})
+
+test('no key combination is bound to two commands', () => {
+  for (const platform of ['mac', 'other'] as const) {
+    const seen = new Map<string, string>()
+    for (const b of BINDINGS) {
+      for (const accel of b[platform]) {
+        const prev = seen.get(accel)
+        assert.ok(!prev || prev === b.id, `${platform}: ${accel} is bound to both ${prev} and ${b.id}`)
+        seen.set(accel, b.id)
+      }
+    }
+  }
 })
 
 function sample(): PersistedState {
