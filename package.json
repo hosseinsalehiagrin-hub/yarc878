@@ -5,6 +5,14 @@
   "description": "An open-source, Arc-style browser built on Electron: vertical sidebar, spaces with separate profiles, command bar, split view and Little Arc.",
   "license": "GPL-3.0-or-later",
   "author": "Arc Shell contributors",
+  "homepage": "https://github.com/yenebeb/arc-shell",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yenebeb/arc-shell.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yenebeb/arc-shell/issues"
+  },
   "main": "./out/main/index.js",
   "engines": {
     "node": ">=22.12.0"
@@ -19,7 +27,7 @@
     "postinstall": "node node_modules/electron/install.js",
     "dist:dir": "npm run build && electron-builder --dir --publish never",
     "dist": "npm run build && electron-builder --publish never",
-    "dist:win": "npm run build && electron-builder --win --publish never -c.nsis.publish=null",
+    "dist:win": "npm run build && electron-builder --win --publish never",
     "dist:mac": "npm run build && electron-builder --mac --publish never",
     "dist:linux": "npm run build && electron-builder --linux --publish never"
   },

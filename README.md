@@ -24,7 +24,7 @@ The full shortcut list is in Settings → Keyboard shortcuts, and in [docs/arc-r
 
 ## Install
 
-Download the latest installer from the [Releases](../../releases) page.
+Download the latest installer from the [Releases](https://github.com/yenebeb/arc-shell/releases) page.
 
 - **Windows:** run `Arc Shell Setup x.y.z.exe`. It installs just for you and doesn't need admin rights. The app isn't code-signed yet, so SmartScreen may warn you: click **More info → Run anyway**. To make it your default browser, go to Settings → Apps → Default apps → Arc Shell.
 - **macOS:** open the `.dmg` that matches your Mac (`arm64` for Apple Silicon, `x64` for Intel) and drag Arc Shell to Applications. The app isn't notarized, so the first launch is blocked. Go to **System Settings → Privacy & Security → Open Anyway**, or run `xattr -dr com.apple.quarantine "/Applications/Arc Shell.app"`.
