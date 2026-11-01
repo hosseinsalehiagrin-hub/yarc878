@@ -26,7 +26,7 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 
 Windows: unit + e2e + installed. macOS (2026-11-01, Apple silicon): unit + e2e pass, `dist:mac --dir` packages and launches. Checked on macOS by driving the app through `ARC_SHELL_TEST` (no real keyboard/trackpad/screen capture available to the agent):
 
-- Import from Arc with real data: spaces in Arc's order, profile names, favorites, pinned tabs and folders, archive and history all import. Gaps: Arc's named space icons (`customInfo.iconType.icon`, e.g. `bulb`, `planet`) are not mapped to emoji; untitled spaces become "Space N"; spaces without a theme get palette colors.
+- Import from Arc with real data: spaces in Arc's order, profile names, favorites, pinned tabs and folders, archive and history all import. Arc's named space icons (`customInfo.iconType.icon`, Ionicons names) are mapped to emoji. Gaps: untitled spaces become "Space N"; spaces without a theme get palette colors.
 - Shortcuts from a focused page `<input>` via `sendInputEvent`: Cmd+L/D/S/W/, , Ctrl+2, Ctrl+Tab with Ctrl keyup. Cmd+W never closes the window (the Window menu role has no Close item on macOS).
 - Traffic lights: hidden with the sidebar, shown during hover-peek and back after; no gap in native fullscreen. Links from other apps open Little Arc.
 - Fixed: the closed main window (app keeps running on macOS) crashed menu-bar commands, the overlay blur handler, toasts, Little Arc's "Open in Arc Shell" and external links.

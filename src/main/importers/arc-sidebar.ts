@@ -119,10 +119,25 @@ export function profileKey(desc: unknown): string {
   return 'Default'
 }
 
+/** Arc's named space icons (`iconType.icon`, Ionicons glyphs from its `CustomIcon` enum), as the closest emoji. */
+const ARC_ICONS: Record<string, string> = {
+  star: '⭐', bookmark: '🔖', heart: '❤️', flag: '🚩', flash: '⚡', triangle: '🔺', medical: '⚕️',
+  notifications: '🔔', bulb: '💡', shapes: '🔷', grid: '🔲', apps: '🧩', layers: '🗂️', server: '🗄️',
+  albums: '🖼️', copy: '📋', folder: '📁', fileTrayFull: '🗃️', calendar: '📅', mail: '✉️', checkbox: '✅',
+  document: '📄', book: '📖', chatBubbleEllipses: '💬', people: '👥', terminal: '⌨️', construction: '🚧',
+  square: '🟦', egg: '🥚', ellipse: '🔵', moon: '🌙', sunny: '☀️', planet: '🪐', leaf: '🍃', cloud: '☁️',
+  paw: '🐾', bag: '🛍️', gift: '🎁', bed: '🛏️', restaurant: '🍴', barbell: '🏋️', airplane: '✈️',
+  musicalNote: '🎵', colorPallete: '🎨', video: '🎬', bandage: '🩹', code: '💻', baseball: '⚾',
+  cloudOutline: '🌥️', map: '🗺️', bonfire: '🔥', pizza: '🍕', skull: '💀', receipt: '🧾', thumbsUp: '👍',
+  train: '🚆', rss: '📡', github: '🐙', linear: '📐', figma: '🖌️', search: '🔍'
+}
+
 function emojiOf(icon: unknown): string | undefined {
   if (!isObj(icon)) return undefined
   if (str(icon.emoji_v2)) return str(icon.emoji_v2)
   if (str(icon.emoji)) return str(icon.emoji)
+  const named = str(icon.icon)
+  if (named && Object.hasOwn(ARC_ICONS, named)) return ARC_ICONS[named]
   const cp = num(icon.emoji)
   if (cp !== undefined) {
     try {
