@@ -128,6 +128,27 @@ test('falls back to newContainerIDs and parentID scanning', () => {
   assert.deepEqual(outline(out.spaces[1].pinned), [{ 'Project X': ['Project X › Active issues', 'Designs'] }, 'Team Wiki'])
 })
 
+test('favorites of the same profile dir on another Mac are skipped', () => {
+  const json = structuredClone(fixture)
+  const c = json.sidebar.containers[1]
+  const other = { custom: { _0: { machineID: 'FFFFFFFF-0000-0000-0000-000000000000', directoryBasename: 'Profile 1' } } }
+  c.topAppsContainerIDs.push(other, 'OTHER-MAC-TOP')
+  c.items.push('OTHER-MAC-TOP', { id: 'OTHER-MAC-TOP', childrenIds: ['OTHER-MAC-FAV'], data: { itemContainer: { containerType: { topApps: { _0: other } } } } })
+  c.items.push('OTHER-MAC-FAV', { id: 'OTHER-MAC-FAV', parentID: 'OTHER-MAC-TOP', childrenIds: [], data: { tab: { savedURL: 'https://other-mac.example/', savedTitle: 'Other Mac' } } })
+  const out = parseArcSidebar(json)
+  const work = out.profiles.find((p) => p.key === 'Profile 1')!
+  assert.deepEqual(work.favorites.map((f) => f.url), parsed.profiles.find((p) => p.key === 'Profile 1')!.favorites.map((f) => f.url))
+  assert.ok(out.warnings.some((w) => w.includes('another Mac')))
+})
+
+test('cached icons are attached by Arc item id', () => {
+  const out = parseArcSidebar(fixture, { favicon: (id) => `data:image/png;base64,${id}` })
+  const tabs = out.spaces.flatMap((s) => [...s.today, ...s.pinned.filter((n) => n.kind === 'tab')])
+  assert.ok(tabs.length > 0)
+  for (const t of tabs) assert.match(t.favicon ?? '', /^data:image\/png;base64,.+/)
+  assert.equal(parseArcSidebar(fixture).spaces[0].today[0]?.favicon, undefined)
+})
+
 test('topApps fallback without topAppsContainerIDs', () => {
   const json = structuredClone(fixture)
   delete json.sidebar.containers[1].topAppsContainerIDs

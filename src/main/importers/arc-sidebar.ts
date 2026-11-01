@@ -15,6 +15,8 @@ export interface ParsedArcSpace {
   emoji?: string
   /** Hex, e.g. '#336699'. */
   color: string
+  /** Text appearance Arc uses over the theme (`contentOverBackgroundAppearance`). */
+  appearance?: 'light' | 'dark'
   profileKey: string
   pinned: PinnedNode[]
   today: TabItem[]
@@ -42,6 +44,8 @@ export interface ParseArcOptions {
   archive?: unknown
   /** Colors for spaces without a theme, picked by space index. */
   palette?: string[]
+  /** Cached icon (a data: URL) of an Arc sidebar item, by its id. */
+  favicon?: (arcItemId: string) => string | undefined
 }
 
 type Obj = Record<string, unknown>
@@ -132,6 +136,14 @@ const ARC_ICONS: Record<string, string> = {
   train: '🚆', rss: '📡', github: '🐙', linear: '📐', figma: '🖌️', search: '🔍'
 }
 
+/** Arc syncs profiles across Macs; `custom._0.machineID` tells which Mac a profile descriptor belongs to. */
+function machineIdOf(desc: unknown): string | undefined {
+  const custom = isObj(desc) ? desc.custom : undefined
+  if (!isObj(custom)) return undefined
+  for (const v of Object.values(custom)) if (isObj(v) && str(v.machineID)) return str(v.machineID)
+  return undefined
+}
+
 function emojiOf(icon: unknown): string | undefined {
   if (!isObj(icon)) return undefined
   if (str(icon.emoji_v2)) return str(icon.emoji_v2)
@@ -193,6 +205,7 @@ interface Ctx {
   byParent: Map<string, string[]>
   now: number
   warnings: string[]
+  favicon?: (arcItemId: string) => string | undefined
 }
 
 function childrenOf(ctx: Ctx, id: string): [string, Obj][] {
@@ -208,7 +221,7 @@ function childrenOf(ctx: Ctx, id: string): [string, Obj][] {
   return out
 }
 
-function toTab(ctx: Ctx, item: Obj, saved: boolean): PinnedTab | undefined {
+function toTab(ctx: Ctx, itemId: string, item: Obj, saved: boolean): PinnedTab | undefined {
   const tab = dig(item, 'data', 'tab')
   if (!isObj(tab)) return undefined
   const url = str(tab.savedURL)
@@ -225,6 +238,8 @@ function toTab(ctx: Ctx, item: Obj, saved: boolean): PinnedTab | undefined {
     title: custom ?? page ?? url,
     lastActive: arcTime(tab.timeLastActiveAt) ?? arcTime(item.createdAt) ?? ctx.now
   }
+  const favicon = ctx.favicon?.(itemId)
+  if (favicon) out.favicon = favicon
   if (saved) {
     out.savedUrl = url
     if (custom) out.savedTitle = custom
@@ -248,7 +263,7 @@ function walk(ctx: Ctx, id: string, saved: boolean, depth = 0, seen = new Set<st
     }
     seen.add(itemId)
     if (isObj(data) && 'tab' in data) {
-      const tab = toTab(ctx, item, saved)
+      const tab = toTab(ctx, itemId, item, saved)
       if (tab) out.push(tab)
     } else if (isObj(data) && 'list' in data) {
       const folder: PinnedFolder = {
@@ -331,7 +346,7 @@ export function parseArcSidebar(json: unknown, opts: ParseArcOptions = {}): Pars
   }
 
   const data = dataContainer(json, warnings)
-  const ctx: Ctx = { items: new Map(), byParent: new Map(), now, warnings }
+  const ctx: Ctx = { items: new Map(), byParent: new Map(), now, warnings, favicon: opts.favicon }
   for (const [key, item] of data.items) if (key && !ctx.items.has(key)) ctx.items.set(key, item)
   for (const [key, item] of ctx.items) {
     const parent = str(item.parentID)
@@ -357,6 +372,15 @@ export function parseArcSidebar(json: unknown, opts: ParseArcOptions = {}): Pars
     }
     spaces = [...spaces].sort((a, b) => rank(a[0]) - rank(b[0]))
   }
+  // Machines whose profiles the spaces use, per profile dir; favorites of the same dir on other Macs are skipped.
+  const spaceMachines = new Map<string, Set<string>>()
+  for (const [, s] of spaces) {
+    const machine = machineIdOf(s.profile)
+    if (!machine) continue
+    const dir = profileKey(s.profile)
+    spaceMachines.set(dir, (spaceMachines.get(dir) ?? new Set()).add(machine))
+  }
+
   spaces.forEach(([key, s], index) => {
     const arcId = str(s.id) ?? (key || `space-${index + 1}`)
     const roots = [s.containerIDs, s.newContainerIDs]
@@ -378,6 +402,8 @@ export function parseArcSidebar(json: unknown, opts: ParseArcOptions = {}): Pars
     }
     const emoji = emojiOf(info.iconType)
     if (emoji) space.emoji = emoji
+    const appearance = theme && dig(theme, 'background', 'single', '_0', 'contentOverBackgroundAppearance')
+    if (appearance === 'light' || appearance === 'dark') space.appearance = appearance
     result.spaces.push(space)
   })
 
@@ -391,6 +417,12 @@ export function parseArcSidebar(json: unknown, opts: ParseArcOptions = {}): Pars
   }
   topApps = topApps.filter(([, id], i, all) => all.findIndex(([, other]) => other === id) === i)
   for (const [desc, id] of topApps) {
+    const machine = machineIdOf(desc)
+    const machines = spaceMachines.get(profileKey(desc))
+    if (machine && machines && !machines.has(machine)) {
+      warnings.push(`Skipped favorites of ${profileKey(desc)} from another Mac (${machine})`)
+      continue
+    }
     const p = profile(profileKey(desc))
     const seen = new Set(p.favorites.map((f) => f.url))
     for (const tab of flatTabs(walk(ctx, id, true))) {
