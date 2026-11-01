@@ -40,4 +40,4 @@ Still needs a human on a Mac:
 5. Gatekeeper first launch of the DMG from the release; README instructions accurate.
 6. Visual polish vs. Arc on macOS (vibrancy, sidebar colors, fonts, dark mode).
 
-Pending: v0.1.0 is an unpublished draft release without ad blocking; plan was to release v0.1.1 (with ad blocking) and delete the v0.1.0 draft.
+Releases: v0.1.1 is the first release with ad blocking (CI drafts it from the `v0.1.1` tag). The older v0.1.0 draft has no ad blocking and is to be deleted.

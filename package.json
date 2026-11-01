@@ -1,7 +1,7 @@
 {
   "name": "arc-shell",
   "productName": "Arc Shell",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "An open-source, Arc-style browser built on Electron: vertical sidebar, spaces with separate profiles, command bar, split view and Little Arc.",
   "license": "GPL-3.0-or-later",
   "author": "Arc Shell contributors",
