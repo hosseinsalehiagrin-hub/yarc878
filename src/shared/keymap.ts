@@ -169,8 +169,19 @@ export function matches(input: KeyInput, accel: string): boolean {
   )
 }
 
+/**
+ * On Windows/Linux, AltGr arrives as Ctrl+Alt. When such a press types a character
+ * (ñ, ó, € on US-International, German, Polish… layouts), it's text input, not a shortcut.
+ */
+export function isAltGrCharacter(input: KeyInput): boolean {
+  if (!input.control || !input.alt || [...input.key].length !== 1) return false
+  const base = /^Key([A-Z])$/.exec(input.code)?.[1] ?? /^Digit(\d)$/.exec(input.code)?.[1]
+  return input.key.toUpperCase() !== base
+}
+
 export function commandForInput(input: KeyInput, mac: boolean): CommandId | undefined {
   if (input.type !== 'keyDown') return undefined
+  if (!mac && isAltGrCharacter(input)) return undefined
   for (const b of BINDINGS) {
     for (const accel of mac ? b.mac : b.other) if (matches(input, accel)) return b.id
   }

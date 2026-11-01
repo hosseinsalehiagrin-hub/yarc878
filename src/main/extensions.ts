@@ -41,7 +41,8 @@ export class Extensions {
         return b.openLittle(url).win
       },
       removeWindow: (win) => {
-        if (win !== b.window.win) win.close()
+        // Also called after a window has already closed.
+        if (!win.isDestroyed() && win !== b.window.win) win.close()
       }
     })
     this.byProfile.set(rt.id, ext)

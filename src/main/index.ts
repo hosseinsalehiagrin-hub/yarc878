@@ -12,6 +12,38 @@ if (process.env.ARC_SHELL_USER_DATA) app.setPath('userData', process.env.ARC_SHE
 else if (!app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Arc Shell (dev)'))
 
 app.userAgentFallback = browserUserAgent()
+// Windows groups taskbar buttons and routes notifications by this id (matches electron-builder's appId).
+if (process.platform === 'win32') app.setAppUserModelId('org.arcshell.browser')
+
+/** Taskbar jump-list tasks arrive as flags, in a fresh launch or a second instance. */
+type LaunchTask = 'newTab' | 'littleArc'
+function taskArg(argv: string[]): LaunchTask | undefined {
+  if (argv.includes('--new-tab')) return 'newTab'
+  if (argv.includes('--little-arc')) return 'littleArc'
+  return undefined
+}
+
+function runTask(browser: Browser, task: LaunchTask): void {
+  if (task === 'littleArc') return void browser.openLittle()
+  browser.focusWindow()
+  browser.runCommand('newTab')
+}
+
+function installJumpList(): void {
+  if (process.platform !== 'win32' || !app.isPackaged) return
+  const task = (args: string, title: string, description: string) => ({
+    program: process.execPath,
+    arguments: args,
+    iconPath: process.execPath,
+    iconIndex: 0,
+    title,
+    description
+  })
+  app.setUserTasks([
+    task('--new-tab', 'New Tab', 'Open the command bar in Arc Shell'),
+    task('--little-arc', 'New Little Arc Window', 'Open a small window for a quick lookup')
+  ])
+}
 
 // Links arrive as URLs; double-clicked .html files (Windows) arrive as plain paths.
 function urlArg(argv: string[]): string | undefined {
@@ -27,11 +59,18 @@ if (!app.requestSingleInstanceLock()) {
 } else {
   let browser: Browser | undefined
   let pendingUrl: string | undefined = urlArg(process.argv)
+  let pendingTask: LaunchTask | undefined = taskArg(process.argv)
 
   app.on('second-instance', (_e, argv) => {
     const url = urlArg(argv)
-    if (!browser) return void (pendingUrl = url)
+    const task = taskArg(argv)
+    if (!browser) {
+      pendingUrl = url
+      pendingTask = task
+      return
+    }
     if (url) browser.openExternalUrl(url)
+    else if (task) runTask(browser, task)
     else browser.focusWindow()
   })
 
@@ -56,8 +95,11 @@ if (!app.requestSingleInstanceLock()) {
     if (process.env.ARC_SHELL_TEST) Object.assign(globalThis, { arcBrowser: browser })
     installAppMenu(browser)
     browser.start()
+    installJumpList()
     if (pendingUrl) browser.openExternalUrl(pendingUrl)
+    else if (pendingTask) runTask(browser, pendingTask)
     pendingUrl = undefined
+    pendingTask = undefined
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) browser?.openWindow()

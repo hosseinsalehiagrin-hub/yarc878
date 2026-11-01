@@ -50,6 +50,17 @@ test('keymap matches Arc bindings per platform', () => {
   assert.equal(commandForInput(key('KeyC', { meta: true }), true), undefined)
 })
 
+test('AltGr characters are typed, not treated as Ctrl+Alt shortcuts (Windows)', () => {
+  // US-International: AltGr+N types ñ and arrives as Ctrl+Alt+N.
+  assert.equal(commandForInput({ ...key('KeyN', { control: true, alt: true }), key: 'ñ' }, false), undefined)
+  assert.equal(commandForInput({ ...key('KeyO', { control: true, alt: true }), key: 'ó' }, false), undefined)
+  // Layouts where Ctrl+Alt+N types nothing still get the shortcut.
+  assert.equal(commandForInput({ ...key('KeyN', { control: true, alt: true }), key: 'n' }, false), 'littleArc')
+  assert.equal(commandForInput({ ...key('ArrowDown', { control: true, alt: true }), key: 'ArrowDown' }, false), 'nextTab')
+  // macOS never has AltGr; Cmd+Option+N with a composed key still works.
+  assert.equal(commandForInput({ ...key('KeyN', { meta: true, alt: true }), key: '˜' }, true), 'littleArc')
+})
+
 test('no key combination is bound to two commands', () => {
   for (const platform of ['mac', 'other'] as const) {
     const seen = new Map<string, string>()
