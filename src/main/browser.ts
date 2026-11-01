@@ -210,6 +210,7 @@ export class Browser implements TabHost {
       maximized: !!win && !win.isDestroyed() && win.isMaximized(),
       fullscreen: !!win && !win.isDestroyed() && win.isFullScreen(),
       sidebarPeek: this.sidebarPeek,
+      newTabOpen: this.newTabOpen(),
       layout: this.currentLayout,
       update: this.updater.status
     }
@@ -225,6 +226,11 @@ export class Browser implements TabHost {
     const snap = this.snapshot()
     win.webContents.send(IPC.state, snap)
     this.window.overlay.webContents.send(IPC.state, snap)
+  }
+
+  private newTabOpen(): boolean {
+    const mode = this.window?.overlayMode
+    return mode?.kind === 'command' && (mode.target ?? 'tab') === 'tab'
   }
 
   emitSoon(): void {

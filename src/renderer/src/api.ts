@@ -40,13 +40,18 @@ export function activeSpace(state: AppState): Space {
   return state.spaces.find((s) => s.id === state.activeSpaceId) ?? state.spaces[0]
 }
 
-/** Applies the space theme color as CSS variables on the document. */
-export function useSpaceTheme(color: string | undefined): void {
+/** Applies the space theme color (and, for the sidebar, its light/dark appearance) to the document. */
+export function useSpaceTheme(color: string | undefined, appearance?: 'light' | 'dark'): void {
   useEffect(() => {
     if (!color) return
     const root = document.documentElement
     root.style.setProperty('--space', color)
   }, [color])
+  useEffect(() => {
+    const root = document.documentElement
+    if (appearance) root.dataset.appearance = appearance
+    else delete root.dataset.appearance
+  }, [appearance])
 }
 
 export function faviconFor(favicon?: string): string | undefined {

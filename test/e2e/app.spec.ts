@@ -112,6 +112,19 @@ test('command bar finds and switches to open tabs', async () => {
   await expect.poll(async () => (await space()).activeItemId).toBe(s.today.find((t) => t.url.endsWith('/one'))!.id)
 })
 
+test('command bar completes the top URL inline, like Arc', async () => {
+  await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
+  const overlay = await pageWithUrl('overlay.html')
+  const input = overlay.locator('.command input')
+  await input.pressSequentially('127.0.0', { delay: 30 })
+  await expect(input).toHaveValue(/^127\.0\.0\.1:\d+\//)
+  // The completed part is selected, so typing on replaces it.
+  expect(await input.evaluate((el: HTMLInputElement) => el.selectionStart)).toBe('127.0.0'.length)
+  await input.press('Backspace')
+  await expect(input).toHaveValue('127.0.0')
+  await input.press('Escape')
+})
+
 test('target=_blank links open as new Today tabs', async () => {
   const tab = await pageWithUrl('/one')
   await tab.locator('#blank').click()

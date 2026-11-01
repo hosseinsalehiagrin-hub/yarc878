@@ -94,7 +94,7 @@ export const BINDINGS: Binding[] = [
   { id: 'findNext', title: 'Find Next', ...both('Mod+G', 'F3') },
   { id: 'findPrev', title: 'Find Previous', ...both('Mod+Shift+G', 'Shift+F3') },
   { id: 'history', title: 'Show History', ...both('Mod+Y'), palette: true },
-  { id: 'downloads', title: 'Show Downloads', mac: ['Cmd+Alt+L'], other: ['Ctrl+J'], palette: true },
+  { id: 'downloads', title: 'Show Downloads', mac: ['Cmd+Shift+J'], other: ['Ctrl+J'], palette: true },
   { id: 'library', title: 'Open Library', mac: ['Cmd+Shift+L'], other: ['Ctrl+Shift+L'], palette: true },
   { id: 'devtools', title: 'Developer Tools', mac: ['Cmd+Alt+I', 'F12'], other: ['Ctrl+Shift+I', 'F12'], palette: true },
   { id: 'reload', title: 'Reload Page', ...both('Mod+R', 'F5'), palette: true },
