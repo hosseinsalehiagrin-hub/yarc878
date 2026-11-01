@@ -130,6 +130,8 @@ export class Browser implements TabHost {
     })
     win.webContents.once('did-finish-load', () => this.emit())
     this.window.overlay.webContents.on('blur', () => {
+      // Closing the window blurs the overlay too, after the window is gone.
+      if (win.isDestroyed()) return
       // Clicking back into the page closes transient panels, like Arc.
       const k = this.window.overlayMode.kind
       if (k === 'command' || k === 'switcher') this.setOverlay({ kind: 'none' }, false)
@@ -223,7 +225,8 @@ export class Browser implements TabHost {
   }
 
   toast(text: string): void {
-    this.window?.ui.send(IPC.toast, text)
+    const win = this.window?.win
+    if (win && !win.isDestroyed()) win.webContents.send(IPC.toast, text)
   }
 
   private changed(): void {
@@ -1168,6 +1171,7 @@ export class Browser implements TabHost {
 
   /** Moves a Little Arc page into the main window as a Today tab, keeping its state. */
   adoptLittle(little: LittleWindow): void {
+    this.ensureWindow()
     const space = this.state.spaces.find((s) => s.profileId === little.profile.id) ?? this.space
     const tab = little.release()
     const item: TabItem = { id: newId(), url: tab.wc.getURL(), title: tab.wc.getTitle(), favicon: tab.favicon, lastActive: Date.now() }
@@ -1187,6 +1191,7 @@ export class Browser implements TabHost {
     if (!/^https?:|^file:/i.test(url)) return
     if (this.state.settings.littleArcForExternalLinks) void this.openLittle(url)
     else {
+      this.ensureWindow()
       this.newTab(url)
       const win = this.window.win
       if (win.isMinimized()) win.restore()
@@ -1230,6 +1235,12 @@ export class Browser implements TabHost {
   shutdown(): void {
     this.store.flush()
     this.profiles.closeAll()
+  }
+
+  /** On macOS the app outlives its main window; reopen it before using it. */
+  ensureWindow(): void {
+    const win = this.window?.win
+    if (!win || win.isDestroyed()) this.openWindow()
   }
 
   focusWindow(): void {

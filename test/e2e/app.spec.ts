@@ -251,3 +251,26 @@ test('state survives a restart', async () => {
   expect(after.spaces[0].pinned.length).toBe(before.spaces[0].pinned.length)
   expect(after.profiles[0].favorites.length).toBe(before.profiles[0].favorites.length)
 })
+
+test('menu bar commands reopen the closed main window (macOS)', async () => {
+  test.skip(process.platform !== 'darwin', 'macOS keeps the app running without windows')
+  await app.evaluate(() => (globalThis as any).arcBrowser.window.win.close())
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(0)
+  await app.evaluate(({ Menu }) => {
+    const items = (m: Electron.Menu): Electron.MenuItem[] => m.items.flatMap((i) => [i, ...(i.submenu ? items(i.submenu) : [])])
+    items(Menu.getApplicationMenu()!).find((i) => i.label === 'New Tab')!.click()
+  })
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1)
+  await expect.poll(() => app.evaluate(() => (globalThis as any).arcBrowser.window.overlayMode.kind)).toBe('command')
+})
+
+test('Little Arc can move its page into a closed main window (macOS)', async () => {
+  test.skip(process.platform !== 'darwin', 'macOS keeps the app running without windows')
+  await app.evaluate(() => (globalThis as any).arcBrowser.window.win.close())
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(0)
+  await app.evaluate((_e, url) => (globalThis as any).arcBrowser.openLittle(url), `${base}/little-closed`)
+  await pageWithUrl('/little-closed')
+  await app.evaluate(() => [...(globalThis as any).arcBrowser.littles][0].op('openInMain'))
+  await expect.poll(async () => (await space()).today.some((t) => t.url.endsWith('/little-closed'))).toBe(true)
+  await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1)
+})

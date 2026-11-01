@@ -17,7 +17,7 @@ function App() {
   const fullscreenPage = state.layout.views.length === 1 && state.layout.content.x === 0 && state.layout.content.y === 0
 
   return (
-    <div className={`${isMac ? 'mac' : 'win'}${hidden ? ' sidebar-hidden' : ''}`} style={{ height: '100%' }}>
+    <div className={`${isMac ? 'mac' : 'win'}${hidden ? ' sidebar-hidden' : ''}${state.fullscreen ? ' fullscreen' : ''}`} style={{ height: '100%' }}>
       {!hidden && !fullscreenPage ? <Sidebar state={state} /> : null}
       {hidden ? (
         <>
