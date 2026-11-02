@@ -706,19 +706,106 @@ quit, 0.0.4 → 0.0.5 with *Relaunch*. Results for the risks:
 - **Keychain "Arc Shell Safe Storage": no prompt, because the item doesn't exist.** Electron's
   `EnableCookieEncryption` fuse is off by default, so cookies are stored in plain text (checked
   in the Cookies database: `value` set, `encrypted_value` empty) and nothing calls `safeStorage`.
-  If cookie encryption is ever turned on, expect a Keychain prompt after every update, because the
-  item's access list names the old cdhash.
+  Turning cookie encryption on makes macOS ask for the login password after every update, which is
+  why it stays off on macOS (section 8).
 - **App Management (macOS 13+): no prompt and no failure.** Renaming the app's own bundle in
   `/Applications` worked, and `log show` had no tccd `SystemPolicyAppBundles` entry for it. Tested with an app
   that had no quarantine flag (like an install fixed with `xattr -dr`, and the current real
   install on this Mac). Not tested: a first install approved with *Open Anyway*.
-- **Camera, microphone, screen recording: not tested with a real grant** (it needs a person to
-  click). TCC stores the designated requirement, which is the cdhash and differs per build (three
-  test builds, three cdhashes), so expect macOS to ask again after each update. Same as the old
-  DMG route. A self-signed code-signing certificate created once and kept in CI would make the
-  requirement `identifier … and certificate leaf = H"…"`, stable across builds; not done.
+- **Camera, microphone, screen recording: macOS asks again after each update** (tested with the
+  microphone in section 8). TCC stores the designated requirement, which for an ad-hoc signature
+  is the cdhash and differs per build. Same as the old DMG route. A self-signed certificate keeps
+  the grant (section 8); not adopted yet.
 - If the user can't write to the app's folder (standard account, `/Applications`), or the app is
   translocated (run from the DMG or Downloads), it falls back to the DMG notice.
+
+---
+
+## 8. Cookie encryption: Windows and Linux only **[tested 2026-11-02, macOS 26.5.1 arm64]**
+
+Electron stores cookies in plain text unless the `EnableCookieEncryption` fuse is on: the Cookies
+SQLite file in each profile partition has `value` set and `encrypted_value` empty, so any process
+running as the user can read every login. With the fuse on, Chromium encrypts them like Chrome
+(`encrypted_value` starts with `v10`) with a key it keeps per OS:
+
+- **Windows:** a random key in the profile's `Local State` (`os_crypt.encrypted_key`), wrapped
+  with DPAPI for the Windows user. Nothing is tied to the binary, so NSIS updates (and the YARC
+  rename, which keeps the profile folder) keep it. **Not tested on Windows:** no Windows machine
+  in this session. To check: install a build, log in somewhere, quit, open the Cookies file with
+  sqlite3 (`select name, length(value), hex(substr(encrypted_value,1,3)) from cookies`: empty
+  value, `763130`), install the next version over it, check you're still logged in.
+- **Linux:** the Secret Service (GNOME Keyring, KWallet); without one, Chromium's fixed fallback
+  key, which is obfuscation, not protection.
+- **macOS:** a generic password `<app name> Safe Storage` / account `<app name> Key` in the login
+  keychain. **This is why the fuse is off on macOS** (below).
+
+**How it's turned on:** `scripts/after-pack.mjs`, electron-builder's `afterPack` hook, calls
+`packager.addElectronFuses` for every platform but `darwin`. The `electronFuses` option
+(electron-builder 26.18 has it) can't do that: it's top-level only and applies to all platforms.
+afterPack runs at the same point (before signing). Checked by packaging `--dir` for all three on a
+Mac: `@electron/fuses read` says Enabled for `Arc Shell.exe` and `arc-shell`, Disabled for the app.
+
+**Existing cookies [tested on macOS with the fuse on]:** 0.0.1 without the fuse set two cookies
+(plain text), the self-updater installed 0.0.2 with the fuse, and both were still sent
+(`old=plain1; old2=plain2`): Chromium reads `value` when `encrypted_value` is empty. A new cookie
+and a re-set one were stored encrypted. A cookie the site never sets again stays plain text until
+it expires. Nobody is logged out. The same os_crypt cookie code runs on Windows and Linux.
+
+### Why not macOS: a password prompt after every update
+
+Tested with packaged builds that have their own productName and appId, updated through
+`mac-update.ts` from a local feed (section 7):
+
+1. **Ad-hoc (as released):** the first start with the fuse creates the item without asking. After
+   the update to the next build, SecurityAgent asks for the **login keychain password** ("… wants
+   to use your confidential information stored in "… Safe Storage" in your keychain"), and the
+   app waits for the answer before it can read cookies. *Deny* means every encrypted cookie is
+   unreadable: logged out everywhere.
+2. **One self-signed certificate for every build:** the designated requirement becomes stable
+   (`identifier "…" and certificate leaf = H"06fa…"`, checked on two builds), so the item's access
+   list matches. **It still asks** ("… wants to access key …"). securityd's log:
+   `ACL partition mismatch: client cdhash:5888… ACL ("cdhash:95d5…")`. Since macOS 10.12 a
+   keychain item also has a partition list. An app signed by an Apple-issued certificate gets
+   `teamid:<team>`; anything else gets `cdhash:<its cdhash>`, which changes with every build.
+   *Always Allow* (with the password) adds the new cdhash, so it asks again on the next update.
+
+So without an Apple Developer ID (team ID), cookie encryption on macOS costs a login-password
+prompt per update. The alternatives were worse: the `--use-mock-keychain` switch uses a fixed key
+(no protection), and an item any app may read (`security add-generic-password -A`) doesn't stop
+"any process running as the user". Revisit with a Developer ID.
+
+**Keychain item name vs. the YARC rename.** The service name comes from the app name. A Mac whose
+cookies were encrypted under "Arc Shell Safe Storage" would, after the rename, look for "YARC Safe
+Storage", create a new key and fail to decrypt every cookie. Turning the fuse on for macOS later is
+fine (only new names are involved), but **never rename the app on macOS once the fuse is on**
+there, unless the old item is migrated. Windows keeps the key in `Local State`, so the rename (and
+the fuse being on already) is safe there.
+
+### Self-signed certificate and TCC (camera, microphone) [tested]
+
+TCC (privacy permissions) checks the designated requirement, not the keychain partition, so a
+stable requirement does help there. Two pairs of builds (fuse off, so no keychain prompts), each
+granted the microphone by a person, then updated with `mac-update.ts`:
+
+- **Self-signed** (one certificate, `certificate leaf = H"…"`), 0.0.3 → 0.0.4: tccd answered
+  `kTCCServiceMicrophone authValue=2 authReason=2` (allowed, user consent), no prompt, and
+  `getUserMedia` worked.
+- **Ad-hoc**, 0.1.0 → 0.1.1: tccd logged `Failed to match existing code requirement for subject …
+  and service kTCCServiceMicrophone` and asked again.
+
+Not tested: the camera (same check), and screen recording (pages can't ask for it yet: no
+`setDisplayMediaRequestHandler`). Switching from ad-hoc to a certificate re-asks once, because
+existing grants name the old cdhash.
+
+How a self-signed build was made (not in the release pipeline): an RSA certificate with
+`extendedKeyUsage=critical,codeSigning` (openssl), imported into its own keychain.
+electron-builder only signs with identities `security find-identity -v` calls valid, which an
+untrusted self-signed one isn't, so it was signed through `mac.sign` (a hook calling
+`@electron/osx-sign`'s `signAsync` with the certificate's SHA-1 in place of the `"-"` identity). codesign also
+only finds the identity when its keychain is on the user's search list (`security list-keychains
+-d user -s …`); `--keychain` alone gave "no identity found". `codesign --verify --deep --strict`
+passes, which is what `mac-update.ts` checks. Gatekeeper's first launch with a self-signed
+signature wasn't tested.
 
 ---
 
@@ -735,3 +822,4 @@ quit, 0.0.4 → 0.0.5 with *Relaunch*. Results for the risks:
 | Storage | `node:sqlite` (Node 24.22.1, SQLite 3.53.4, unflagged, RC); no native modules |
 | Packaging | NSIS oneClick per-user + `installer.nsh` browser registration; mac dmg + zip arm64+x64, `identity: "-"`, `hardenedRuntime: false` |
 | macOS updates | Own updater (`mac-update.ts`): Node download (no quarantine), Ed25519-signed zip, swap at quit; not Squirrel.Mac |
+| Cookie encryption | `EnableCookieEncryption` fuse on Windows and Linux (`scripts/after-pack.mjs`); off on macOS until a Developer ID, because the keychain partition is the cdhash and every update would ask for the login password |

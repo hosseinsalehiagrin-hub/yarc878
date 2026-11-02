@@ -31,6 +31,11 @@ asar: true
 npmRebuild: false # nothing native to rebuild; skips @electron/rebuild (and the need for build tools)
 compression: normal
 
+# Turns on cookie encryption (Electron's EnableCookieEncryption fuse) on Windows and Linux, not
+# macOS: docs/electron-notes.md section 8. Existing plain-text cookies stay readable and are
+# encrypted when they're next written.
+afterPack: ./scripts/after-pack.mjs
+
 # http/https URL schemes. Used for macOS (CFBundleURLTypes, required to appear in
 # "Default web browser") and Linux (.desktop MimeType x-scheme-handler/*). electron-builder's
 # NSIS target ignores this key; Windows registration is done in build/installer.nsh.
