@@ -161,8 +161,9 @@ export interface AppState extends PersistedState {
 }
 
 /**
- * A newer Arc Shell. Windows downloads it in the background ('downloading', then 'ready' to
- * restart into); macOS and Linux only learn it exists ('available') and download it by hand.
+ * A newer Arc Shell. Windows and macOS download it in the background ('downloading', then 'ready'
+ * to restart into); Linux, and a Mac that can't replace its app, only learn it exists ('available')
+ * and download it by hand.
  */
 export type UpdateStatus =
   | { state: 'none' }

@@ -1,18 +1,19 @@
-// In-app updates. Windows installs them in place (electron-updater with the NSIS installer).
-// macOS builds are only ad-hoc signed, which Squirrel.Mac refuses, so there (and on Linux) we
-// only tell the user about a new release and open its download.
-// Updates are how Chromium security fixes arrive, so checks are hourly, and on Windows a
-// downloaded update asks to relaunch (again a day after each "Later") instead of waiting for a quit.
-import { app, clipboard, dialog, net, shell, type MessageBoxOptions } from 'electron'
+// In-app updates. Windows installs them in place with electron-updater (NSIS installer). macOS
+// builds are only ad-hoc signed, which Squirrel.Mac refuses, so macOS replaces its own bundle
+// with a signed zip from the release (mac-update.ts). Linux, and a Mac that can't write to the
+// app's folder, only hear about a new release and open its download.
+// Updates are how Chromium security fixes arrive, so checks are hourly, and a downloaded update
+// asks to relaunch (again a day after each "Later") instead of waiting for a quit.
+import { app, dialog, net, shell, type MessageBoxOptions } from 'electron'
 import type { NsisUpdater } from 'electron-updater'
 import type { UpdateStatus } from '../shared/types'
 import type { Browser } from './browser'
+import { cleanUpStaging, installStaged, stageUpdate, updatableBundle } from './mac-update'
 import { installAppMenu } from './menus'
-import { isNewer, LATEST_RELEASE_API, pickDownload, type GithubRelease } from './release'
+import { isNewer, LATEST_RELEASE_API, pickDownload, pickMacUpdate, type GithubRelease, type MacUpdate } from './release'
 
 const CHECK_EVERY = 60 * 60_000
 const REMIND_EVERY = 24 * 60 * 60_000
-const XATTR = 'xattr -dr com.apple.quarantine "/Applications/Arc Shell.app"'
 
 export class Updater {
   status: UpdateStatus = { state: 'none' }
@@ -22,8 +23,14 @@ export class Updater {
   private timer: NodeJS.Timeout | undefined
   private reminder: NodeJS.Timeout | undefined
   private checking = false
+  /** macOS: a version that failed to update in place, offered as a download instead of retried every hour. */
+  private failedVersion = ''
+  /** macOS: removing the app the last update replaced; a new download waits for it. */
+  private cleanup: Promise<void>
 
-  constructor(private browser: Browser) {}
+  constructor(private browser: Browser) {
+    this.cleanup = process.platform === 'darwin' ? cleanUpStaging().catch((err) => console.error('[updater]', err)) : Promise.resolve()
+  }
 
   /** Start or stop the automatic checks (at startup, then every few hours) to match Settings. */
   sync(): void {
@@ -63,9 +70,14 @@ export class Updater {
     }
   }
 
-  /** "Restart to Update" on Windows; on macOS and Linux, explain the manual install and open the download. */
+  /** "Restart to Update" on Windows and macOS; otherwise explain the manual install and open the download. */
   async apply(): Promise<void> {
-    if (this.status.state === 'ready') return this.nsis?.quitAndInstall(true, true)
+    if (this.status.state === 'ready') {
+      if (this.nsis) return this.nsis.quitAndInstall(true, true)
+      // macOS: the will-quit handler from updateMac swaps the new app in before the relaunch.
+      app.relaunch()
+      return app.quit()
+    }
     if (this.status.state !== 'available') return this.check(true)
     const mac = process.platform === 'darwin'
     const options: MessageBoxOptions = {
@@ -75,14 +87,13 @@ export class Updater {
       cancelId: 2,
       message: `Arc Shell ${this.status.version} is available`,
       detail: mac
-        ? 'Arc Shell can’t update itself on macOS yet, because it isn’t signed with an Apple Developer ID.\n\n' +
+        ? 'Arc Shell couldn’t update itself, for example because it can’t write to the folder it’s in.\n\n' +
           'Download the new version, quit Arc Shell, and drag Arc Shell from the disk image into Applications to replace this one. ' +
-          `Then run this in Terminal before opening it (Download copies it to your clipboard):\n\n${XATTR}`
+          'The first time you open it, macOS blocks it once: allow it in System Settings → Privacy & Security → Open Anyway.'
         : 'Download the new AppImage and use it in place of this one.'
     }
     const response = await this.ask(options)
     if (response === 0) {
-      if (mac) clipboard.writeText(XATTR)
       void shell.openExternal(this.download.installer)
     } else if (response === 1) {
       void shell.openExternal(this.download.page)
@@ -161,11 +172,42 @@ export class Updater {
     const version = release.tag_name.replace(/^v/i, '')
     if (!isNewer(version, app.getVersion())) return false
     this.download = { installer: pickDownload(release, process.platform, process.arch), page: release.html_url }
+    if (process.platform === 'darwin' && version !== this.failedVersion) {
+      const update = pickMacUpdate(release, process.arch)
+      const bundle = updatableBundle()
+      if (update && bundle) {
+        void this.updateMac(update, version, bundle)
+        return true
+      }
+    }
     const known = this.status.state === 'available' && this.status.version === version
     if (!known) {
       this.set({ state: 'available', version })
       this.browser.toast(`Arc Shell ${version} is available`)
     }
     return true
+  }
+
+  /** Downloads and unpacks the update in the background, then asks to relaunch; it installs as the app quits. */
+  private async updateMac(update: MacUpdate, version: string, bundle: string): Promise<void> {
+    this.set({ state: 'downloading', version })
+    try {
+      await this.cleanup
+      const staged = await stageUpdate(update, version, bundle)
+      app.once('will-quit', () => {
+        try {
+          installStaged(staged, bundle)
+        } catch (err) {
+          console.error('[updater] installing the update failed', err)
+        }
+      })
+      this.set({ state: 'ready', version })
+      void this.promptRelaunch()
+    } catch (err) {
+      console.error('[updater] macOS update failed; offering the download instead', err)
+      this.failedVersion = version
+      this.set({ state: 'available', version })
+      this.browser.toast(`Arc Shell ${version} is available`)
+    }
   }
 }
