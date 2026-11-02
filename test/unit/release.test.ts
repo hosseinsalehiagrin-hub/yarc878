@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { compareVersions, isNewer, pickDownload, type GithubRelease } from '../../src/main/release.ts'
+import { compareVersions, isNewer, pickDownload, pickMacUpdate, type GithubRelease } from '../../src/main/release.ts'
 
 test('compareVersions orders release versions numerically', () => {
   assert.equal(compareVersions('0.1.10', '0.1.9'), 1)
@@ -32,6 +32,9 @@ const release: GithubRelease = {
     'Arc-Shell-0.1.3-arm64.dmg.blockmap',
     'Arc-Shell-0.1.3-x64.dmg',
     'Arc-Shell-0.1.3-x64.dmg.blockmap',
+    'Arc-Shell-0.1.3-arm64-mac.zip',
+    'Arc-Shell-0.1.3-arm64-mac.zip.sig',
+    'Arc-Shell-0.1.3-x64-mac.zip',
     'Arc-Shell-0.1.3-x86_64.AppImage',
     'Arc-Shell-0.1.3-x64.AppImage',
     'Arc-Shell-Setup-0.1.3-x64.exe',
@@ -53,4 +56,17 @@ test('pickDownload falls back to the release page', () => {
   assert.equal(pickDownload(release, 'linux', 'arm64'), release.html_url)
   assert.equal(pickDownload({ ...release, assets: [] }, 'darwin', 'arm64'), release.html_url)
   assert.equal(pickDownload(release, 'freebsd', 'x64'), release.html_url)
+})
+
+test('pickMacUpdate picks the signed zip for this Mac’s CPU', () => {
+  assert.deepEqual(pickMacUpdate(release, 'arm64'), {
+    name: 'Arc-Shell-0.1.3-arm64-mac.zip',
+    url: url('Arc-Shell-0.1.3-arm64-mac.zip'),
+    signatureUrl: url('Arc-Shell-0.1.3-arm64-mac.zip.sig')
+  })
+})
+
+test('pickMacUpdate needs a signature', () => {
+  assert.equal(pickMacUpdate(release, 'x64'), undefined)
+  assert.equal(pickMacUpdate({ ...release, assets: [] }, 'arm64'), undefined)
 })

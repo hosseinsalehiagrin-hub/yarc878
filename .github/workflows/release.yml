@@ -130,12 +130,19 @@ jobs:
           # No Apple certificate: never pick one up from the keychain; electron-builder.yml
           # sets identity "-" (ad-hoc), which is used regardless of this flag.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Installed Macs only install an update zip whose Ed25519 signature matches the public key
+      # in src/main/update-signature.ts (see scripts/sign-update.mts for making the key pair).
+      - name: Sign the macOS update zips
+        if: runner.os == 'macOS'
+        env:
+          MAC_UPDATE_SIGNING_KEY: ${{ secrets.MAC_UPDATE_SIGNING_KEY }}
+        run: node --experimental-strip-types scripts/sign-update.mts release/*-mac.zip
       - name: Upload to the draft release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           shopt -s nullglob
-          files=(release/*.exe release/*.dmg release/*.AppImage release/*.blockmap release/latest*.yml)
+          files=(release/*.exe release/*.dmg release/*.zip release/*.zip.sig release/*.AppImage release/*.blockmap release/latest*.yml)
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::No installers in release/"
             exit 1

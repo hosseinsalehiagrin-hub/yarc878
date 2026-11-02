@@ -2,7 +2,8 @@
 # Docs: https://www.electron.build/configuration  ·  background: docs/electron-notes.md section 5
 #
 #   npm run dist:win   -> release/Arc-Shell-Setup-<version>-x64.exe and -arm64.exe
-#   npm run dist:mac   -> release/Arc-Shell-<version>-arm64.dmg and -x64.dmg   (must run on macOS)
+#   npm run dist:mac   -> release/Arc-Shell-<version>-arm64.dmg and -x64.dmg, plus the -mac.zip
+#                         self-updates (see src/main/mac-update.ts)                (must run on macOS)
 #   npm run dist:linux -> release/Arc-Shell-<version>-<arch>.AppImage    (run on Linux)
 appId: org.arcshell.browser
 productName: Arc Shell
@@ -67,6 +68,10 @@ mac:
   target:
     - target: dmg
       arch: [arm64, x64]
+    # What installed copies update themselves from (src/main/mac-update.ts); CI signs each one.
+    - target: zip
+      arch: [arm64, x64]
+  artifactName: Arc-Shell-${version}-${arch}-mac.${ext} # the zips; dmg.artifactName names the DMGs
   # No Apple Developer ID: sign ad-hoc. In 26.x an unset identity with no certificate means
   # "not signed at all", and an unsigned arm64 app is reported as "damaged". "-" = ad-hoc.
   identity: "-"
