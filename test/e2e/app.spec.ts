@@ -411,3 +411,23 @@ test('Little Arc can move its page into a closed main window (macOS)', async () 
   await expect.poll(async () => (await space()).today.some((t) => t.url.endsWith('/little-closed'))).toBe(true)
   await expect.poll(() => app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows().length)).toBe(1)
 })
+
+// electron-chrome-extensions only fills `chrome`; extensions written against `browser.*` (1Password
+// reads browser.windows when its background starts) need the same APIs there.
+test('extensions get the chrome.* APIs on browser.* too', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'yarc-ext-'))
+  writeFileSync(join(dir, 'manifest.json'), JSON.stringify({ manifest_version: 3, name: 'browser namespace', version: '1.0', background: { service_worker: 'bg.js', type: 'module' } }))
+  writeFileSync(join(dir, 'bg.js'), 'console.log(`browser.windows: ${typeof browser.windows}, browser.tabs.query: ${typeof browser.tabs.query}`)')
+  const logged = await app.evaluate(async (_e, extDir) => {
+    const b = (globalThis as any).arcBrowser
+    const ses = b.profiles.get(b.store.activeSpace.profileId).session
+    const message = new Promise<string>((resolve) =>
+      ses.serviceWorkers.on('console-message', (_ev: unknown, d: { message: string }) => d.message.startsWith('browser.') && resolve(d.message))
+    )
+    const ext = await ses.extensions.loadExtension(extDir)
+    const result = await message
+    ses.extensions.removeExtension(ext.id)
+    return result
+  }, dir)
+  expect(logged).toBe('browser.windows: object, browser.tabs.query: function')
+})
