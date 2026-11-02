@@ -154,9 +154,9 @@ There's an `.AppImage` for x64 on the Releases page. Make it executable (`chmod 
 
 ### Updating
 
-Arc Shell checks for a new version when it starts and every few hours. You can turn that off in **Settings → General → Check for updates automatically**, and check by hand with *Check for Updates…* in the command bar (or the **Arc Shell** menu on macOS).
+Arc Shell checks for a new version when it starts and every hour. You can turn that off in **Settings → General → Check for updates automatically**, and check by hand with *Check for Updates…* in the command bar (or the **Arc Shell** menu on macOS).
 
-- **Windows** updates itself. The new version downloads in the background; then a *Restart to Update* button appears at the bottom of the sidebar and in the command bar. If you don't click it, the update installs the next time you quit.
+- **Windows** updates itself. The new version downloads in the background; then Arc Shell asks you to *Relaunch* to update (your spaces and tabs reopen). If you choose *Later*, it asks again a day later, a *Restart to Update* button stays at the bottom of the sidebar and in the command bar, and the update installs the next time you quit anyway. Updates often carry Chromium security fixes, so relaunch soon.
 - **macOS** can't update itself yet: replacing the app in place needs an Apple Developer ID signature, and the builds are only ad-hoc signed. When a new version is out, a notice appears at the bottom of the sidebar and the **Arc Shell** menu shows *Update Available…*. Click either to download the right `.dmg` for your Mac, quit Arc Shell, drag the new **Arc Shell** to **Applications** (replace the old one), and run `xattr -dr com.apple.quarantine "/Applications/Arc Shell.app"` again before opening it. Your spaces, tabs and logins are kept.
 - **Linux:** you're told when a new version is out; download the new `.AppImage` and use it instead of the old one.
 
@@ -286,6 +286,16 @@ Releases are automatic: every pull request merged into `main` becomes a release.
 The version lives in git tags; `package.json` says `0.0.0-dev` and CI stamps the tag's version into it at build time. To release by hand, run the workflow from the Actions tab and pick the bump.
 
 Installed copies only see published releases: Windows downloads the update via `latest.yml`, macOS and Linux get a notice that links to the new `.dmg` / `.AppImage`.
+
+#### Electron security updates
+
+Chromium and V8 security fixes reach Arc Shell only through a newer Electron, so they ship without waiting for anyone:
+
+1. [Dependabot](.github/dependabot.yml) checks npm daily and opens a PR when Electron releases a new version.
+2. If that PR is an Electron **patch** bump, [dependabot-automerge](.github/workflows/dependabot-automerge.yml) merges it once CI passes and starts the release workflow. Electron minors and majors, and every other package, wait for a person.
+3. Installed copies find the release within the hour. Windows downloads it and asks to relaunch; macOS and Linux show a notice with the download.
+
+Details and gaps are in [docs/electron-notes.md](docs/electron-notes.md#6-security-updates-from-an-electron-release-to-users).
 
 ## How it works
 

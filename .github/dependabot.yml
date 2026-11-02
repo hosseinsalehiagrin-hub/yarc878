@@ -1,0 +1,21 @@
+# Daily npm checks are how Chromium/V8 security fixes reach users: Electron ships them as patch
+# releases, often with no advisory on the `electron` npm package, so security alerts alone miss
+# them. Electron has its own group so its PR never waits on another package's. Electron patch
+# bumps auto-merge once CI passes (.github/workflows/dependabot-automerge.yml).
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: daily
+    groups:
+      electron:
+        patterns: [electron]
+      dependencies:
+        patterns: ['*']
+        exclude-patterns: [electron]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
