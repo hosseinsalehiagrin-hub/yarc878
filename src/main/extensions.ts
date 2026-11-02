@@ -46,6 +46,10 @@ export class Extensions {
       }
     })
     this.byProfile.set(rt.id, ext)
+    // After the library's preload (registered above), so `chrome` already has its APIs to copy.
+    const filePath = join(__dirname, '../preload/extension-browser.js')
+    rt.session.registerPreloadScript({ id: 'yarc-browser-namespace', type: 'frame', filePath })
+    rt.session.registerPreloadScript({ id: 'yarc-browser-namespace-sw', type: 'service-worker', filePath })
 
     const refresh = () => {
       b.extensionList[rt.id] = rt.session.extensions

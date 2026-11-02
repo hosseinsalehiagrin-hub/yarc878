@@ -12,7 +12,7 @@ export default defineConfig({
   preload: {
     build: {
       externalizeDeps: true,
-      rollupOptions: { input: { ui: resolve('src/preload/ui.ts') } }
+      rollupOptions: { input: { ui: resolve('src/preload/ui.ts'), 'extension-browser': resolve('src/preload/extension-browser.ts') } }
     }
   },
   renderer: {
