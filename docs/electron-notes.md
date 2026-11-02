@@ -653,8 +653,9 @@ are what catch them.
    - Windows downloads the update in the background (electron-updater, `latest.yml`), then asks
      *Relaunch to update*. *Later* asks again a day later; the sidebar and command bar keep a
      *Restart to Update* button, and the update installs on the next quit anyway.
-   - macOS and Linux only get a notice and a download link (no Developer ID, so Squirrel.Mac
-     can't update in place). Users install the new DMG/AppImage by hand.
+   - macOS does the same with its own updater (section 7), since Squirrel.Mac refuses ad-hoc
+     signatures.
+   - Linux only gets a notice and a download link; users replace the AppImage by hand.
 
 Gaps:
 - Once Electron has a newer major, Dependabot proposes that major instead of the next patch on
@@ -662,6 +663,62 @@ Gaps:
   auto-merges back.
 - If `check` fails on an Electron patch PR, nothing ships until someone fixes it.
 - Dependabot alerts and security updates are on too, for advisories on other packages.
+
+---
+
+## 7. macOS self-update without a Developer ID **[tested 2026-11-02, macOS 26.5.1 arm64]**
+
+Squirrel.Mac (electron-updater's `MacUpdater`) checks that the new app satisfies the running
+app's designated requirement. An ad-hoc signature's requirement is its own cdhash
+(`codesign -d -r-` prints `designated => cdhash H"…"`), which changes with every build, so
+Squirrel.Mac refuses every update. `src/main/mac-update.ts` does the job itself:
+
+1. Poll `releases/latest` (as before); pick `YARC-<version>-<arch>-mac.zip` and its `.sig`
+   (`pickMacUpdate` in `release.ts`). electron-builder's `zip` mac target keeps the framework
+   symlinks (14 symlink entries; `codesign --verify --deep --strict` passes after unzipping).
+2. Download both with **Node's `fetch`**, not Chromium's download manager. Chromium sets
+   `com.apple.quarantine` on its downloads; files written with Node's `fs` don't get it (Electron's
+   Info.plist has no `LSFileQuarantineEnabled`). Unpacked with `ditto -x -k --noqtn`. Verified: no
+   quarantine xattr anywhere in the unpacked app (only `com.apple.provenance`), so Gatekeeper never
+   assesses the new version and there's no second *Open Anyway*.
+3. Check the Ed25519 signature before writing anything (`update-signature.ts`). Signed message:
+   `arc-shell-update\n<zip name>\n<sha512 hex>\n`, so an older or other-arch zip renamed to the new
+   name fails (tested: 0.0.5's zip and signature served as 0.0.6 were rejected). CI signs in
+   `release.yml` with `scripts/sign-update.mts` and the `MAC_UPDATE_SIGNING_KEY` secret; the script
+   refuses a key that doesn't match `UPDATE_PUBLIC_KEY`.
+4. Unzip to `<userData>/Update/new`, check bundle id, `CFBundleShortVersionString` and
+   `codesign --verify --deep --strict`.
+5. Ask *Relaunch to update* (shared with Windows). The swap happens in `will-quit`, both for
+   *Relaunch* (`app.relaunch()` + `app.quit()`) and for a plain quit after *Later*: rename the
+   running bundle to `<userData>/Update/replaced.app`, rename the new one into place, roll back if
+   the second rename fails. Not swapping earlier matters: Chromium starts helper processes from the
+   bundle path, and a helper from the new version would not match the running browser. Node has no
+   `renamex_np(RENAME_SWAP)`, so it's two renames, not one atomic call. The next start removes
+   `Update/` with `/bin/rm -rf`: **Electron's patched `fs.rm` treats `app.asar` as a folder and
+   leaves it behind**, which then made the next update's cleanup fail.
+6. If anything fails, it logs, falls back to the old notice (*Update Available…* opens the DMG) and
+   doesn't retry that version every hour.
+
+Tested with packaged test builds (`productName` "Arc Shell Update Test", own appId and profile)
+installed in `/Applications`, started with `open`, updating from a local feed: 0.0.3 → 0.0.4 on
+quit, 0.0.4 → 0.0.5 with *Relaunch*. Results for the risks:
+
+- **Keychain "Arc Shell Safe Storage": no prompt, because the item doesn't exist.** Electron's
+  `EnableCookieEncryption` fuse is off by default, so cookies are stored in plain text (checked
+  in the Cookies database: `value` set, `encrypted_value` empty) and nothing calls `safeStorage`.
+  If cookie encryption is ever turned on, expect a Keychain prompt after every update, because the
+  item's access list names the old cdhash.
+- **App Management (macOS 13+): no prompt and no failure.** Renaming the app's own bundle in
+  `/Applications` worked, and `log show` had no tccd `SystemPolicyAppBundles` entry for it. Tested with an app
+  that had no quarantine flag (like an install fixed with `xattr -dr`, and the current real
+  install on this Mac). Not tested: a first install approved with *Open Anyway*.
+- **Camera, microphone, screen recording: not tested with a real grant** (it needs a person to
+  click). TCC stores the designated requirement, which is the cdhash and differs per build (three
+  test builds, three cdhashes), so expect macOS to ask again after each update. Same as the old
+  DMG route. A self-signed code-signing certificate created once and kept in CI would make the
+  requirement `identifier … and certificate leaf = H"…"`, stable across builds; not done.
+- If the user can't write to the app's folder (standard account, `/Applications`), or the app is
+  translocated (run from the DMG or Downloads), it falls back to the DMG notice.
 
 ---
 
@@ -676,4 +733,5 @@ Gaps:
 | UA | Keep `Electron/45.x`, strip only the app-name token, set it before creating views, no client-hint forging, no CDP, no webRequest UA rewriting |
 | Chrome Sync | Impossible. Offer import from the local Chrome profile instead |
 | Storage | `node:sqlite` (Node 24.22.1, SQLite 3.53.4, unflagged, RC); no native modules |
-| Packaging | NSIS oneClick per-user + `installer.nsh` browser registration; mac dmg arm64+x64, `identity: "-"`, `hardenedRuntime: false` |
+| Packaging | NSIS oneClick per-user + `installer.nsh` browser registration; mac dmg + zip arm64+x64, `identity: "-"`, `hardenedRuntime: false` |
+| macOS updates | Own updater (`mac-update.ts`): Node download (no quarantine), Ed25519-signed zip, swap at quit; not Squirrel.Mac |

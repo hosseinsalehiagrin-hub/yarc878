@@ -1,4 +1,4 @@
-// GitHub release lookup for the notify-only updater (macOS, Linux). No Electron imports, so it unit-tests.
+// GitHub release lookup for the macOS self-updater and the Linux notice. No Electron imports, so it unit-tests.
 
 /** Published releases only: drafts are invisible here, so a release goes out once it's published. */
 export const LATEST_RELEASE_API = 'https://api.github.com/repos/yenebeb/arc-shell/releases/latest'
@@ -50,4 +50,18 @@ export function pickDownload(release: GithubRelease, platform: string, arch: str
   const ext = INSTALLER_EXT[platform]
   const asset = ext ? release.assets.find((a) => a.name.endsWith(`-${arch}.${ext}`)) : undefined
   return asset ? asset.browser_download_url : release.html_url
+}
+
+/** The self-update zip for a Mac (electron-builder.yml names it YARC-<version>-<arch>-mac.zip) and its signature. */
+export interface MacUpdate {
+  name: string
+  url: string
+  signatureUrl: string
+}
+
+export function pickMacUpdate(release: GithubRelease, arch: string): MacUpdate | undefined {
+  const zip = release.assets.find((a) => a.name.endsWith(`-${arch}-mac.zip`))
+  const signature = zip && release.assets.find((a) => a.name === `${zip.name}.sig`)
+  if (!zip || !signature) return undefined
+  return { name: zip.name, url: zip.browser_download_url, signatureUrl: signature.browser_download_url }
 }

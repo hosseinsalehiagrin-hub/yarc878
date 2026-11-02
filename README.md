@@ -144,7 +144,7 @@ Download the latest version from the **[Releases page](https://github.com/yenebe
 
 1. Download the `.dmg` for your Mac: **`-arm64.dmg`** for Apple Silicon (M1–M5), **`-x64.dmg`** for Intel.
 2. Open it and drag **YARC** to **Applications**.
-3. The app isn't notarized by Apple yet, so the first launch is blocked. Open it once, click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. (On macOS 15 and later, Control-click → Open no longer skips this.)
+3. The app isn't notarized by Apple yet, so the first launch is blocked. Open it once, click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. (On macOS 15 and later, Control-click → Open no longer skips this.) You only do this once: updates install themselves.
    Or, in Terminal: `xattr -dr com.apple.quarantine "/Applications/YARC.app"`
 4. To make it your default browser: run *Make YARC the Default Browser* from the command bar, or go to **System Settings → Desktop & Dock → Default web browser**.
 
@@ -156,11 +156,11 @@ There's an `.AppImage` for x64 on the Releases page. Make it executable (`chmod 
 
 YARC checks for a new version when it starts and every hour. You can turn that off in **Settings → General → Check for updates automatically**, and check by hand with *Check for Updates…* in the command bar (or the **YARC** menu on macOS).
 
-- **Windows** updates itself. The new version downloads in the background; then YARC asks you to *Relaunch* to update (your spaces and tabs reopen). If you choose *Later*, it asks again a day later, a *Restart to Update* button stays at the bottom of the sidebar and in the command bar, and the update installs the next time you quit anyway. Updates often carry Chromium security fixes, so relaunch soon.
-- **macOS** can't update itself yet: replacing the app in place needs an Apple Developer ID signature, and the builds are only ad-hoc signed. When a new version is out, a notice appears at the bottom of the sidebar and the **YARC** menu shows *Update Available…*. Click either to download the right `.dmg` for your Mac, quit YARC, drag the new **YARC** to **Applications** (replace the old one), and run `xattr -dr com.apple.quarantine "/Applications/YARC.app"` again before opening it. Your spaces, tabs and logins are kept.
-
-**Coming from Arc Shell?** YARC is the same app under a new name, and it keeps using your Arc Shell profile. Windows updates to it like to any other version. On macOS, install YARC as above, then move the old **Arc Shell** app to the Trash.
+- **Windows and macOS** update themselves. The new version downloads in the background; then YARC asks you to *Relaunch* to update (your spaces and tabs reopen). If you choose *Later*, it asks again a day later, a *Restart to Update* button stays at the bottom of the sidebar and in the command bar (and the **YARC** menu on macOS), and the update installs the next time you quit anyway. Updates often carry Chromium security fixes, so relaunch soon. Your spaces, tabs and logins are kept.
+- **macOS** asks for nothing in Terminal and shows no *Open Anyway* again after an update. Two things to know, both because the builds aren't signed with an Apple Developer ID: macOS may ask again for camera, microphone or screen recording the first time a site uses them after an update, and YARC can only update itself if your user can write to the folder it's in (an admin account can write to **Applications**). If it can't, *Update Available…* downloads the new `.dmg` instead: drag it to **Applications** to replace the old one, then allow it once with **Open Anyway** as above.
 - **Linux:** you're told when a new version is out; download the new `.AppImage` and use it instead of the old one.
+
+**Coming from Arc Shell?** YARC is the same app under a new name: it updates from Arc Shell like from any other version and keeps using your Arc Shell profile. On macOS the updated app keeps its file name, **Arc Shell**, in Applications; quit it and rename it to **YARC** in Finder if you like.
 
 ## Moving from Arc
 
@@ -287,7 +287,9 @@ Releases are automatic: every pull request merged into `main` becomes a release.
 
 The version lives in git tags; `package.json` says `0.0.0-dev` and CI stamps the tag's version into it at build time. To release by hand, run the workflow from the Actions tab and pick the bump.
 
-Installed copies only see published releases: Windows downloads the update via `latest.yml`, macOS and Linux get a notice that links to the new `.dmg` / `.AppImage`.
+Installed copies only see published releases: Windows downloads the update via `latest.yml`, macOS downloads the `-mac.zip` and checks its `.sig`, and Linux gets a notice that links to the new `.AppImage`.
+
+The macOS zips are signed with an Ed25519 key, and the app only installs a zip signed with the key whose public half is `UPDATE_PUBLIC_KEY` in [`src/main/update-signature.ts`](src/main/update-signature.ts). The private key is the `MAC_UPDATE_SIGNING_KEY` repository secret; without it (or with a key that doesn't match) the macOS build fails. To make a new key pair, run `node --experimental-strip-types scripts/sign-update.mts keygen <file>`, put the printed public key in `UPDATE_PUBLIC_KEY`, and the file's contents in the secret. Installed copies only accept updates signed with the key they were built with, so a new key only reaches them through one manual reinstall.
 
 #### Electron security updates
 
@@ -295,7 +297,7 @@ Chromium and V8 security fixes reach YARC only through a newer Electron, so they
 
 1. [Dependabot](.github/dependabot.yml) checks npm daily and opens a PR when Electron releases a new version.
 2. If that PR is an Electron **patch** bump, [dependabot-automerge](.github/workflows/dependabot-automerge.yml) merges it once CI passes and starts the release workflow. Electron minors and majors, and every other package, wait for a person.
-3. Installed copies find the release within the hour. Windows downloads it and asks to relaunch; macOS and Linux show a notice with the download.
+3. Installed copies find the release within the hour. Windows and macOS download it and ask to relaunch; Linux shows a notice with the download.
 
 Details and gaps are in [docs/electron-notes.md](docs/electron-notes.md#6-security-updates-from-an-electron-release-to-users).
 
@@ -342,7 +344,7 @@ Planned or open for contributions:
 - [ ] Multiple main windows
 - [ ] Sync between your own devices
 - [ ] Notes / Easels
-- [ ] Code signing and notarization, to remove the install warnings (and let macOS update itself, like Windows already does)
+- [ ] Code signing and notarization, to remove the install warnings (and keep macOS camera, microphone and screen permissions across updates)
 
 ## Contributing
 
