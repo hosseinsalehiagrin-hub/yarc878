@@ -1,6 +1,8 @@
 // In-app updates. Windows installs them in place (electron-updater with the NSIS installer).
 // macOS builds are only ad-hoc signed, which Squirrel.Mac refuses, so there (and on Linux) we
 // only tell the user about a new release and open its download.
+// Updates are how Chromium security fixes arrive, so checks are hourly, and on Windows a
+// downloaded update asks to relaunch (again a day after each "Later") instead of waiting for a quit.
 import { app, clipboard, dialog, net, shell, type MessageBoxOptions } from 'electron'
 import type { NsisUpdater } from 'electron-updater'
 import type { UpdateStatus } from '../shared/types'
@@ -8,7 +10,8 @@ import type { Browser } from './browser'
 import { installAppMenu } from './menus'
 import { isNewer, LATEST_RELEASE_API, pickDownload, type GithubRelease } from './release'
 
-const CHECK_EVERY = 4 * 60 * 60_000
+const CHECK_EVERY = 60 * 60_000
+const REMIND_EVERY = 24 * 60 * 60_000
 const XATTR = 'xattr -dr com.apple.quarantine "/Applications/Arc Shell.app"'
 
 export class Updater {
@@ -17,6 +20,7 @@ export class Updater {
   private download = { installer: '', page: '' }
   private nsis: NsisUpdater | undefined
   private timer: NodeJS.Timeout | undefined
+  private reminder: NodeJS.Timeout | undefined
   private checking = false
 
   constructor(private browser: Browser) {}
@@ -76,8 +80,7 @@ export class Updater {
           `Then run this in Terminal before opening it (Download copies it to your clipboard):\n\n${XATTR}`
         : 'Download the new AppImage and use it in place of this one.'
     }
-    const win = this.browser.window?.win
-    const { response } = win && !win.isDestroyed() ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
+    const response = await this.ask(options)
     if (response === 0) {
       if (mac) clipboard.writeText(XATTR)
       void shell.openExternal(this.download.installer)
@@ -91,6 +94,31 @@ export class Updater {
     if (this.status.state === 'ready') return 'Restart to Update'
     if (this.status.state === 'available') return `Download Arc Shell ${this.status.version}…`
     return undefined
+  }
+
+  /** Chrome's "Relaunch to update": the default is Later, so a keystroke meant for a page can't restart the app. */
+  private async promptRelaunch(): Promise<void> {
+    clearTimeout(this.reminder)
+    if (this.status.state !== 'ready') return
+    const response = await this.ask({
+      type: 'info',
+      buttons: ['Relaunch', 'Later'],
+      defaultId: 1,
+      cancelId: 1,
+      message: `Relaunch to update to Arc Shell ${this.status.version}`,
+      detail:
+        'The update is downloaded. Updates often include Chromium security fixes, so it’s best not to wait. ' +
+        'Arc Shell reopens with your spaces and tabs.\n\nIf you choose Later, it installs the next time you quit.'
+    })
+    if (response === 0) return this.apply()
+    this.reminder = setTimeout(() => void this.promptRelaunch(), REMIND_EVERY)
+  }
+
+  /** A message box on the main window, or a free-standing one when that's closed. */
+  private async ask(options: MessageBoxOptions): Promise<number> {
+    const win = this.browser.window?.win
+    const { response } = win && !win.isDestroyed() ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
+    return response
   }
 
   private set(status: UpdateStatus): void {
@@ -114,7 +142,7 @@ export class Updater {
     updater.on('update-available', (info) => this.set({ state: 'downloading', version: info.version }))
     updater.on('update-downloaded', (info) => {
       this.set({ state: 'ready', version: info.version })
-      this.browser.toast(`Arc Shell ${info.version} is ready. Restart to update.`)
+      void this.promptRelaunch()
     })
     updater.on('error', (err) => {
       console.error('[updater]', err)

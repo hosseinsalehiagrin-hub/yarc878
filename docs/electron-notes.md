@@ -629,6 +629,42 @@ the zips, and `latest*.yml` (useful if you add `electron-updater`).
 
 ---
 
+## 6. Security updates: from an Electron release to users
+
+Almost every browser zero-day is in Chromium or V8, and the only way Arc Shell gets the fix is a
+newer `electron`. Electron ships Chromium security fixes as patch releases on every supported
+major, usually within a day or two of Chrome's. They often have **no GHSA on the `electron` npm
+package**, so Dependabot *alerts* and *security updates* alone miss them; daily *version* updates
+are what catch them.
+
+1. **Electron publishes** a patch, e.g. `45.2.2`.
+2. **Dependabot** (`.github/dependabot.yml`) checks npm daily and opens a PR for it. `electron` is
+   in its own group, so its PR never waits on another package's.
+3. **CI** (`ci.yml`, the `check` job) typechecks, tests and builds the PR.
+4. **Auto-merge** (`.github/workflows/dependabot-automerge.yml`): if the PR is Dependabot's, touches
+   only `electron`, and is a semver *patch* (`dependabot/fetch-metadata`), it runs
+   `gh pr merge --auto --merge`, so the PR merges once `check` passes. Minors, majors and other
+   packages wait for a person (supply-chain risk). Needs the repo setting `allow_auto_merge`.
+5. **Release**: GitHub starts no workflows for a push made with `GITHUB_TOKEN`, so the auto-merge
+   doesn't trigger `release.yml` on its own. The auto-merge job waits for the merge and then runs
+   `gh workflow run release.yml -f bump=patch` (dispatch is the exception to that rule). The
+   release builds Windows, macOS and Linux and publishes once all three pass.
+6. **Users**: installed copies check GitHub every hour (`CHECK_EVERY` in `src/main/updater.ts`).
+   - Windows downloads the update in the background (electron-updater, `latest.yml`), then asks
+     *Relaunch to update*. *Later* asks again a day later; the sidebar and command bar keep a
+     *Restart to Update* button, and the update installs on the next quit anyway.
+   - macOS and Linux only get a notice and a download link (no Developer ID, so Squirrel.Mac
+     can't update in place). Users install the new DMG/AppImage by hand.
+
+Gaps:
+- Once Electron has a newer major, Dependabot proposes that major instead of the next patch on
+  ours, and majors aren't auto-merged. Merge the major (by hand, after a look) to get patch
+  auto-merges back.
+- If `check` fails on an Electron patch PR, nothing ships until someone fixes it.
+- Dependabot alerts and security updates are on too, for advisories on other packages.
+
+---
+
 ## Summary of choices
 
 | Topic | Choice |

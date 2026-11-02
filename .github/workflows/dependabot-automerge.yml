@@ -1,0 +1,44 @@
+name: dependabot-automerge
+
+# Electron patch releases carry Chromium and V8 security fixes, so they shouldn't wait for someone
+# to notice: Dependabot's PR for an `electron` patch bump merges as soon as the `check` CI job
+# passes, and is released. Only electron, only patch bumps: majors, minors and every other package
+# (supply-chain risk) wait for a person.
+on: pull_request
+
+permissions:
+  contents: write # merge
+  pull-requests: write # enable auto-merge
+  actions: write # start release.yml
+
+concurrency:
+  group: automerge-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  electron-patch:
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v3
+      - name: Merge once CI passes, then release
+        if: steps.meta.outputs.dependency-names == 'electron' && steps.meta.outputs.update-type == 'version-update:semver-patch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr merge "$PR" --auto --merge
+          # GitHub starts no workflows for a push made with this token, so the merge doesn't
+          # trigger release.yml: wait for it, then start the release by hand (dispatch is allowed).
+          for _ in $(seq 100); do
+            case "$(gh pr view "$PR" --json state --jq .state)" in
+              MERGED) exec gh workflow run release.yml --ref main -f bump=patch ;;
+              CLOSED) echo "PR $PR was closed without merging."; exit 0 ;;
+            esac
+            sleep 30
+          done
+          echo "::error::PR $PR wasn't merged within 50 minutes. Merge it, then run the release workflow from the Actions tab."
+          exit 1
