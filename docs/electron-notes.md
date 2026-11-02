@@ -845,13 +845,13 @@ self-signed DMG.
 
 ```bash
 /usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 7300 \
-  -subj "/CN=Arc Shell Release Signing" \
+  -subj "/CN=YARC Release Signing" \
   -addext "basicConstraints=critical,CA:false" \
   -addext "keyUsage=critical,digitalSignature" \
   -addext "extendedKeyUsage=critical,codeSigning" \
   -keyout codesign-key.pem -out codesign-cert.pem
 /usr/bin/openssl pkcs12 -export -inkey codesign-key.pem -in codesign-cert.pem \
-  -name "Arc Shell Release Signing" -out codesign.p12   # asks for the .p12 password
+  -name "YARC Release Signing" -out codesign.p12   # asks for the .p12 password
 base64 -i codesign.p12 | gh secret set MAC_CODESIGN_P12 --repo yenebeb/yarc
 gh secret set MAC_CODESIGN_P12_PASSWORD --repo yenebeb/yarc   # asks for the same password
 ```
