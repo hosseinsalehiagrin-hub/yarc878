@@ -82,6 +82,8 @@ mac:
   # No Apple Developer ID: sign ad-hoc. In 26.x an unset identity with no certificate means
   # "not signed at all", and an unsigned arm64 app is reported as "damaged". "-" = ad-hoc.
   identity: "-"
+  # Release builds: re-signed with CI's self-signed certificate instead (scripts/mac-sign.mjs).
+  sign: ./scripts/mac-sign.mjs
   hardenedRuntime: false # ad-hoc + hardened runtime would need disable-library-validation
   notarize: false
   gatekeeperAssess: false
