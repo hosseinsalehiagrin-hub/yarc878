@@ -41,8 +41,18 @@ export async function cleanUpStaging(): Promise<void> {
   await run('/bin/rm', ['-rf', stagingDir()])
 }
 
-/** Downloads, verifies and unpacks the update; resolves to the new .app, for installStaged. */
-export async function stageUpdate(update: MacUpdate, version: string, bundle: string): Promise<string> {
+export interface StagedUpdate {
+  /** The unpacked .app, for installStaged. */
+  app: string
+  /**
+   * Its executable once it's installed in place of the running bundle. To relaunch with: it can have
+   * another name than the running one's (the Arc Shell → YARC rename), and the bundle keeps its own.
+   */
+  executable: string
+}
+
+/** Downloads, verifies and unpacks the update. */
+export async function stageUpdate(update: MacUpdate, version: string, bundle: string): Promise<StagedUpdate> {
   const [zip, signature] = await Promise.all([download(update.url), download(update.signatureUrl)])
   if (!verifyUpdate(update.name, zip, signature.toString('utf8'), UPDATE_PUBLIC_KEY)) {
     throw new Error(`${update.name} doesn't match its signature`)
@@ -60,7 +70,7 @@ export async function stageUpdate(update: MacUpdate, version: string, bundle: st
   if (apps.length !== 1) throw new Error(`${update.name} holds ${apps.length} apps`)
   const staged = path.join(unpacked, apps[0])
   await checkBundle(staged, bundle, version)
-  return staged
+  return { app: staged, executable: path.join(bundle, 'Contents', 'MacOS', await plistValue(staged, 'CFBundleExecutable')) }
 }
 
 /** The new app must be this app, at the expected version, with an intact (ad-hoc) code signature. */

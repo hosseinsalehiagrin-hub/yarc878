@@ -25,6 +25,8 @@ export class Updater {
   private checking = false
   /** macOS: a version that failed to update in place, offered as a download instead of retried every hour. */
   private failedVersion = ''
+  /** macOS: the downloaded update's executable, to relaunch into once it's swapped in. */
+  private relaunchPath = ''
   /** macOS: removing the app the last update replaced; a new download waits for it. */
   private cleanup: Promise<void>
 
@@ -75,7 +77,7 @@ export class Updater {
     if (this.status.state === 'ready') {
       if (this.nsis) return this.nsis.quitAndInstall(true, true)
       // macOS: the will-quit handler from updateMac swaps the new app in before the relaunch.
-      app.relaunch()
+      app.relaunch({ execPath: this.relaunchPath })
       return app.quit()
     }
     if (this.status.state !== 'available') return this.check(true)
@@ -194,9 +196,10 @@ export class Updater {
     try {
       await this.cleanup
       const staged = await stageUpdate(update, version, bundle)
+      this.relaunchPath = staged.executable
       app.once('will-quit', () => {
         try {
-          installStaged(staged, bundle)
+          installStaged(staged.app, bundle)
         } catch (err) {
           console.error('[updater] installing the update failed', err)
         }
