@@ -852,8 +852,8 @@ self-signed DMG.
   -keyout codesign-key.pem -out codesign-cert.pem
 /usr/bin/openssl pkcs12 -export -inkey codesign-key.pem -in codesign-cert.pem \
   -name "Arc Shell Release Signing" -out codesign.p12   # asks for the .p12 password
-base64 -i codesign.p12 | gh secret set MAC_CODESIGN_P12 --repo yenebeb/arc-shell
-gh secret set MAC_CODESIGN_P12_PASSWORD --repo yenebeb/arc-shell   # asks for the same password
+base64 -i codesign.p12 | gh secret set MAC_CODESIGN_P12 --repo yenebeb/yarc
+gh secret set MAC_CODESIGN_P12_PASSWORD --repo yenebeb/yarc   # asks for the same password
 ```
 
 Keep `codesign.p12` and its password somewhere safe (a password manager), then delete the
