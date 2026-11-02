@@ -1,10 +1,10 @@
 {
-  "name": "arc-shell",
-  "productName": "Arc Shell",
+  "name": "yarc",
+  "productName": "YARC",
   "version": "0.0.0-dev",
-  "description": "An open-source, Arc-style browser built on Electron: vertical sidebar, spaces with separate profiles, command bar, split view and Little Arc.",
+  "description": "Yet Another Arc Clone: an open-source, Arc-style browser built on Electron: vertical sidebar, spaces with separate profiles, command bar, split view and Little Arc.",
   "license": "GPL-3.0-or-later",
-  "author": "Arc Shell contributors",
+  "author": "YARC contributors",
   "homepage": "https://github.com/yenebeb/arc-shell",
   "repository": {
     "type": "git",

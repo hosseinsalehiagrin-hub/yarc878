@@ -1,4 +1,4 @@
-# Arc Shell — notes for Claude sessions
+# YARC — notes for Claude sessions
 
 Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeScript 7, electron-vite 6). Arc shuts down 2026-12-22; the goal is to match Arc's behavior as closely as possible, with **macOS as the main platform** (most Arc users), Windows second.
 
@@ -18,6 +18,7 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 
 ## Decisions already made (don't re-litigate)
 
+- Renamed from Arc Shell to YARC (Yet Another Arc Clone) on 2026-11-02. Kept on purpose: the `appId` `org.arcshell.browser`, the Windows registry keys and ProgIDs (`ArcShell*`), the GitHub repo name, and an existing `Arc Shell` profile folder (`src/main/profile-dir.ts`). Cookies aren't encrypted (Electron's cookie-encryption fuse is off), so no Keychain key is tied to the old name.
 - Google sign-in needs Electron's own UA (only the app-name token stripped); a spoofed Chrome UA is rejected. Chrome Sync is impossible for non-Chrome browsers → import instead.
 - Built-in ad blocking (Ghostery engine) because Electron has no `declarativeNetRequest`. Uses a custom adapter, not `enableBlockingInSession` (global IPC handlers break with multiple sessions).
 - Unsigned builds: macOS ad-hoc signed (`identity: "-"`), not notarized.
@@ -25,12 +26,12 @@ Open-source Arc-browser replacement (Electron 45 / Chromium 156, React 19, TypeS
 
 ## Status / next steps
 
-Windows: unit + e2e + installed. macOS (2026-11-01, Apple silicon): unit + e2e pass, `dist:mac --dir` packages and launches. Checked on macOS by driving the app through `ARC_SHELL_TEST` (no real keyboard/trackpad/screen capture available to the agent):
+Windows: unit + e2e + installed. macOS (2026-11-01, Apple silicon): unit + e2e pass, `dist:mac --dir` packages and launches. Checked on macOS by driving the app through `YARC_TEST` (no real keyboard/trackpad/screen capture available to the agent):
 
 - Import from Arc with real data: spaces in Arc's order, profile names, favorites, pinned tabs and folders, archive and history all import. Arc's named space icons (`customInfo.iconType.icon`, Ionicons names) are mapped to emoji. Gaps: untitled spaces become "Space N"; spaces without a theme get palette colors.
 - Shortcuts from a focused page `<input>` via `sendInputEvent`: Cmd+L/D/S/W/, , Ctrl+2, Ctrl+Tab with Ctrl keyup. Cmd+W never closes the window (the Window menu role has no Close item on macOS).
 - Traffic lights: hidden with the sidebar, shown during hover-peek and back after; no gap in native fullscreen. Links from other apps open Little Arc.
-- Fixed: the closed main window (app keeps running on macOS) crashed menu-bar commands, the overlay blur handler, toasts, Little Arc's "Open in Arc Shell" and external links.
+- Fixed: the closed main window (app keeps running on macOS) crashed menu-bar commands, the overlay blur handler, toasts, Little Arc's "Open in YARC" and external links.
 
 Still needs a human on a Mac:
 

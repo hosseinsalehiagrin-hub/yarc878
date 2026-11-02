@@ -1,4 +1,4 @@
-# Arc Browser UX Reference (for arc-shell)
+# Arc Browser UX Reference (for YARC)
 
 Researched 2026-11-01. Covers Arc for macOS, the primary platform, and Arc for Windows.
 

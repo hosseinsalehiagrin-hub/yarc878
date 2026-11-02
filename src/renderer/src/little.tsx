@@ -32,8 +32,8 @@ function App() {
         <button className="icon-btn" onClick={() => void arc.little('copyUrl')} title="Copy URL">
           <Icon name="copy" />
         </button>
-        <button className="open-main" onClick={() => void arc.little('openInMain')} title={`Open in Arc Shell (${isMac ? '⌘O' : 'Ctrl+O'})`}>
-          Open in Arc Shell
+        <button className="open-main" onClick={() => void arc.little('openInMain')} title={`Open in YARC (${isMac ? '⌘O' : 'Ctrl+O'})`}>
+          Open in YARC
         </button>
         {!isMac ? (
           <button className="icon-btn" onClick={() => void arc.little('close')} title="Close">

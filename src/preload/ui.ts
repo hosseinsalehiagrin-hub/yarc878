@@ -1,4 +1,4 @@
-// Preload for Arc Shell's own UI (sidebar, overlay, Little Arc toolbar). Never used for web pages.
+// Preload for YARC's own UI (sidebar, overlay, Little Arc toolbar). Never used for web pages.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { injectBrowserAction } from 'electron-chrome-extensions/browser-action'
 import { IPC, type ArcApi } from '../shared/ipc'

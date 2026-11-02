@@ -133,7 +133,7 @@ function General({ state }: { state: AppState }) {
         title="Check for updates automatically"
         hint={
           state.platform === 'win32'
-            ? 'New versions download in the background and install when you restart Arc Shell.'
+            ? 'New versions download in the background and install when you restart YARC.'
             : 'You’re told when a new version is out, and install it yourself.'
         }
       >
@@ -289,8 +289,8 @@ function About() {
   return (
     <div className="about">
       <div className="logo" />
-      <h2>Arc Shell</h2>
-      <div className="muted">An open-source, Arc-style browser. Not affiliated with The Browser Company.</div>
+      <h2>YARC</h2>
+      <div className="muted">Yet Another Arc Clone: an open-source, Arc-style browser. Not affiliated with The Browser Company.</div>
     </div>
   )
 }

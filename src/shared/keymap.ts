@@ -114,7 +114,7 @@ export const BINDINGS: Binding[] = [
   { id: 'importChrome', title: 'Import History & Bookmarks from Chrome', mac: [], other: [], palette: true },
   { id: 'extensions', title: 'Get Extensions (Chrome Web Store)', mac: [], other: [], palette: true },
   { id: 'focusPage', title: 'Focus Page', mac: [], other: [] },
-  { id: 'setDefaultBrowser', title: 'Make Arc Shell the Default Browser', mac: [], other: [], palette: true },
+  { id: 'setDefaultBrowser', title: 'Make YARC the Default Browser', mac: [], other: [], palette: true },
   { id: 'checkForUpdates', title: 'Check for Updates…', mac: [], other: [], palette: true },
   // Listed only while an update is waiting, under the title Updater.actionTitle() gives it.
   { id: 'installUpdate', title: 'Install Update', mac: [], other: [], palette: true }
