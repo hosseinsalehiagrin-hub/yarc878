@@ -23,6 +23,8 @@ export interface TabHost {
   onFoundInPage(tab: LiveTab, result: Result): void
   adoptOpenedPage(opener: LiveTab, options: BrowserWindowConstructorOptions, disposition: OpenDisposition, url: string): WebContents
   showContextMenu(tab: LiveTab, params: ContextMenuParams): void
+  /** A link the user clicked is about to replace the page; return true to open it elsewhere instead. */
+  interceptLink?(tab: LiveTab, url: string): boolean
 }
 
 const WEB_SCHEMES = /^(https?|file|about|data|blob|chrome-extension|view-source|devtools|chrome):/i
@@ -44,6 +46,8 @@ export class LiveTab {
   readonly wc: WebContents
   fullscreen = false
   crashed = false
+  /** When the user last clicked in the page; navigations right after it are link clicks, not redirects. */
+  private lastClick = 0
 
   constructor(
     public host: TabHost,
@@ -136,11 +140,17 @@ export class LiveTab {
       this.crashed = true
       this.host.onTabChanged(this, {})
     })
+    wc.on('input-event', (_e, input) => {
+      if (input.type === 'mouseUp') this.lastClick = Date.now()
+    })
     wc.on('will-navigate', (e, url) => {
       if (!WEB_SCHEMES.test(url)) {
         e.preventDefault()
         void shell.openExternal(url)
+        return
       }
+      const clicked = Date.now() - this.lastClick < 1000
+      if (clicked && this.host.interceptLink?.(this, url)) e.preventDefault()
     })
     wc.setWindowOpenHandler(({ url, disposition, features }) => {
       if (!WEB_SCHEMES.test(url)) {

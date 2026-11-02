@@ -86,6 +86,8 @@ export interface Settings {
   littleArcForExternalLinks: boolean
   /** Profile used by Little Arc windows; empty = profile of the active space. */
   littleArcProfileId: ID | ''
+  /** Links from pinned tabs and favorites to other sites open in Peek instead of replacing the page. */
+  peekPinnedLinks: boolean
   theme: 'system' | 'light' | 'dark'
   /** Built-in ad & tracker blocking. */
   adblock: boolean
@@ -151,6 +153,8 @@ export interface AppState extends PersistedState {
   sidebarPeek: boolean
   /** The command bar is open to make a new tab (the sidebar highlights "New Tab", like Arc). */
   newTabOpen: boolean
+  /** The page shown in Peek, if one is open. */
+  peek?: LiveInfo
   /** Where web pages currently sit in the window, so the UI can draw split handles and focus rings. */
   layout: { content: Rect; views: { id: ID; rect: Rect }[]; splitId?: ID }
   update: UpdateStatus
@@ -182,6 +186,8 @@ export type OverlayMode =
   | { kind: 'space-editor'; spaceId?: ID }
   | { kind: 'sidebar' }
   | { kind: 'switcher'; order: ID[]; index: number }
+  /** A Peek page floats over the content; the overlay draws the dimmed backdrop and its buttons beside `card`. */
+  | { kind: 'peek'; card: Rect }
 
 export interface SearchResult {
   kind: 'tab' | 'favorite' | 'pinned' | 'history' | 'suggestion' | 'url' | 'command' | 'archive'

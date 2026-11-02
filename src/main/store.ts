@@ -17,6 +17,7 @@ export const DEFAULT_SETTINGS: Settings = {
   searchEngine: 'google',
   littleArcForExternalLinks: true,
   littleArcProfileId: '',
+  peekPinnedLinks: true,
   adblock: true,
   adblockAllowlist: [],
   autoUpdate: true,

@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindingLabel, type CommandId } from '../../shared/keymap'
 import { findItem } from '../../shared/tree'
-import type { AppState, OverlayMode, SearchResult } from '../../shared/types'
+import type { AppState, OverlayMode, Rect, SearchResult } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac, useAppState, useOverlayMode, useSpaceTheme } from './api'
 import { Favicon, Icon, type IconName } from './icons'
 import { Library } from './panels/Library'
@@ -70,7 +70,32 @@ function App() {
           <SpaceEditor key={`${key}-${mode.spaceId}`} state={state} close={close} spaceId={mode.spaceId} />
         </>
       )
+    case 'peek':
+      return <PeekFrame card={mode.card} />
   }
+}
+
+// ------------------------------------------------------------------ peek
+
+/** The dimmed page behind a Peek card and Arc's buttons beside it; the card itself is a web view on top. */
+function PeekFrame({ card }: { card: Rect }) {
+  const peek = (op: 'close' | 'expand' | 'split') => () => dispatch({ type: 'peek', op })
+  return (
+    <>
+      <div className="scrim" onMouseDown={peek('close')} />
+      <div className="peek-buttons" style={{ left: card.x + card.width, top: card.y, width: card.x }}>
+        <button title="Close (Esc)" onClick={peek('close')}>
+          <Icon name="x" />
+        </button>
+        <button title={`Open as a tab (${isMac ? '⌘O' : 'Ctrl+O'})`} onClick={peek('expand')}>
+          <Icon name="expand" />
+        </button>
+        <button title="Open in split view" onClick={peek('split')}>
+          <Icon name="split" />
+        </button>
+      </div>
+    </>
+  )
 }
 
 // ------------------------------------------------------------------ command bar

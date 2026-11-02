@@ -50,7 +50,8 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
 
   const ctx: Ctx = { state, space, edit, setEdit, hint, setHint, dragging }
   const activeId = space.activeItemId
-  const live = activeId ? state.live[activeId] : undefined
+  // While Peek is open, the URL field shows the Peek page, like Arc.
+  const live = state.peek ?? (activeId ? state.live[activeId] : undefined)
   const activeItem = activeId ? findTab(state, space, activeId) : undefined
   const url = live?.url ?? activeItem?.url ?? ''
   const favorites = profile?.favorites ?? []
@@ -229,7 +230,7 @@ function ResizeHandle({ width, right }: { width: number; right: boolean }) {
 
 function TopBar({ state }: { state: AppState }) {
   const space = activeSpace(state)
-  const live = space.activeItemId ? state.live[space.activeItemId] : undefined
+  const live = state.peek ?? (space.activeItemId ? state.live[space.activeItemId] : undefined)
   return (
     <div className="topbar">
       <button className="icon-btn" title={`Toggle sidebar (${isMac ? '⌘S' : 'Ctrl+S'})`} onClick={() => dispatch({ type: 'toggleSidebar' })}>

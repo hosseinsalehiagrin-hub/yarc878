@@ -144,6 +144,7 @@ function General({ state }: { state: AppState }) {
       </Row>
       <Row title="Open links from other apps in Little Arc" hint="When off, they open as a new tab in the current space.">
         <Toggle label="Open links from other apps in Little Arc" checked={s.littleArcForExternalLinks} onChange={(v) => patch({ littleArcForExternalLinks: v })} />
+        <Toggle label="Open other sites from pinned tabs and favorites in Peek" checked={s.peekPinnedLinks} onChange={(v) => patch({ peekPinnedLinks: v })} />
       </Row>
       <Row title="Little Arc profile" hint="Which logins and history Little Arc windows use.">
         <select value={s.littleArcProfileId} onChange={(e) => patch({ littleArcProfileId: e.target.value })}>

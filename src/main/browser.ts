@@ -29,6 +29,7 @@ import type {
   OverlayMode,
   PinnedNode,
   PinnedTab,
+  Rect,
   Space,
   TabItem
 } from '../shared/types'
@@ -38,6 +39,7 @@ import { openInChrome } from './chrome'
 import { Extensions } from './extensions'
 import { runImport } from './importers'
 import { LittleWindow } from './little'
+import { Peek, sameSite } from './peek'
 import { buildContextMenu, buildFolderMenu, buildItemMenu, buildSpaceMenu } from './menus'
 import { Profiles, type ProfileRuntime } from './profiles'
 import { search, suggest } from './search'
@@ -72,6 +74,7 @@ export class Browser implements TabHost {
   private switcher: { order: ID[]; index: number } | undefined
   private emitTimer: NodeJS.Timeout | undefined
   readonly littles = new Set<LittleWindow>()
+  private peek: Peek | undefined
   private windowFile: string
 
   constructor() {
@@ -132,6 +135,8 @@ export class Browser implements TabHost {
     win.on('closed', () => {
       for (const t of this.live.values()) t.destroy()
       this.live.clear()
+      this.peek?.destroy()
+      this.peek = undefined
     })
     win.webContents.once('did-finish-load', () => this.emit())
     this.window.overlay.webContents.on('blur', () => {
@@ -211,6 +216,7 @@ export class Browser implements TabHost {
       fullscreen: !!win && !win.isDestroyed() && win.isFullScreen(),
       sidebarPeek: this.sidebarPeek,
       newTabOpen: this.newTabOpen(),
+      peek: this.peek && !this.peek.tab.destroyed ? this.peek.tab.info() : undefined,
       layout: this.currentLayout,
       update: this.updater.status
     }
@@ -249,7 +255,9 @@ export class Browser implements TabHost {
 
   // ---------------------------------------------------------------- tabs
 
+  /** The page that commands (reload, back, find, zoom…) act on: the Peek page while one is open. */
   activeTab(): LiveTab | undefined {
+    if (this.peek && !this.peek.tab.destroyed) return this.peek.tab
     const id = this.space.activeItemId
     const t = id ? this.live.get(id) : undefined
     return t && !t.destroyed ? t : undefined
@@ -285,6 +293,7 @@ export class Browser implements TabHost {
   activate(id: ID, focus = true): void {
     const found = findItem(this.state, id)
     if (!found) return
+    this.closePeek()
     let space = this.space
     if (found.loc.kind === 'favorite') {
       const profileId = found.loc.profileId
@@ -339,7 +348,9 @@ export class Browser implements TabHost {
       }
     }
     this.currentLayout = { content, views, splitId }
-    if (w.overlayMode.kind !== 'none') w.setOverlay(w.overlayMode, this.overlayRect(w.overlayMode))
+    if (this.peek) w.setTop(this.peek.tab.view, this.peekRects().card)
+    const mode = w.overlayMode.kind === 'peek' ? this.peekMode() : w.overlayMode
+    if (mode.kind !== 'none') w.setOverlay(mode, this.overlayRect(mode))
     this.emitSoon()
   }
 
@@ -358,12 +369,15 @@ export class Browser implements TabHost {
         const w = Math.min(380, c.width - 16)
         return { x: c.x + c.width - w - 12, y: c.y + 12, width: w, height: 60 }
       }
+      case 'peek':
+        return this.currentLayout.content
       default:
         return { x: 0, y: 0, width, height }
     }
   }
 
   setOverlay(mode: OverlayMode, refocus = true): void {
+    if (mode.kind !== 'peek') this.dropPeek()
     if (this.window.overlayMode.kind === 'find' && mode.kind !== 'find') this.activeTab()?.wc.stopFindInPage('keepSelection')
     if (mode.kind !== 'sidebar') this.sidebarPeek = false
     if (mode.kind !== 'switcher') this.switcher = undefined
@@ -371,6 +385,73 @@ export class Browser implements TabHost {
     if (isMac && !this.state.settings.sidebarVisible) this.window.win.setWindowButtonVisibility(mode.kind === 'sidebar')
     if (mode.kind === 'none' && refocus) this.activeTab()?.wc.focus()
     this.emitSoon()
+  }
+
+  // ---------------------------------------------------------------- Peek
+
+  /** Opens a page in Peek, over the current tab, with the opener's profile. */
+  openPeek(opener: LiveTab, url: string): void {
+    this.dropPeek()
+    this.peek = new Peek(this, this.profiles.get(opener.profileId), url)
+    this.window.setTop(this.peek.tab.view, this.peekRects().card)
+    this.setOverlay(this.peekMode())
+    this.peek.tab.wc.focus()
+  }
+
+  closePeek(): void {
+    if (this.window.overlayMode.kind === 'peek') this.setOverlay({ kind: 'none' })
+    else this.dropPeek()
+  }
+
+  /** Moves the Peek page into a Today tab, keeping its state (or into a split with the current tab). */
+  expandPeek(split = false): void {
+    const peek = this.peek
+    if (!peek || peek.tab.destroyed) return
+    this.peek = undefined
+    this.window.setTop(undefined)
+    this.setOverlay({ kind: 'none' }, false)
+    const tab = peek.release()
+    const item: TabItem = { id: newId(), url: tab.wc.getURL(), title: tab.wc.getTitle(), favicon: tab.favicon, lastActive: Date.now() }
+    this.space.today.unshift(item)
+    tab.itemId = item.id
+    this.live.set(item.id, tab)
+    if (split) this.splitWith(item.id)
+    else this.activate(item.id)
+  }
+
+  private dropPeek(): void {
+    const peek = this.peek
+    if (!peek) return
+    this.peek = undefined
+    if (!this.window.win.isDestroyed()) this.window.setTop(undefined)
+    peek.destroy()
+    this.emitSoon()
+  }
+
+  /** Arc's Peek card: nearly the content's height, with room beside it for the buttons. */
+  private peekRects(): { card: Rectangle; local: Rect } {
+    const c = this.currentLayout.content
+    const margin = Math.round(Math.max(56, c.width * 0.08))
+    const local = { x: margin, y: 4, width: Math.max(100, c.width - 2 * margin), height: Math.max(100, c.height - 8) }
+    return { card: { ...local, x: c.x + local.x, y: c.y + local.y }, local }
+  }
+
+  private peekMode(): OverlayMode {
+    return { kind: 'peek', card: this.peekRects().local }
+  }
+
+  onPeekChanged(tab: LiveTab, change: { url?: string; navigated?: boolean }): void {
+    if (change.navigated && change.url) this.recordHistory(tab, (h) => h.visit(change.url!, tab.wc.getTitle()))
+    this.emitSoon()
+  }
+
+  /** Links from pinned tabs and favorites to other sites open in Peek, like Arc. */
+  interceptLink(tab: LiveTab, url: string): boolean {
+    if (!this.state.settings.peekPinnedLinks || !/^https?:/i.test(url)) return false
+    const found = findItem(this.state, tab.itemId)
+    if (!found || found.loc.kind === 'today' || sameSite(tab.wc.getURL(), url)) return false
+    this.openPeek(tab, url)
+    return true
   }
 
   /** Creates a new unpinned tab at the top of Today. */
@@ -626,6 +707,7 @@ export class Browser implements TabHost {
   switchSpace(id: ID): void {
     const space = this.store.space(id)
     if (!space) return
+    this.closePeek()
     this.state.activeSpaceId = id
     if (space.activeItemId && findItem(this.state, space.activeItemId)) this.activate(space.activeItemId)
     else {
@@ -714,6 +796,8 @@ export class Browser implements TabHost {
       case 'newTab':
         return this.setOverlay({ kind: 'command', target: 'tab' })
       case 'editUrl':
+        // The command bar replaces Peek; edit the Peek page's URL as a real tab.
+        if (this.peek) this.expandPeek()
         return this.setOverlay({ kind: 'command', target: 'current', editCurrent: true, initial: tab?.wc.getURL() ?? '' })
       case 'toggleSidebar':
         return void this.dispatch({ type: 'toggleSidebar' })
@@ -724,6 +808,7 @@ export class Browser implements TabHost {
       case 'littleArc':
         return void this.openLittle()
       case 'closeTab':
+        if (this.peek) return this.closePeek()
         if (space.activeItemId) this.close(space.activeItemId)
         return
       case 'reopenClosed':
@@ -1014,6 +1099,9 @@ export class Browser implements TabHost {
         return this.changed()
       case 'littleArc':
         return void this.openLittle(a.url)
+      case 'peek':
+        if (a.op === 'close') return this.closePeek()
+        return this.expandPeek(a.op === 'split')
       case 'openInChrome': {
         const t = a.id ? this.live.get(a.id) : tab
         const url = t?.wc.getURL() || (a.id ? findItem(this.state, a.id)?.item.url : undefined)

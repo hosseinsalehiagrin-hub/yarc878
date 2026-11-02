@@ -1,5 +1,6 @@
 // The main browser window: the UI (sidebar + frame) underneath, web page views in the
 // content area, and a transparent overlay view on top for the command bar and panels.
+// A Peek page sits above even the overlay, which draws its backdrop and buttons.
 import { BrowserWindow, WebContentsView, nativeTheme, screen, type BrowserWindowConstructorOptions, type Rectangle, type WebContents } from 'electron'
 import { join } from 'node:path'
 import type { OverlayMode } from '../shared/types'
@@ -43,6 +44,7 @@ export class MainWindow {
   overlayMode: OverlayMode = { kind: 'none' }
   private shown: WebContentsView[] = []
   private overlayAttached = false
+  private top: WebContentsView | undefined
 
   constructor(bounds: Partial<Rectangle> | undefined) {
     const mac = process.platform === 'darwin'
@@ -122,6 +124,15 @@ export class MainWindow {
     if (this.overlayAttached) this.raiseOverlay()
   }
 
+  /** Shows a view above everything else (Peek), or removes it. */
+  setTop(view: WebContentsView | undefined, rect?: Rectangle): void {
+    if (this.top && this.top !== view) this.win.contentView.removeChildView(this.top)
+    this.top = view
+    if (!view) return
+    if (rect) view.setBounds(rect)
+    this.win.contentView.addChildView(view)
+  }
+
   detach(view: WebContentsView): void {
     if (this.shown.includes(view)) {
       this.win.contentView.removeChildView(view)
@@ -144,15 +155,15 @@ export class MainWindow {
       return
     }
     this.overlay.setBounds(rect)
-    if (!this.overlayAttached) {
-      this.win.contentView.addChildView(this.overlay)
-      this.overlayAttached = true
-    } else this.raiseOverlay()
-    if (mode.kind !== 'sidebar') this.overlay.webContents.focus()
+    this.overlayAttached = true
+    this.raiseOverlay()
+    // Peek keeps the focus on its page.
+    if (mode.kind !== 'sidebar' && mode.kind !== 'peek') this.overlay.webContents.focus()
   }
 
   private raiseOverlay(): void {
     // Re-adding an existing child moves it to the top of the z-order.
     this.win.contentView.addChildView(this.overlay)
+    if (this.top) this.win.contentView.addChildView(this.top)
   }
 }

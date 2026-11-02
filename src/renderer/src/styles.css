@@ -839,6 +839,33 @@ browser-action-list::part(action):hover {
   animation: none;
 }
 
+/* Arc's Peek buttons: dark circles in a column beside the card's top-right corner. */
+.peek-buttons {
+  position: fixed;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  animation: fade 0.12s ease-out;
+}
+
+.peek-buttons button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgb(20 20 24 / 0.92);
+  color: #fff;
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.25);
+  cursor: pointer;
+}
+
+.peek-buttons button:hover {
+  background: rgb(45 45 52 / 0.95);
+}
+
 .command {
   top: 30vh;
   width: min(766px, calc(100vw - 64px));
