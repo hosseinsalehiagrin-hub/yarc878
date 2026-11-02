@@ -1,5 +1,6 @@
 // Settings sheet: general options, profiles, import, extensions, shortcuts, about.
 import { useState, type ReactNode } from 'react'
+import logo from '../../../../build/icon.svg'
 import { BINDINGS, bindingLabel } from '../../../shared/keymap'
 import { SIDEBAR_WIDTH, type AppState, type Profile, type SearchEngine, type Settings as SettingsT } from '../../../shared/types'
 import { SEARCH_ENGINES } from '../../../shared/url'
@@ -288,9 +289,9 @@ function Shortcuts() {
 function About() {
   return (
     <div className="about">
-      <div className="logo" />
+      <img className="logo" src={logo} alt="" />
       <h2>YARC</h2>
-      <div className="muted">Yet Another Arc Clone: an open-source, Arc-style browser. Not affiliated with The Browser Company.</div>
+      <div className="muted">Yarrr! Yet Another Arc Clone: an open-source, Arc-style browser. Not affiliated with The Browser Company.</div>
     </div>
   )
 }

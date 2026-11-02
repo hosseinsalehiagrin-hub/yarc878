@@ -305,12 +305,10 @@
 }
 
 .about .logo {
-  width: 56px;
-  height: 56px;
-  margin: 0 auto 12px;
-  border-radius: 16px;
-  background: linear-gradient(140deg, var(--space), color-mix(in oklab, var(--space) 50%, #fff));
-  box-shadow: var(--active-shadow);
+  display: block;
+  width: 88px;
+  height: 88px;
+  margin: 0 auto 8px;
 }
 
 .about h2 {

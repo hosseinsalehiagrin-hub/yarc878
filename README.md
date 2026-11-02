@@ -1,6 +1,8 @@
+<p align="center"><img src="build/icon.svg" width="160" alt="YARC's icon: a purple A in a pirate hat, bandana and eyepatch"></p>
+
 # YARC
 
-**Yet Another Arc Clone: an open-source browser that works the way Arc did.** It has a vertical sidebar, Spaces with their own profiles, a command bar, split view and Little Arc. It runs on Windows and macOS.
+**Yarrr! Yet Another Arc Clone: an open-source browser that works the way Arc did.** It has a vertical sidebar, Spaces with their own profiles, a command bar, split view and Little Arc. It runs on Windows and macOS.
 
 The Browser Company is shutting Arc down on **22 December 2026**. After that date the app stops working and Arc accounts are deactivated. YARC is meant for people who don't want to switch to Dia or go back to a tab strip. It reproduces Arc's workflow and imports your Arc sidebar, so you can carry on as before.
 

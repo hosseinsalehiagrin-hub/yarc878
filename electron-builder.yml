@@ -13,7 +13,7 @@ copyright: Copyright © 2026 YARC contributors. Licensed under GPL-3.0-or-later.
 
 directories:
   output: release
-  buildResources: build # icon.png / icon.ico / installer.nsh live here
+  buildResources: build # icons (made by scripts/render-icons.mjs) and installer.nsh live here
 
 # Only the electron-vite output and package.json go in the app. Production "dependencies"
 # (electron-chrome-extensions, electron-chrome-web-store and their deps) are added from
@@ -65,7 +65,7 @@ nsis:
 
 # ---------------------------------------------------------------- macOS
 mac:
-  icon: build/icon.png # electron-builder generates the .icns from the 1024 PNG
+  icon: build/icon-mac.png # the artwork on a macOS tile; electron-builder makes the .icns from it
   category: public.app-category.productivity
   target:
     - target: dmg
