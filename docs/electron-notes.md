@@ -448,7 +448,7 @@ https://www.bleepingcomputer.com/news/google/google-to-kill-chrome-sync-feature-
 
 ```yaml
 appId: dev.yenebeb.arcshell
-productName: Arc Shell
+productName: YARC
 executableName: arc-shell
 directories: { output: release, buildResources: build }
 files: ["out/**", "package.json"]          # electron-chrome-extensions/web-store stay in node_modules (preloads resolved there)
@@ -471,7 +471,7 @@ win:
   icon: build/icon.ico
 nsis:
   oneClick: true                          # default
-  perMachine: false                       # default -> %LOCALAPPDATA%\Programs\Arc Shell, no UAC
+  perMachine: false                       # default -> %LOCALAPPDATA%\Programs\YARC, no UAC
   allowElevation: false                   # never prompt for admin
   include: build/installer.nsh            # registers as a browser (below)
   deleteAppDataOnUninstall: false
@@ -512,11 +512,11 @@ for per-user installs. They **do not handle `protocols` on Windows** (no protoco
 
 !macro customInstall
   ; ProgIDs
-  WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellURL" "" "Arc Shell URL"
+  WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellURL" "" "YARC URL"
   WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellURL" "URL Protocol" ""
   WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellURL\DefaultIcon" "" "$appExe,0"
   WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellURL\shell\open\command" "" '"$appExe" "%1"'
-  WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellHTML" "" "Arc Shell HTML Document"
+  WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellHTML" "" "YARC HTML Document"
   WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellHTML\DefaultIcon" "" "$appExe,0"
   WriteRegStr SHELL_CONTEXT "Software\Classes\ArcShellHTML\shell\open\command" "" '"$appExe" "%1"'
   ; Browser client + capabilities
@@ -552,7 +552,7 @@ This is the same layout Firefox and Chrome per-user installs use: HKCU `StartMen
   Don't use `app.setAsDefaultProtocolClient('http')` on Windows: it writes
   `HKCU\Software\Classes\http`, which is ignored and clobbers the class. Instead, open the app's
   page in Default Apps:
-  `shell.openExternal('ms-settings:defaultapps?registeredAppUser=' + encodeURIComponent('Arc Shell'))`.
+  `shell.openExternal('ms-settings:defaultapps?registeredAppUser=' + encodeURIComponent('YARC'))`.
   The value must equal the `RegisteredApplications` value name. Microsoft documents it for Windows
   11 21H2/22H2 with the 2023-04 CU and later. Use `registeredAppMachine=` for per-machine installs.
 - **macOS:** `app.setAsDefaultProtocolClient('http')` and then `('https')` trigger the system's
@@ -580,7 +580,7 @@ app.on('open-file', (e, p) => { e.preventDefault(); openTarget(require('node:url
      launch.
   4. Confirm with your password or Touch ID, then click **Open**.
 
-  Terminal alternative: `xattr -dr com.apple.quarantine "/Applications/Arc Shell.app"`. Third-party
+  Terminal alternative: `xattr -dr com.apple.quarantine "/Applications/YARC.app"`. Third-party
   guides claim Tahoe (26) tightened this further, but no Apple source was found. Real fix: Apple
   Developer ID ($99/yr) plus notarization.
 - **Windows:** the unsigned NSIS installer shows SmartScreen "Windows protected your PC". Click
@@ -631,7 +631,7 @@ the zips, and `latest*.yml` (useful if you add `electron-updater`).
 
 ## 6. Security updates: from an Electron release to users
 
-Almost every browser zero-day is in Chromium or V8, and the only way Arc Shell gets the fix is a
+Almost every browser zero-day is in Chromium or V8, and the only way YARC gets the fix is a
 newer `electron`. Electron ships Chromium security fixes as patch releases on every supported
 major, usually within a day or two of Chrome's. They often have **no GHSA on the `electron` npm
 package**, so Dependabot *alerts* and *security updates* alone miss them; daily *version* updates
@@ -673,7 +673,7 @@ app's designated requirement. An ad-hoc signature's requirement is its own cdhas
 (`codesign -d -r-` prints `designated => cdhash H"…"`), which changes with every build, so
 Squirrel.Mac refuses every update. `src/main/mac-update.ts` does the job itself:
 
-1. Poll `releases/latest` (as before); pick `Arc-Shell-<version>-<arch>-mac.zip` and its `.sig`
+1. Poll `releases/latest` (as before); pick `YARC-<version>-<arch>-mac.zip` and its `.sig`
    (`pickMacUpdate` in `release.ts`). electron-builder's `zip` mac target keeps the framework
    symlinks (14 symlink entries; `codesign --verify --deep --strict` passes after unzipping).
 2. Download both with **Node's `fetch`**, not Chromium's download manager. Chromium sets

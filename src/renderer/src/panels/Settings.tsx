@@ -1,5 +1,6 @@
 // Settings sheet: general options, profiles, import, extensions, shortcuts, about.
 import { useState, type ReactNode } from 'react'
+import logo from '../../../../build/icon.svg'
 import { BINDINGS, bindingLabel } from '../../../shared/keymap'
 import { SIDEBAR_WIDTH, type AppState, type Profile, type SearchEngine, type Settings as SettingsT } from '../../../shared/types'
 import { SEARCH_ENGINES } from '../../../shared/url'
@@ -133,7 +134,7 @@ function General({ state }: { state: AppState }) {
         title="Check for updates automatically"
         hint={
           state.platform === 'win32'
-            ? 'New versions download in the background and install when you restart Arc Shell.'
+            ? 'New versions download in the background and install when you restart YARC.'
             : 'You’re told when a new version is out, and install it yourself.'
         }
       >
@@ -288,9 +289,9 @@ function Shortcuts() {
 function About() {
   return (
     <div className="about">
-      <div className="logo" />
-      <h2>Arc Shell</h2>
-      <div className="muted">An open-source, Arc-style browser. Not affiliated with The Browser Company.</div>
+      <img className="logo" src={logo} alt="" />
+      <h2>YARC</h2>
+      <div className="muted">Yarrr! Yet Another Arc Clone: an open-source, Arc-style browser. Not affiliated with The Browser Company.</div>
     </div>
   )
 }

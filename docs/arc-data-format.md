@@ -552,7 +552,7 @@ export interface ArcArchiveItemRaw {
 }
 ```
 
-### 5.2 Normalized import model (what arc-shell consumes)
+### 5.2 Normalized import model (what YARC consumes)
 
 ```ts
 export interface ArcImportResult {
@@ -714,7 +714,7 @@ toHex(c): if !c or any(red/green/blue) not number or c.alpha <= 0: null
           rgb = [c.red, c.green, c.blue].map(v => round(clamp(v, 0, 1) * 255)); return "#" + hex(rgb)
 ```
 
-Mapping notes for arc-shell:
+Mapping notes for YARC:
 
 - **Profiles → partitions**: one Electron `session.fromPartition("persist:arc-<id>")` per Arc
   profile. Spaces with the same `profileId` share a partition and share

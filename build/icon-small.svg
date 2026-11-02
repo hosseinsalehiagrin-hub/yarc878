@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="32" height="32">
+  <!-- YARC icon for 16-32px (tabs, taskbar, small Explorer views): icon.svg without the details that
+       turn to noise that small (skull, bandana tails, the patch's strap), with heavier shapes. -->
+  <path d="M36 142 L80 44 L124 142" fill="none" stroke="#5B12EE" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="56" y1="120" x2="104" y2="120" stroke="#5B12EE" stroke-width="22"/>
+  <ellipse cx="96" cy="96" rx="17" ry="14" fill="#1E1B3A"/>
+  <path d="M44 68 Q80 56 116 68 L116 80 Q80 68 44 80 Z" fill="#EF3B3B"/>
+  <path d="M22 70 Q34 50 52 48 Q60 16 80 14 Q100 16 108 48 Q126 50 138 70 Q80 50 22 70 Z" fill="#1E1B3A"/>
+  <path d="M22 70 Q34 50 52 48 Q60 16 80 14 Q100 16 108 48 Q126 50 138 70" fill="none" stroke="#FBBF24" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+</svg>

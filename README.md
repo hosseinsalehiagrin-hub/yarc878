@@ -1,12 +1,14 @@
-# Arc Shell
+<p align="center"><img src="build/icon.svg" width="160" alt="YARC's icon: a purple A in a pirate hat, bandana and eyepatch"></p>
 
-**An open-source browser that works the way Arc did.** It has a vertical sidebar, Spaces with their own profiles, a command bar, split view and Little Arc. It runs on Windows and macOS.
+# YARC
 
-The Browser Company is shutting Arc down on **22 December 2026**. After that date the app stops working and Arc accounts are deactivated. Arc Shell is meant for people who don't want to switch to Dia or go back to a tab strip. It reproduces Arc's workflow and imports your Arc sidebar, so you can carry on as before.
+**Yarrr! Yet Another Arc Clone: an open-source browser that works the way Arc did.** It has a vertical sidebar, Spaces with their own profiles, a command bar, split view and Little Arc. It runs on Windows and macOS.
 
-> Arc Shell is an independent project. It is not affiliated with, endorsed by or connected to The Browser Company. "Arc" is their trademark; this project re-implements the interaction design on top of Chromium (via Electron).
+The Browser Company is shutting Arc down on **22 December 2026**. After that date the app stops working and Arc accounts are deactivated. YARC is meant for people who don't want to switch to Dia or go back to a tab strip. It reproduces Arc's workflow and imports your Arc sidebar, so you can carry on as before.
 
-![Arc Shell: sidebar with favorites, pinned tabs, a folder and Today tabs](docs/screenshots/sidebar.png)
+> YARC is an independent project. It is not affiliated with, endorsed by or connected to The Browser Company. "Arc" is their trademark; this project re-implements the interaction design on top of Chromium (via Electron).
+
+![YARC: sidebar with favorites, pinned tabs, a folder and Today tabs](docs/screenshots/sidebar.png)
 
 ## Contents
 
@@ -77,7 +79,7 @@ Unpinned tabs you haven't looked at for **12 hours** move to the Archive automat
 - **switch to an open tab** in any space ("Switch to Tab" is the top result when the name matches);
 - open a URL, or search with your search engine, with live suggestions;
 - find pages from your **history** and **archive**;
-- run **commands** such as *Toggle Sidebar*, *Copy URL*, *New Space*, *Import from Arc* or *Make Arc Shell the Default Browser*;
+- run **commands** such as *Toggle Sidebar*, *Copy URL*, *New Space*, *Import from Arc* or *Make YARC the Default Browser*;
 - jump to a space by typing its name.
 
 `Shift+Enter` opens the result in split view. `Ctrl/⌘+L` opens the command bar with the current URL, ready to edit.
@@ -98,7 +100,7 @@ Drag the gap between panes to resize them, and double-click it to make them equa
 
 ![Little Arc](docs/screenshots/little-arc.png)
 
-A small, minimal window for quick lookups. Open one with `Ctrl+Alt+N` / `⌘⌥N`. When Arc Shell is your default browser, links from other apps (Slack, Discord, email) open here too, so your sidebar stays tidy. If you want to keep the page, click **Open in Arc Shell**: it moves into your Today tabs as it is, without reloading. If you don't, just close the window.
+A small, minimal window for quick lookups. Open one with `Ctrl+Alt+N` / `⌘⌥N`. When YARC is your default browser, links from other apps (Slack, Discord, email) open here too, so your sidebar stays tidy. If you want to keep the page, click **Open in YARC**: it moves into your Today tabs as it is, without reloading. If you don't, just close the window.
 
 ### Built-in ad and tracker blocking
 
@@ -113,7 +115,7 @@ Install extensions straight from the **Chrome Web Store** by visiting it and cli
 - **From Arc:** Spaces (with their emoji and colors), profiles, Favorites, pinned tabs, folders, Today tabs, the archive and browsing history. See [Moving from Arc](#moving-from-arc).
 - **From Chrome, Edge or Brave:** browsing history and bookmarks. Bookmarks arrive as a pinned folder.
 
-The source browser's files are never changed: Arc Shell copies them first and reads the copy.
+The source browser's files are never changed: YARC copies them first and reads the copy.
 
 ### The rest
 
@@ -132,21 +134,21 @@ Download the latest version from the **[Releases page](https://github.com/yenebe
 
 ### Windows 10 / 11
 
-1. Download `Arc-Shell-Setup-<version>-x64.exe`, or the `-arm64.exe` for Windows on ARM devices such as the Surface Pro X or Snapdragon laptops.
-2. Run it. It installs for your user only, needs **no admin rights**, and opens Arc Shell when it finishes.
+1. Download `YARC-Setup-<version>-x64.exe`, or the `-arm64.exe` for Windows on ARM devices such as the Surface Pro X or Snapdragon laptops.
+2. Run it. It installs for your user only, needs **no admin rights**, and opens YARC when it finishes.
 3. The app isn't code-signed yet, so Windows SmartScreen may say *"Windows protected your PC"*. Click **More info → Run anyway**.
 
-**Make it your default browser:** open the command bar and run *Make Arc Shell the Default Browser*, or go to Windows **Settings → Apps → Default apps → Arc Shell → Set default**.
+**Make it your default browser:** open the command bar and run *Make YARC the Default Browser*, or go to Windows **Settings → Apps → Default apps → YARC → Set default**.
 
-**Uninstall:** Settings → Apps → Installed apps → Arc Shell → Uninstall. Your profiles stay in `%APPDATA%\Arc Shell` in case you reinstall; delete that folder to remove them.
+**Uninstall:** Settings → Apps → Installed apps → YARC → Uninstall. Your profiles stay in `%APPDATA%\YARC` in case you reinstall; delete that folder to remove them.
 
 ### macOS 13 or newer
 
 1. Download the `.dmg` for your Mac: **`-arm64.dmg`** for Apple Silicon (M1–M5), **`-x64.dmg`** for Intel.
-2. Open it and drag **Arc Shell** to **Applications**.
+2. Open it and drag **YARC** to **Applications**.
 3. The app isn't notarized by Apple yet, so the first launch is blocked. Open it once, click **Done**, then go to **System Settings → Privacy & Security**, scroll down and click **Open Anyway**. (On macOS 15 and later, Control-click → Open no longer skips this.) You only do this once: updates install themselves.
-   Or, in Terminal: `xattr -dr com.apple.quarantine "/Applications/Arc Shell.app"`
-4. To make it your default browser: run *Make Arc Shell the Default Browser* from the command bar, or go to **System Settings → Desktop & Dock → Default web browser**.
+   Or, in Terminal: `xattr -dr com.apple.quarantine "/Applications/YARC.app"`
+4. To make it your default browser: run *Make YARC the Default Browser* from the command bar, or go to **System Settings → Desktop & Dock → Default web browser**.
 
 ### Linux (experimental)
 
@@ -154,11 +156,13 @@ There's an `.AppImage` for x64 on the Releases page. Make it executable (`chmod 
 
 ### Updating
 
-Arc Shell checks for a new version when it starts and every hour. You can turn that off in **Settings → General → Check for updates automatically**, and check by hand with *Check for Updates…* in the command bar (or the **Arc Shell** menu on macOS).
+YARC checks for a new version when it starts and every hour. You can turn that off in **Settings → General → Check for updates automatically**, and check by hand with *Check for Updates…* in the command bar (or the **YARC** menu on macOS).
 
-- **Windows and macOS** update themselves. The new version downloads in the background; then Arc Shell asks you to *Relaunch* to update (your spaces and tabs reopen). If you choose *Later*, it asks again a day later, a *Restart to Update* button stays at the bottom of the sidebar and in the command bar (and the **Arc Shell** menu on macOS), and the update installs the next time you quit anyway. Updates often carry Chromium security fixes, so relaunch soon. Your spaces, tabs and logins are kept.
-- **macOS** asks for nothing in Terminal and shows no *Open Anyway* again after an update. Two things to know, both because the builds aren't signed with an Apple Developer ID: macOS may ask again for camera, microphone or screen recording the first time a site uses them after an update, and Arc Shell can only update itself if your user can write to the folder it's in (an admin account can write to **Applications**). If it can't, *Update Available…* downloads the new `.dmg` instead: drag it to **Applications** to replace the old one, then allow it once with **Open Anyway** as above.
+- **Windows and macOS** update themselves. The new version downloads in the background; then YARC asks you to *Relaunch* to update (your spaces and tabs reopen). If you choose *Later*, it asks again a day later, a *Restart to Update* button stays at the bottom of the sidebar and in the command bar (and the **YARC** menu on macOS), and the update installs the next time you quit anyway. Updates often carry Chromium security fixes, so relaunch soon. Your spaces, tabs and logins are kept.
+- **macOS** asks for nothing in Terminal and shows no *Open Anyway* again after an update. Two things to know, both because the builds aren't signed with an Apple Developer ID: macOS may ask again for camera, microphone or screen recording the first time a site uses them after an update, and YARC can only update itself if your user can write to the folder it's in (an admin account can write to **Applications**). If it can't, *Update Available…* downloads the new `.dmg` instead: drag it to **Applications** to replace the old one, then allow it once with **Open Anyway** as above.
 - **Linux:** you're told when a new version is out; download the new `.AppImage` and use it instead of the old one.
+
+**Coming from Arc Shell?** YARC is the same app under a new name: it updates from Arc Shell like from any other version and keeps using your Arc Shell profile. On macOS the updated app keeps its file name, **Arc Shell**, in Applications; quit it and rename it to **YARC** in Finder if you like.
 
 ## Moving from Arc
 
@@ -166,9 +170,9 @@ Arc Shell checks for a new version when it starts and every hour. You can turn t
 
 ### On the same computer
 
-1. Install Arc Shell.
+1. Install YARC.
 2. Press `Ctrl/⌘+T`, type **Import from Arc** and press Enter. You'll also find it under Settings → Import.
-3. Arc Shell finds Arc automatically and asks for confirmation. Your spaces, favorites, pinned tabs, folders and history appear in the sidebar.
+3. YARC finds Arc automatically and asks for confirmation. Your spaces, favorites, pinned tabs, folders and history appear in the sidebar.
 
 ### From a Mac to a Windows PC (or another computer)
 
@@ -177,8 +181,8 @@ Arc Shell checks for a new version when it starts and every hour. You can turn t
 
 ### What isn't imported
 
-- **Saved passwords, cookies and logins.** Browsers encrypt these with a key tied to the machine, so you'll need to sign in to your sites again. Before Arc goes away, export your passwords from Arc (`arc://settings/passwords` → ⋮ → Export) and import them into a password manager such as Bitwarden or 1Password. Their extensions work in Arc Shell.
-- **Boosts, Easels and Notes.** Arc Shell doesn't have these features yet.
+- **Saved passwords, cookies and logins.** Browsers encrypt these with a key tied to the machine, so you'll need to sign in to your sites again. Before Arc goes away, export your passwords from Arc (`arc://settings/passwords` → ⋮ → Export) and import them into a password manager such as Bitwarden or 1Password. Their extensions work in YARC.
+- **Boosts, Easels and Notes.** YARC doesn't have these features yet.
 - **Extensions.** Reinstall them from the Chrome Web Store, in each space that needs them.
 
 ## Keyboard shortcuts
@@ -236,7 +240,7 @@ Not yet. Each install keeps its own data. Syncing is on the [roadmap](#roadmap-a
 Electron is real Chromium, so sites behave as they do in Chrome, and Chrome extensions work. It also let a small project build a fully custom interface without maintaining a fork of Chromium. The trade-off is memory use roughly on par with Chrome. Arc itself was Chromium too.
 
 **Is it private?**
-Arc Shell has no account and no telemetry, and sends no data anywhere. Its own network requests are search suggestions (sent to the search engine you chose), Chrome Web Store update checks for installed extensions, a daily download of the ad-blocking filter lists from GitHub, and update checks for Arc Shell itself against its GitHub releases (which you can turn off in Settings).
+YARC has no account and no telemetry, and sends no data anywhere. Its own network requests are search suggestions (sent to the search engine you chose), Chrome Web Store update checks for installed extensions, a daily download of the ad-blocking filter lists from GitHub, and update checks for YARC itself against its GitHub releases (which you can turn off in Settings).
 
 **Do I need an ad-blocker extension?**
 No. Blocking is built in (see [Built-in ad and tracker blocking](#built-in-ad-and-tracker-blocking)). Ad-blocker *extensions* built on Manifest V3's `declarativeNetRequest`, such as uBlock Origin Lite, install but can't block, because Electron doesn't support that API.
@@ -245,7 +249,7 @@ No. Blocking is built in (see [Built-in ad and tracker blocking](#built-in-ad-an
 
 | | Windows | macOS |
 | --- | --- | --- |
-| App data | `%APPDATA%\Arc Shell` | `~/Library/Application Support/Arc Shell` |
+| App data | `%APPDATA%\YARC` | `~/Library/Application Support/YARC` |
 | Sidebar, spaces, settings | `state.json` | `state.json` |
 | Per-profile history | `Profiles/<id>/history.sqlite` | same |
 | Per-profile extensions | `Profiles/<id>/Extensions` | same |
@@ -265,7 +269,7 @@ pnpm dev             # start with hot reload
 
 | Command | What it does |
 | --- | --- |
-| `pnpm dev` | Run the app in development mode, with a separate `Arc Shell (dev)` profile |
+| `pnpm dev` | Run the app in development mode, with a separate `YARC (dev)` profile |
 | `pnpm build` | Production build into `out/` |
 | `pnpm start` | Run the production build |
 | `pnpm typecheck` | TypeScript check |
@@ -291,7 +295,7 @@ The macOS zips are signed with an Ed25519 key, and the app only installs a zip s
 
 #### Electron security updates
 
-Chromium and V8 security fixes reach Arc Shell only through a newer Electron, so they ship without waiting for anyone:
+Chromium and V8 security fixes reach YARC only through a newer Electron, so they ship without waiting for anyone:
 
 1. [Dependabot](.github/dependabot.yml) checks npm daily and opens a PR when Electron releases a new version.
 2. If that PR is an Electron **patch** bump, [dependabot-automerge](.github/workflows/dependabot-automerge.yml) merges it once CI passes and starts the release workflow. Electron minors and majors, and every other package, wait for a person.
@@ -352,4 +356,4 @@ Before opening a PR, run `pnpm typecheck && pnpm test && pnpm test:e2e`. `main` 
 
 ## License
 
-[GPL-3.0-or-later](LICENSE). Arc Shell is an independent project and is not affiliated with The Browser Company. "Arc" is a trademark of its respective owner.
+[GPL-3.0-or-later](LICENSE). YARC is an independent project and is not affiliated with The Browser Company. "Arc" is a trademark of its respective owner.

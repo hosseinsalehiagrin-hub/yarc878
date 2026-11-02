@@ -4,7 +4,7 @@
 //      writes get no com.apple.quarantine flag, so Gatekeeper never assesses the new version;
 //   2. check the zip's Ed25519 signature (update-signature.ts) before anything touches it;
 //   3. unzip into the profile folder and check the app (bundle id, version, code signature);
-//   4. when Arc Shell quits, swap the new bundle in for the running one (installStaged).
+//   4. when YARC quits, swap the new bundle in for the running one (installStaged).
 // The running app's files stay in place until it quits: a helper process started from a half-
 // replaced bundle would be the wrong version.
 import { app } from 'electron'

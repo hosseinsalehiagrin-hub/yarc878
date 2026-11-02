@@ -1,17 +1,19 @@
-# electron-builder 26.18 configuration for Arc Shell.
+# electron-builder 26.18 configuration for YARC.
 # Docs: https://www.electron.build/configuration  ·  background: docs/electron-notes.md section 5
 #
-#   npm run dist:win   -> release/Arc-Shell-Setup-<version>-x64.exe and -arm64.exe
-#   npm run dist:mac   -> release/Arc-Shell-<version>-arm64.dmg and -x64.dmg, plus the -mac.zip
+#   npm run dist:win   -> release/YARC-Setup-<version>-x64.exe and -arm64.exe
+#   npm run dist:mac   -> release/YARC-<version>-arm64.dmg and -x64.dmg, plus the -mac.zip
 #                         self-updates (see src/main/mac-update.ts)                (must run on macOS)
-#   npm run dist:linux -> release/Arc-Shell-<version>-<arch>.AppImage    (run on Linux)
+#   npm run dist:linux -> release/YARC-<version>-<arch>.AppImage    (run on Linux)
+# The app was called Arc Shell. The appId stays, so Windows updates it in place and macOS keeps
+# its permissions and default-browser choice.
 appId: org.arcshell.browser
-productName: Arc Shell
-copyright: Copyright © 2026 Arc Shell contributors. Licensed under GPL-3.0-or-later.
+productName: YARC
+copyright: Copyright © 2026 YARC contributors. Licensed under GPL-3.0-or-later.
 
 directories:
   output: release
-  buildResources: build # icon.png / icon.ico / installer.nsh live here
+  buildResources: build # icons (made by scripts/render-icons.mjs) and installer.nsh live here
 
 # Only the electron-vite output and package.json go in the app. Production "dependencies"
 # (electron-chrome-extensions, electron-chrome-web-store and their deps) are added from
@@ -46,15 +48,15 @@ win:
   # .html/.htm are registered by build/installer.nsh (ProgID ArcShellHTML + OpenWithProgids +
   # Capabilities\FileAssociations), not via `fileAssociations` here: electron-builder's NSIS
   # associate macro overwrites HKCU\Software\Classes\.html's default value and never restores it
-  # on uninstall. The .nsh route lists Arc Shell in "Open with"/Default apps without hijacking.
+  # on uninstall. The .nsh route lists YARC in "Open with"/Default apps without hijacking.
 
 nsis:
   oneClick: true # no wizard: double-click, it installs and launches
-  perMachine: false # per-user: %LOCALAPPDATA%\Programs\Arc Shell, no UAC prompt
+  perMachine: false # per-user: %LOCALAPPDATA%\Programs\YARC, no UAC prompt
   allowElevation: false # never ask for admin
   buildUniversalInstaller: false # one small installer per arch instead of one 2x-size exe
-  artifactName: Arc-Shell-Setup-${version}-${arch}.${ext}
-  shortcutName: Arc Shell
+  artifactName: YARC-Setup-${version}-${arch}.${ext}
+  shortcutName: YARC
   createDesktopShortcut: true
   createStartMenuShortcut: true
   runAfterFinish: true
@@ -63,7 +65,7 @@ nsis:
 
 # ---------------------------------------------------------------- macOS
 mac:
-  icon: build/icon.png # electron-builder generates the .icns from the 1024 PNG
+  icon: build/icon-mac.png # the artwork on a macOS tile; electron-builder makes the .icns from it
   category: public.app-category.productivity
   target:
     - target: dmg
@@ -71,7 +73,7 @@ mac:
     # What installed copies update themselves from (src/main/mac-update.ts); CI signs each one.
     - target: zip
       arch: [arm64, x64]
-  artifactName: Arc-Shell-${version}-${arch}-mac.${ext} # the zips; dmg.artifactName names the DMGs
+  artifactName: YARC-${version}-${arch}-mac.${ext} # the zips; dmg.artifactName names the DMGs
   # No Apple Developer ID: sign ad-hoc. In 26.x an unset identity with no certificate means
   # "not signed at all", and an unsigned arm64 app is reported as "damaged". "-" = ad-hoc.
   identity: "-"
@@ -88,12 +90,12 @@ mac:
       role: Viewer
       rank: Default
   extendInfo:
-    # Shown by macOS when a website asks for the camera/microphone via Arc Shell.
-    NSCameraUsageDescription: Websites you visit in Arc Shell can ask to use your camera.
-    NSMicrophoneUsageDescription: Websites you visit in Arc Shell can ask to use your microphone.
+    # Shown by macOS when a website asks for the camera/microphone via YARC.
+    NSCameraUsageDescription: Websites you visit in YARC can ask to use your camera.
+    NSMicrophoneUsageDescription: Websites you visit in YARC can ask to use your microphone.
 
 dmg:
-  artifactName: Arc-Shell-${version}-${arch}.${ext}
+  artifactName: YARC-${version}-${arch}.${ext}
 
 # ---------------------------------------------------------------- Linux (best effort)
 linux:
@@ -109,7 +111,7 @@ linux:
       mimeType: text/html
 
 appImage:
-  artifactName: Arc-Shell-${version}-${arch}.${ext}
+  artifactName: YARC-${version}-${arch}.${ext}
 
 # ---------------------------------------------------------------- Publishing
 # Owner/repo come from package.json "repository" or, if absent, the git "origin" remote

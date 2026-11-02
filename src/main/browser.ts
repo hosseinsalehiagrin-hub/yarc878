@@ -1359,8 +1359,8 @@ export class Browser implements TabHost {
   /** Windows doesn't let apps claim the default themselves; macOS asks the user to confirm. */
   makeDefaultBrowser(): void {
     if (process.platform === 'win32') {
-      void shell.openExternal('ms-settings:defaultapps?registeredAppUser=Arc%20Shell')
-      if (!app.isPackaged) this.toast('Install Arc Shell first, then pick it in Default apps')
+      void shell.openExternal('ms-settings:defaultapps?registeredAppUser=YARC')
+      if (!app.isPackaged) this.toast('Install YARC first, then pick it in Default apps')
       return
     }
     app.setAsDefaultProtocolClient('http')

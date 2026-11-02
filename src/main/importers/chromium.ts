@@ -117,7 +117,7 @@ export function listProfiles(userDataDir: string): ChromiumProfile[] {
 export async function readHistory(profileDir: string, limit = 50_000): Promise<ImportedVisit[]> {
   const src = join(profileDir, 'History')
   if (!existsSync(src)) return []
-  const tmp = await mkdtemp(join(tmpdir(), 'arc-shell-import-'))
+  const tmp = await mkdtemp(join(tmpdir(), 'yarc-import-'))
   try {
     const copy = join(tmp, 'History')
     try {

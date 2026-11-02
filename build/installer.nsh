@@ -1,12 +1,12 @@
-; Arc Shell - NSIS hooks included by electron-builder (electron-builder.yml -> nsis.include).
+; YARC - NSIS hooks included by electron-builder (electron-builder.yml -> nsis.include).
 ;
-; Registers Arc Shell as a *browser* for the current user (HKCU, no admin), the same layout
+; Registers YARC as a *browser* for the current user (HKCU, no admin), the same layout
 ; Chrome/Firefox per-user installs use, so Windows lists it under
 ; Settings > Apps > Default apps and in "Open with" for http/https links and .html/.htm files.
 ;
 ; It deliberately does NOT make itself the default: Windows 10/11 protect UserChoice, so the
 ; app opens ms-settings:defaultapps?registeredAppUser=Arc%20Shell itself and the user picks it.
-; The RegisteredApplications value name below ("${PRODUCT_NAME}" = "Arc Shell") must stay equal to
+; The RegisteredApplications value name below ("${PRODUCT_NAME}" = "YARC") must stay equal to
 ; that registeredAppUser value.
 ;
 ; Provided by electron-builder's templates: $appExe (full path of the installed exe),
@@ -36,7 +36,7 @@
   WriteRegStr SHELL_CONTEXT "Software\Classes\${ARCSHELL_HTML_PROGID}\shell" "" "open"
   WriteRegStr SHELL_CONTEXT "Software\Classes\${ARCSHELL_HTML_PROGID}\shell\open\command" "" '"$appExe" -- "%1"'
 
-  ; Offer Arc Shell in "Open with" for .html/.htm without stealing the current default.
+  ; Offer YARC in "Open with" for .html/.htm without stealing the current default.
   WriteRegNone SHELL_CONTEXT "Software\Classes\.html\OpenWithProgids" "${ARCSHELL_HTML_PROGID}"
   WriteRegNone SHELL_CONTEXT "Software\Classes\.htm\OpenWithProgids" "${ARCSHELL_HTML_PROGID}"
 
@@ -52,6 +52,9 @@
   WriteRegStr SHELL_CONTEXT "${ARCSHELL_CLIENT_KEY}\Capabilities\URLAssociations" "https" "${ARCSHELL_URL_PROGID}"
   WriteRegStr SHELL_CONTEXT "${ARCSHELL_CLIENT_KEY}\Capabilities\FileAssociations" ".html" "${ARCSHELL_HTML_PROGID}"
   WriteRegStr SHELL_CONTEXT "${ARCSHELL_CLIENT_KEY}\Capabilities\FileAssociations" ".htm" "${ARCSHELL_HTML_PROGID}"
+  ; The app was called Arc Shell: drop that entry so Default apps doesn't list it twice. The
+  ; ArcShell* keys and ProgIDs above keep their names, so a default-browser choice survives.
+  DeleteRegValue SHELL_CONTEXT "Software\RegisteredApplications" "Arc Shell"
   WriteRegStr SHELL_CONTEXT "Software\RegisteredApplications" "${PRODUCT_NAME}" "${ARCSHELL_CLIENT_KEY}\Capabilities"
 
   ; SHCNE_ASSOCCHANGED, SHCNF_IDLIST: tell Explorer/Settings the associations changed.

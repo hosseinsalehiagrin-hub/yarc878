@@ -42,7 +42,7 @@ export function isNewer(latest: string, current: string): boolean {
   return compareVersions(latest, current) > 0
 }
 
-/** electron-builder names them Arc-Shell-<version>-<arch>.dmg / .AppImage (see electron-builder.yml). */
+/** electron-builder names them YARC-<version>-<arch>.dmg / .AppImage (see electron-builder.yml). */
 const INSTALLER_EXT: Record<string, string> = { darwin: 'dmg', linux: 'AppImage' }
 
 /** The installer for this platform and CPU, or the release page when there isn't one. */
@@ -52,7 +52,7 @@ export function pickDownload(release: GithubRelease, platform: string, arch: str
   return asset ? asset.browser_download_url : release.html_url
 }
 
-/** The self-update zip for a Mac (electron-builder.yml names it Arc-Shell-<version>-<arch>-mac.zip) and its signature. */
+/** The self-update zip for a Mac (electron-builder.yml names it YARC-<version>-<arch>-mac.zip) and its signature. */
 export interface MacUpdate {
   name: string
   url: string

@@ -66,7 +66,7 @@ function UpdateNotice({ update }: { update: UpdateStatus }) {
   return (
     <div className="toast update-notice">
       <span>
-        Arc Shell {update.version} is {ready ? 'ready' : 'available'}
+        YARC {update.version} is {ready ? 'ready' : 'available'}
       </span>
       <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}>
         {ready ? 'Restart to Update' : 'Download…'}

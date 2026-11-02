@@ -50,11 +50,11 @@ export class Updater {
       return
     }
     if (this.status.state === 'ready') {
-      if (manual) this.browser.toast(`Arc Shell ${this.status.version} is ready. Restart to update.`)
+      if (manual) this.browser.toast(`YARC ${this.status.version} is ready. Restart to update.`)
       return
     }
     if (this.status.state === 'downloading') {
-      if (manual) this.browser.toast(`Downloading Arc Shell ${this.status.version}…`)
+      if (manual) this.browser.toast(`Downloading YARC ${this.status.version}…`)
       return
     }
     if (this.checking) return
@@ -62,7 +62,7 @@ export class Updater {
     if (manual) this.browser.toast('Checking for updates…')
     try {
       const found = process.platform === 'win32' ? await this.checkWindows() : await this.checkGithub()
-      if (manual && !found) this.browser.toast(`Arc Shell ${app.getVersion()} is up to date`)
+      if (manual && !found) this.browser.toast(`YARC ${app.getVersion()} is up to date`)
       if (manual && found && this.status.state === 'available') await this.apply()
     } catch (err) {
       console.error('[updater] check failed', err)
@@ -87,10 +87,10 @@ export class Updater {
       buttons: ['Download', 'Release Notes', 'Later'],
       defaultId: 0,
       cancelId: 2,
-      message: `Arc Shell ${this.status.version} is available`,
+      message: `YARC ${this.status.version} is available`,
       detail: mac
-        ? 'Arc Shell couldn’t update itself, for example because it can’t write to the folder it’s in.\n\n' +
-          'Download the new version, quit Arc Shell, and drag Arc Shell from the disk image into Applications to replace this one. ' +
+        ? 'YARC couldn’t update itself, for example because it can’t write to the folder it’s in.\n\n' +
+          'Download the new version, quit YARC, and drag YARC from the disk image into Applications to replace this one. ' +
           'The first time you open it, macOS blocks it once: allow it in System Settings → Privacy & Security → Open Anyway.'
         : 'Download the new AppImage and use it in place of this one.'
     }
@@ -105,7 +105,7 @@ export class Updater {
   /** Command-bar title for applying the update, or undefined when there's nothing to apply. */
   actionTitle(): string | undefined {
     if (this.status.state === 'ready') return 'Restart to Update'
-    if (this.status.state === 'available') return `Download Arc Shell ${this.status.version}…`
+    if (this.status.state === 'available') return `Download YARC ${this.status.version}…`
     return undefined
   }
 
@@ -118,10 +118,10 @@ export class Updater {
       buttons: ['Relaunch', 'Later'],
       defaultId: 1,
       cancelId: 1,
-      message: `Relaunch to update to Arc Shell ${this.status.version}`,
+      message: `Relaunch to update to YARC ${this.status.version}`,
       detail:
         'The update is downloaded. Updates often include Chromium security fixes, so it’s best not to wait. ' +
-        'Arc Shell reopens with your spaces and tabs.\n\nIf you choose Later, it installs the next time you quit.'
+        'YARC reopens with your spaces and tabs.\n\nIf you choose Later, it installs the next time you quit.'
     })
     if (response === 0) return this.apply()
     this.reminder = setTimeout(() => void this.promptRelaunch(), REMIND_EVERY)
@@ -185,7 +185,7 @@ export class Updater {
     const known = this.status.state === 'available' && this.status.version === version
     if (!known) {
       this.set({ state: 'available', version })
-      this.browser.toast(`Arc Shell ${version} is available`)
+      this.browser.toast(`YARC ${version} is available`)
     }
     return true
   }
@@ -210,7 +210,7 @@ export class Updater {
       console.error('[updater] macOS update failed; offering the download instead', err)
       this.failedVersion = version
       this.set({ state: 'available', version })
-      this.browser.toast(`Arc Shell ${version} is available`)
+      this.browser.toast(`YARC ${version} is available`)
     }
   }
 }

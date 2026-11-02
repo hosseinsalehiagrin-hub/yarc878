@@ -1,4 +1,4 @@
-/* Arc Shell UI. The space color drives the whole chrome via --space. */
+/* YARC UI. The space color drives the whole chrome via --space. */
 :root {
   --space: #7c6cf2;
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text', 'Segoe UI', Inter, system-ui, sans-serif;

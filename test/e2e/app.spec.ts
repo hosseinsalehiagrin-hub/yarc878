@@ -12,7 +12,7 @@ import type { AppState } from '../../src/shared/types'
 let app: ElectronApplication
 let server: Server
 let base = ''
-const userData = mkdtempSync(join(tmpdir(), 'arc-shell-e2e-'))
+const userData = mkdtempSync(join(tmpdir(), 'yarc-e2e-'))
 
 const page = (name: string) =>
   `<!doctype html><title>Page ${name}</title><h1>${name}</h1>` +
@@ -20,11 +20,11 @@ const page = (name: string) =>
   `<a id="same" href="/next-${name}">same tab</a><p>findme findme findme</p>`
 
 async function launch(): Promise<ElectronApplication> {
-  // ARC_SHELL_EXE runs the suite against a packaged app (e.g. release/win-unpacked/Arc Shell.exe).
-  const exe = process.env.ARC_SHELL_EXE
+  // YARC_EXE runs the suite against a packaged app (e.g. release/win-unpacked/YARC.exe).
+  const exe = process.env.YARC_EXE
   const a = await electron.launch({
     ...(exe ? { executablePath: exe, args: [] } : { args: ['out/main/index.js'] }),
-    env: { ...process.env, ARC_SHELL_USER_DATA: userData, ARC_SHELL_TEST: '1' }
+    env: { ...process.env, YARC_USER_DATA: userData, YARC_TEST: '1' }
   })
   await a.firstWindow()
   await expect.poll(() => a.evaluate(() => !!(globalThis as { arcBrowser?: unknown }).arcBrowser)).toBe(true)
@@ -315,10 +315,10 @@ test('built-in ad blocking blocks ad requests and can be turned off per site', a
   expect((await state()).settings.adblockAllowlist).not.toContain('127.0.0.1')
 })
 
-// What Windows/macOS do when Arc Shell is the default browser: start a second instance with the URL.
+// What Windows/macOS do when YARC is the default browser: start a second instance with the URL.
 function launchSecondInstance(arg: string): void {
-  const exe = process.env.ARC_SHELL_EXE
-  const env = { ...process.env, ARC_SHELL_USER_DATA: userData, ARC_SHELL_TEST: '1' }
+  const exe = process.env.YARC_EXE
+  const env = { ...process.env, YARC_USER_DATA: userData, YARC_TEST: '1' }
   const child = exe
     ? spawn(exe, ['--', arg], { env, stdio: 'ignore' })
     : spawn(require('electron') as unknown as string, ['out/main/index.js', arg], { env, stdio: 'ignore' })
@@ -347,20 +347,20 @@ test('updates: command bar check, then a notice and menu item once one is found'
   const overlay = await pageWithUrl('overlay.html')
   await overlay.locator('.command input').fill('updates')
   await expect(overlay.locator('.result', { hasText: 'Check for Updates' })).toHaveCount(1)
-  await expect(overlay.locator('.result', { hasText: 'Download Arc Shell' })).toHaveCount(0)
+  await expect(overlay.locator('.result', { hasText: 'Download YARC' })).toHaveCount(0)
   await dispatch({ type: 'overlay', mode: { kind: 'none' } })
 
   // The real check needs the installed app; pretend it found a release.
   await app.evaluate(() => (globalThis as any).arcBrowser.updater.set({ state: 'available', version: '99.0.0' }))
   const ui = await pageWithUrl('index.html')
-  await expect(ui.locator('.update-notice')).toContainText('Arc Shell 99.0.0 is available')
+  await expect(ui.locator('.update-notice')).toContainText('YARC 99.0.0 is available')
   if (process.platform === 'darwin') {
     const labels = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()!.items[0].submenu!.items.map((i) => i.label))
     expect(labels).toContain('Update Available…')
   }
   await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
-  await overlay.locator('.command input').fill('download arc')
-  await expect(overlay.locator('.result', { hasText: 'Download Arc Shell 99.0.0…' })).toHaveCount(1)
+  await overlay.locator('.command input').fill('download yarc')
+  await expect(overlay.locator('.result', { hasText: 'Download YARC 99.0.0…' })).toHaveCount(1)
   await dispatch({ type: 'overlay', mode: { kind: 'none' } })
 
   await ui.locator('.update-notice .icon-btn').click()

@@ -14,6 +14,7 @@ MCowBQYDK2VwAyEAGkPUNdZdczkp7AOd3w6v6VOBs06cqsF364n0uC954fM=
  */
 function message(fileName: string, zip: Uint8Array): Buffer {
   const digest = createHash('sha512').update(zip).digest('hex')
+  // The old name stays: it's in every signature, and installed apps check for it.
   return Buffer.from(`arc-shell-update\n${fileName}\n${digest}\n`)
 }
 

@@ -1,15 +1,15 @@
 import { app, BrowserWindow } from 'electron'
 import { existsSync } from 'node:fs'
-import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { Browser } from './browser'
 import { Extensions } from './extensions'
 import { installAppMenu } from './menus'
+import { profileDir } from './profile-dir'
 import { browserUserAgent } from './useragent'
 
 // Tests and portable setups can point the profile somewhere else.
-if (process.env.ARC_SHELL_USER_DATA) app.setPath('userData', process.env.ARC_SHELL_USER_DATA)
-else if (!app.isPackaged) app.setPath('userData', join(app.getPath('appData'), 'Arc Shell (dev)'))
+if (process.env.YARC_USER_DATA) app.setPath('userData', process.env.YARC_USER_DATA)
+else app.setPath('userData', profileDir(app.getPath('appData'), app.isPackaged ? 'YARC' : 'YARC (dev)'))
 
 app.userAgentFallback = browserUserAgent()
 // Windows groups taskbar buttons and routes notifications by this id (matches electron-builder's appId).
@@ -40,7 +40,7 @@ function installJumpList(): void {
     description
   })
   app.setUserTasks([
-    task('--new-tab', 'New Tab', 'Open the command bar in Arc Shell'),
+    task('--new-tab', 'New Tab', 'Open the command bar in YARC'),
     task('--little-arc', 'New Little Arc Window', 'Open a small window for a quick lookup')
   ])
 }
@@ -92,7 +92,7 @@ if (!app.requestSingleInstanceLock()) {
     Extensions.prepareUiSession()
     browser = new Browser()
     // End-to-end tests drive the controller directly.
-    if (process.env.ARC_SHELL_TEST) Object.assign(globalThis, { arcBrowser: browser })
+    if (process.env.YARC_TEST) Object.assign(globalThis, { arcBrowser: browser })
     installAppMenu(browser)
     browser.start()
     installJumpList()

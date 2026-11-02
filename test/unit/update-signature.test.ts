@@ -11,7 +11,7 @@ const pair = () => {
   }
 }
 const { privateKey, publicKey } = pair()
-const name = 'Arc-Shell-0.2.0-arm64-mac.zip'
+const name = 'YARC-0.2.0-arm64-mac.zip'
 const zip = Buffer.from('PK\u0003\u0004 not really a zip')
 const signature = signUpdate(name, zip, privateKey)
 
@@ -22,7 +22,7 @@ test('verifyUpdate accepts a zip signed with the matching key', () => {
 
 test('verifyUpdate rejects a changed zip, another name or another key', () => {
   assert.equal(verifyUpdate(name, Buffer.concat([zip, Buffer.from('!')]), signature, publicKey), false)
-  assert.equal(verifyUpdate('Arc-Shell-0.1.0-arm64-mac.zip', zip, signature, publicKey), false)
+  assert.equal(verifyUpdate('YARC-0.1.0-arm64-mac.zip', zip, signature, publicKey), false)
   assert.equal(verifyUpdate(name, zip, signature, pair().publicKey), false)
 })
 
