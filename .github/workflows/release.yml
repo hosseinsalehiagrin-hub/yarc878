@@ -124,12 +124,44 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+      # One self-signed certificate for every release, so macOS keeps camera and microphone
+      # permissions across updates (scripts/mac-sign.mjs, docs/electron-notes.md section 9).
+      - name: Import the macOS code-signing certificate
+        if: runner.os == 'macOS'
+        env:
+          MAC_CODESIGN_P12: ${{ secrets.MAC_CODESIGN_P12 }}
+          MAC_CODESIGN_P12_PASSWORD: ${{ secrets.MAC_CODESIGN_P12_PASSWORD }}
+        run: |
+          if [ -z "$MAC_CODESIGN_P12" ]; then
+            echo "::warning::The MAC_CODESIGN_P12 secret is missing: signing ad-hoc, so macOS asks for camera and microphone again after this update."
+            exit 0
+          fi
+          scripts/import-mac-certificate.sh
       - name: Package
         run: pnpm exec electron-builder ${{ matrix.platform }} --publish never
         env:
           # No Apple certificate: never pick one up from the keychain; electron-builder.yml
           # sets identity "-" (ad-hoc), which is used regardless of this flag.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # What mac-update.ts checks before installing, plus: signed with the certificate if there is one.
+      - name: Check the macOS code signatures
+        if: runner.os == 'macOS'
+        run: |
+          shopt -s nullglob
+          apps=(release/mac*/*.app)
+          if [ ${#apps[@]} -eq 0 ]; then
+            echo "::error::No .app in release/mac*/"
+            exit 1
+          fi
+          for app in "${apps[@]}"; do
+            codesign --verify --deep --strict "$app"
+            requirement=$(codesign -d -r- "$app" 2>&1 | grep designated)
+            echo "$app: $requirement"
+            if [ -n "${MAC_CODESIGN_IDENTITY:-}" ] && [[ "$requirement" != *"certificate leaf"* ]]; then
+              echo "::error::$app isn't signed with the certificate"
+              exit 1
+            fi
+          done
       # Installed Macs only install an update zip whose Ed25519 signature matches the public key
       # in src/main/update-signature.ts (see scripts/sign-update.mts for making the key pair).
       - name: Sign the macOS update zips

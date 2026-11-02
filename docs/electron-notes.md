@@ -715,7 +715,7 @@ quit, 0.0.4 → 0.0.5 with *Relaunch*. Results for the risks:
 - **Camera, microphone, screen recording: macOS asks again after each update** (tested with the
   microphone in section 8). TCC stores the designated requirement, which for an ad-hoc signature
   is the cdhash and differs per build. Same as the old DMG route. A self-signed certificate keeps
-  the grant (section 8); not adopted yet.
+  the grant (section 8), so releases are signed with one now (section 9).
 - If the user can't write to the app's folder (standard account, `/Applications`), or the app is
   translocated (run from the DMG or Downloads), it falls back to the DMG notice.
 
@@ -797,15 +797,71 @@ Not tested: the camera (same check), and screen recording (pages can't ask for i
 `setDisplayMediaRequestHandler`). Switching from ad-hoc to a certificate re-asks once, because
 existing grants name the old cdhash.
 
-How a self-signed build was made (not in the release pipeline): an RSA certificate with
-`extendedKeyUsage=critical,codeSigning` (openssl), imported into its own keychain.
-electron-builder only signs with identities `security find-identity -v` calls valid, which an
-untrusted self-signed one isn't, so it was signed through `mac.sign` (a hook calling
-`@electron/osx-sign`'s `signAsync` with the certificate's SHA-1 in place of the `"-"` identity). codesign also
-only finds the identity when its keychain is on the user's search list (`security list-keychains
--d user -s …`); `--keychain` alone gave "no identity found". `codesign --verify --deep --strict`
-passes, which is what `mac-update.ts` checks. Gatekeeper's first launch with a self-signed
-signature wasn't tested.
+Release builds are signed this way now: section 9.
+
+---
+
+## 9. macOS release signing with one self-signed certificate
+
+Every macOS release is signed with the same self-signed code-signing certificate, so the
+designated requirement is `identifier "org.arcshell.browser" and certificate leaf = H"<SHA-1>"`
+for every version and camera/microphone permissions survive updates (section 8). It doesn't help
+the keychain (section 8) or Gatekeeper: macOS doesn't trust the certificate, so the first launch
+still needs *Open Anyway*, as with ad-hoc. Not tested: the first launch of a quarantined
+self-signed DMG.
+
+**How it's wired:**
+
+- `electron-builder.yml` keeps `identity: "-"` and sets `mac.sign: ./scripts/mac-sign.mjs`.
+  electron-builder only signs with identities `security find-identity -v` calls valid, which an
+  untrusted self-signed one isn't. With `"-"` it gets as far as signing, and the hook calls
+  `@electron/osx-sign`'s `signAsync` with the certificate's SHA-1 in place of `"-"` (the same
+  options otherwise; electron-builder already passes `identityValidation: false`). Without
+  `MAC_CODESIGN_IDENTITY` it signs ad-hoc, as before: local builds, forks, and releases while
+  the secret is missing.
+- `release.yml` (macOS job) runs `scripts/import-mac-certificate.sh` when the `MAC_CODESIGN_P12`
+  secret is set. It imports the .p12 into a keychain of its own, adds it to the user's keychain
+  search list (codesign doesn't find the identity with `--keychain` alone: "no identity found"),
+  and exports `MAC_CODESIGN_IDENTITY` / `MAC_CODESIGN_KEYCHAIN`. Without the secret it warns
+  and signs ad-hoc.
+- After packaging, `release.yml` runs `codesign --verify --deep --strict` on both apps (what
+  `mac-update.ts` checks before installing). When a certificate was imported, it also fails the
+  build if the requirement has no `certificate leaf`.
+
+**Tested on this Mac [2026-11-02]:**
+
+- A .p12 made with the commands below, run through `import-mac-certificate.sh` with a fake
+  `RUNNER_TEMP`/`GITHUB_ENV`. The arm64 zip and the x64 app both got the certificate requirement
+  and pass `codesign --verify --deep --strict`. The unzipped update has the right bundle id and no
+  quarantine flag.
+- A real self-update with `mac-update.ts` from an ad-hoc build (0.1.1) to a self-signed one
+  (0.1.2): downloaded, verified, swapped at quit, and 0.1.2 started.
+- Self-signed → self-signed updates (0.0.1 → 0.0.2, 0.0.3 → 0.0.4) through the updater: the
+  microphone grant was kept.
+- Not run in GitHub Actions yet; the release workflow only runs on main.
+
+**Making the certificate** (once, on a Mac; the user does this, never CI or an agent). Use Apple's
+`/usr/bin/openssl` (LibreSSL): `security import` reads its .p12 encryption. OpenSSL 3 needs `-legacy`.
+
+```bash
+/usr/bin/openssl req -x509 -newkey rsa:2048 -nodes -days 7300 \
+  -subj "/CN=Arc Shell Release Signing" \
+  -addext "basicConstraints=critical,CA:false" \
+  -addext "keyUsage=critical,digitalSignature" \
+  -addext "extendedKeyUsage=critical,codeSigning" \
+  -keyout codesign-key.pem -out codesign-cert.pem
+/usr/bin/openssl pkcs12 -export -inkey codesign-key.pem -in codesign-cert.pem \
+  -name "Arc Shell Release Signing" -out codesign.p12   # asks for the .p12 password
+base64 -i codesign.p12 | gh secret set MAC_CODESIGN_P12 --repo yenebeb/arc-shell
+gh secret set MAC_CODESIGN_P12_PASSWORD --repo yenebeb/arc-shell   # asks for the same password
+```
+
+Keep `codesign.p12` and its password somewhere safe (a password manager), then delete the
+`.pem` files. **The certificate must never change**: the requirement is the certificate's hash,
+so a new certificate (or a release without the secret) makes every Mac ask for the camera and
+microphone again, once. The first signed release does that once too (existing grants name the
+old cdhash). Whether macOS minds an expired self-signed certificate wasn't tested; 7300 days
+(20 years) keeps that question away.
 
 ---
 
@@ -820,6 +876,6 @@ signature wasn't tested.
 | UA | Keep `Electron/45.x`, strip only the app-name token, set it before creating views, no client-hint forging, no CDP, no webRequest UA rewriting |
 | Chrome Sync | Impossible. Offer import from the local Chrome profile instead |
 | Storage | `node:sqlite` (Node 24.22.1, SQLite 3.53.4, unflagged, RC); no native modules |
-| Packaging | NSIS oneClick per-user + `installer.nsh` browser registration; mac dmg + zip arm64+x64, `identity: "-"`, `hardenedRuntime: false` |
+| Packaging | NSIS oneClick per-user + `installer.nsh` browser registration; mac dmg + zip arm64+x64, `identity: "-"` + `mac.sign` hook (self-signed certificate from CI, else ad-hoc), `hardenedRuntime: false` |
 | macOS updates | Own updater (`mac-update.ts`): Node download (no quarantine), Ed25519-signed zip, swap at quit; not Squirrel.Mac |
 | Cookie encryption | `EnableCookieEncryption` fuse on Windows and Linux (`scripts/after-pack.mjs`); off on macOS until a Developer ID, because the keychain partition is the cdhash and every update would ask for the login password |
