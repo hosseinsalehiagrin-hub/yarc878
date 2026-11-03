@@ -1232,54 +1232,161 @@ select:focus {
 
 /* ------------------------------------------------------------------ little arc */
 
+/* Measured from Arc's Little Arc: a 47px dark bar, a 31px URL pill and an "Open in <Space>" button. */
 body.page-little {
-  background: var(--space);
+  --little-bar: #0d0b18;
+  background: var(--little-bar);
+}
+
+body.page-little::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.12;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 0 0.5 0 0 0 1.4 -0.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 
 .little-bar {
-  height: 40px;
+  height: 47px;
+  color: rgb(255 255 255 / 0.85);
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 0 8px;
-  color: #fff;
+  gap: 8px;
+  padding: 0 7px 0 8px;
   -webkit-app-region: drag;
 }
 
 .mac .little-bar {
-  padding-left: 76px;
+  padding-left: 83px;
 }
 
-.little-bar .title {
+.little-bar button {
+  -webkit-app-region: no-drag;
+}
+
+.little-url {
+  position: relative;
   flex: 1;
   min-width: 0;
+  height: 31px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 4px;
+  border-radius: 7px;
+  background: rgb(255 255 255 / 0.1);
+}
+
+.little-profile {
+  position: relative;
+  z-index: 1;
+  height: 23px;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 8px 0 5px;
+  border-radius: 5px;
+  background: rgb(0 0 0 / 0.18);
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Arc's profile glyph is a filled face. */
+.little-profile .icon circle {
+  fill: currentColor;
+}
+
+.little-profile .icon path {
+  stroke: var(--little-bar);
+}
+
+.little-profile:hover {
+  background: rgb(255 255 255 / 0.08);
+}
+
+/* The domain is centered in the pill, like Arc's, whatever sits left and right of it. */
+.little-host {
+  position: absolute;
+  inset: 0 110px;
+  display: grid;
+  place-items: center;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
+  font-size: 13px;
   font-weight: 500;
-  text-align: center;
-  opacity: 0.92;
+  pointer-events: none;
 }
 
-.little-bar .icon-btn {
+.little-url .icon-btn {
+  position: relative;
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  color: rgb(255 255 255 / 0.42);
+}
+
+.little-url .icon-btn:hover {
+  background: rgb(255 255 255 / 0.1);
   color: rgb(255 255 255 / 0.85);
 }
 
-.little-bar .icon-btn:hover {
-  background: rgb(255 255 255 / 0.18);
-  color: #fff;
+.little-open {
+  height: 31px;
+  display: flex;
+  align-items: stretch;
+  border-radius: 7px;
+  border: 1px solid rgb(255 255 255 / 0.12);
+  background: color-mix(in oklab, var(--little-bar) 55%, #000);
+  overflow: hidden;
 }
 
-.little-bar .open-main {
-  -webkit-app-region: no-drag;
-  padding: 4px 10px;
-  border-radius: 7px;
-  background: rgb(255 255 255 / 0.2);
+.little-open button:hover {
+  background: rgb(255 255 255 / 0.07);
+}
+
+.little-open-main {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 0 6px 0 11px;
+  font-size: 13px;
+  font-weight: 600;
   color: #fff;
+  white-space: nowrap;
+}
+
+.little-open-main .dim {
+  color: rgb(255 255 255 / 0.55);
+}
+
+.little-open-main kbd {
+  margin-left: 4px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgb(255 255 255 / 0.1);
+  font: inherit;
   font-size: 12px;
   font-weight: 600;
+  color: rgb(255 255 255 / 0.5);
 }
 
-.little-bar .open-main:hover {
-  background: rgb(255 255 255 / 0.3);
+.little-open-more {
+  width: 28px;
+  display: grid;
+  place-items: center;
+  border-left: 1px solid rgb(255 255 255 / 0.12);
+  color: rgb(255 255 255 / 0.55);
+}
+
+.little-close {
+  color: rgb(255 255 255 / 0.6);
+}
+
+.little-close:hover:not(:disabled) {
+  background: rgb(255 255 255 / 0.1);
+  color: #fff;
 }

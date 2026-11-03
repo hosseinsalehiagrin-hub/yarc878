@@ -99,7 +99,20 @@ const paths: Record<string, ReactNode> = {
   ),
   puzzle: <path d="M10 4a2 2 0 1 1 4 0v2h4v4h-2a2 2 0 1 0 0 4h2v4h-4v-2a2 2 0 1 0-4 0v2H6v-4h2a2 2 0 1 0 0-4H6V6h4z" />,
   pin: <path d="M12 17v5M8 3h8l-1 6 3 4H6l3-4z" />,
-  shield: <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />
+  shield: <path d="M12 3l7 3v5c0 4.5-3 8.5-7 10-4-1.5-7-5.5-7-10V6z" />,
+  // Arc's profile glyph: a smiley in a circle.
+  profile: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M9.5 9.5v1M14.5 9.5v1M8.5 14a4.5 4.5 0 0 0 7 0" />
+    </>
+  ),
+  link: (
+    <>
+      <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" />
+      <path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />
+    </>
+  )
 }
 
 export type IconName = keyof typeof paths

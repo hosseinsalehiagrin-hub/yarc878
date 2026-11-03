@@ -18,7 +18,7 @@ import {
 import { existsSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Action, DropTarget } from '../shared/actions'
-import { IPC, type LittleOp } from '../shared/ipc'
+import { IPC, type LittleAnchor, type LittleOp } from '../shared/ipc'
 import { commandForInput, type CommandId } from '../shared/keymap'
 import { containsNode, findFolder, findInPinned, findItem, profileOfItem, spaceItems } from '../shared/tree'
 import type {
@@ -1276,19 +1276,45 @@ export class Browser implements TabHost {
 
   // ---------------------------------------------------------------- Little Arc
 
-  openLittle(url?: string): LittleWindow {
-    const s = this.state.settings
-    const profileId = (s.littleArcProfileId && this.store.profile(s.littleArcProfileId)?.id) || this.space.profileId
-    const little = new LittleWindow(this, this.profiles.get(profileId), url)
+  openLittle(url?: string, profileId = this.littleProfile(url), bounds?: Rectangle): LittleWindow {
+    const little = new LittleWindow(this, this.profiles.get(profileId), url, bounds)
     this.littles.add(little)
     little.win.on('closed', () => this.littles.delete(little))
     return little
   }
 
+  /** The profile a Little Arc page opens in: the one picked for the site, the Settings choice, else the active space's. */
+  private littleProfile(url?: string): ID {
+    const known = (id: ID | undefined) => (id && this.store.profile(id) ? id : undefined)
+    const s = this.state.settings
+    return known(this.state.littleArc.profileByHost[hostOf(url ?? '')]) ?? known(s.littleArcProfileId) ?? this.space.profileId
+  }
+
+  /** Reopens a Little Arc page with another profile (the toolbar's profile chip) and remembers that for the site. */
+  switchLittleProfile(little: LittleWindow, profileId: ID): void {
+    const url = little.url
+    const host = hostOf(url)
+    if (host) this.state.littleArc.profileByHost[host] = profileId
+    this.store.save()
+    this.openLittle(url, profileId, little.win.getBounds())
+    little.win.close()
+  }
+
+  rememberLittleSize(width: number, height: number): void {
+    this.state.littleArc.size = { width, height }
+    this.store.save()
+  }
+
+  /** The space "Open in" uses: the active space when it has the window's profile, else the first space that does. */
+  littleTargetSpace(profileId: ID): Space {
+    if (this.space.profileId === profileId) return this.space
+    return this.state.spaces.find((s) => s.profileId === profileId) ?? this.space
+  }
+
   /** Moves a Little Arc page into the main window as a Today tab, keeping its state. */
-  adoptLittle(little: LittleWindow): void {
+  adoptLittle(little: LittleWindow, spaceId?: ID): void {
     this.ensureWindow()
-    const space = this.state.spaces.find((s) => s.profileId === little.profile.id) ?? this.space
+    const space = (spaceId && this.store.space(spaceId)) || this.littleTargetSpace(little.profile.id)
     const tab = little.release()
     const item: TabItem = { id: newId(), url: tab.wc.getURL(), title: tab.wc.getTitle(), favicon: tab.favicon, lastActive: Date.now() }
     space.today.unshift(item)
@@ -1327,8 +1353,8 @@ export class Browser implements TabHost {
       this.profiles.get(this.space.profileId).history.recent(200, offset, q)
     )
     ipcMain.handle(IPC.historyDelete, (_e, url: string) => this.profiles.get(this.space.profileId).history.deleteUrl(url))
-    ipcMain.handle(IPC.littleOp, (e, op: LittleOp) => {
-      for (const l of this.littles) if (l.win.webContents === e.sender) return l.op(op)
+    ipcMain.handle(IPC.littleOp, (e, op: LittleOp, at?: LittleAnchor) => {
+      for (const l of this.littles) if (l.win.webContents === e.sender) return l.op(op, at)
     })
   }
 

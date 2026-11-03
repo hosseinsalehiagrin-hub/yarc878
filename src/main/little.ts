@@ -2,23 +2,26 @@
 import {
   BrowserWindow,
   clipboard,
+  Menu,
   screen,
   type BrowserWindowConstructorOptions,
   type ContextMenuParams,
   type Event,
   type Input,
+  type Rectangle,
   type WebContents
 } from 'electron'
-import { IPC, type LittleOp, type LittleState } from '../shared/ipc'
+import { IPC, type LittleAnchor, type LittleOp, type LittleState } from '../shared/ipc'
 import { matches } from '../shared/keymap'
 import type { Browser } from './browser'
+import { littleBarColor, littleBounds } from './little-layout'
 import { buildContextMenu } from './menus'
 import type { ProfileRuntime } from './profiles'
 import { LiveTab, type OpenDisposition, type TabHost } from './tab'
 import { loadRenderer, uiWebPreferences } from './window'
 
-const TOOLBAR = 40
-const PAD = 6
+/** Toolbar height, like Arc's Little Arc. The page fills the rest of the window, edge to edge. */
+const TOOLBAR = 47
 const isMac = process.platform === 'darwin'
 
 export class LittleWindow implements TabHost {
@@ -29,52 +32,67 @@ export class LittleWindow implements TabHost {
   constructor(
     private browser: Browser,
     readonly profile: ProfileRuntime,
-    url = 'https://www.google.com/'
+    url = 'https://www.google.com/',
+    bounds?: Rectangle
   ) {
     const cursor = screen.getCursorScreenPoint()
     const area = screen.getDisplayNearestPoint(cursor).workArea
-    const width = Math.min(900, area.width - 40)
-    const height = Math.min(680, area.height - 40)
     this.win = new BrowserWindow({
-      width,
-      height,
-      x: Math.round(area.x + (area.width - width) / 2),
-      y: Math.round(area.y + (area.height - height) / 3),
+      ...(bounds ?? littleBounds(area, browser.state.littleArc.size)),
       minWidth: 360,
       minHeight: 240,
       titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
-      trafficLightPosition: { x: 12, y: 13 },
-      backgroundColor: browser.store.activeSpace.color,
+      trafficLightPosition: { x: 11, y: 17 },
+      backgroundColor: littleBarColor(browser.store.activeSpace.color),
       show: false,
       webPreferences: uiWebPreferences()
     })
     this.win.setMenuBarVisibility(false)
     loadRenderer(this.win.webContents, 'little')
     this.win.webContents.on('before-input-event', (e, input) => this.onTabInput(undefined, e, input))
-    this.win.webContents.once('did-finish-load', () => this.push())
     this.win.once('ready-to-show', () => this.win.show())
 
     this.tab = new LiveTab(this, 'little', profile.id, profile.session, url)
+    this.tab.view.setBorderRadius(0)
     this.browser.extensions.addTab(this.tab, this.win)
     this.win.contentView.addChildView(this.tab.view)
     this.layout()
     this.win.on('resize', () => this.layout())
+    // 'resized' fires once the user lets go, not for programmatic resizes.
+    this.win.on('resized', () => {
+      const [width, height] = this.win.getSize()
+      browser.rememberLittleSize(width, height)
+    })
     this.win.on('closed', () => {
       if (!this.released) this.tab?.destroy()
     })
     this.tab.wc.focus()
   }
 
+  get url(): string {
+    return this.tab?.wc.getURL() ?? ''
+  }
+
   private layout(): void {
     if (!this.tab || this.released) return
     const [w, h] = this.win.getContentSize()
-    this.tab.view.setBounds({ x: PAD, y: TOOLBAR, width: w - 2 * PAD, height: h - TOOLBAR - PAD })
+    this.tab.view.setBounds({ x: 0, y: TOOLBAR, width: w, height: h - TOOLBAR })
   }
 
   private push(): void {
     if (!this.tab || this.tab.destroyed || this.win.isDestroyed()) return
-    const info = this.tab.info()
-    const state: LittleState = { ...info, color: this.browser.store.activeSpace.color }
+    const { url, title, favicon, loading } = this.tab.info()
+    const spaces = this.browser.state.spaces.filter((s) => s.profileId === this.profile.id)
+    const state: LittleState = {
+      url,
+      title,
+      favicon,
+      loading,
+      barColor: littleBarColor(this.browser.store.activeSpace.color),
+      profileName: this.browser.store.profile(this.profile.id)?.name ?? '',
+      spaceName: this.browser.littleTargetSpace(this.profile.id).name,
+      moreSpaces: spaces.length > 1
+    }
     this.win.webContents.send(IPC.little, state)
   }
 
@@ -83,14 +101,17 @@ export class LittleWindow implements TabHost {
     const tab = this.tab!
     this.released = true
     this.win.contentView.removeChildView(tab.view)
+    tab.view.setBorderRadius(8) // tabs in the main window have rounded corners
     this.tab = undefined
     this.win.close()
     return tab
   }
 
-  op(op: LittleOp): void {
+  op(op: LittleOp, at?: LittleAnchor): void {
     const wc = this.tab?.wc
     switch (op) {
+      case 'sync':
+        return this.push()
       case 'openInMain':
         return this.browser.adoptLittle(this)
       case 'close':
@@ -104,7 +125,34 @@ export class LittleWindow implements TabHost {
         return void (wc?.navigationHistory.canGoForward() && wc.navigationHistory.goForward())
       case 'reload':
         return wc?.reload()
+      case 'profileMenu':
+        return this.profileMenu(at)
+      case 'spaceMenu':
+        return this.spaceMenu(at)
     }
+  }
+
+  /** The profile chip: reopens the page signed in with another profile, remembered for the site. */
+  private profileMenu(at?: LittleAnchor): void {
+    const items = this.browser.state.profiles.map((p) => ({
+      label: p.name,
+      type: 'radio' as const,
+      checked: p.id === this.profile.id,
+      click: () => {
+        if (p.id !== this.profile.id) this.browser.switchLittleProfile(this, p.id)
+      }
+    }))
+    Menu.buildFromTemplate(items).popup({ window: this.win, x: at?.x, y: at?.y })
+  }
+
+  /** "Open in…": moves the page into one of the spaces that use this window's profile. */
+  private spaceMenu(at?: LittleAnchor): void {
+    const spaces = this.browser.state.spaces.filter((s) => s.profileId === this.profile.id)
+    const items = spaces.map((s) => ({
+      label: s.emoji ? `${s.emoji}  ${s.name}` : s.name,
+      click: () => this.browser.adoptLittle(this, s.id)
+    }))
+    Menu.buildFromTemplate(items).popup({ window: this.win, x: at?.x, y: at?.y })
   }
 
   // TabHost
@@ -121,6 +169,7 @@ export class LittleWindow implements TabHost {
     }
     if (matches(input, `${mod}+W`)) return run('close')
     if (matches(input, `${mod}+O`)) return run('openInMain')
+    if (matches(input, `${mod}+Shift+O`)) return run('spaceMenu')
     if (matches(input, `${mod}+Shift+C`)) return run('copyUrl')
     if (matches(input, `${mod}+R`)) return run('reload')
     if (matches(input, isMac ? 'Cmd+BracketLeft' : 'Alt+Left')) return run('back')

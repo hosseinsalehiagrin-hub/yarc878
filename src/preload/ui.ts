@@ -24,7 +24,7 @@ const api: ArcApi = {
   suggest: (query) => ipcRenderer.invoke(IPC.suggest, query),
   history: (query, offset) => ipcRenderer.invoke(IPC.history, query, offset),
   deleteHistory: (url) => ipcRenderer.invoke(IPC.historyDelete, url),
-  little: (op) => ipcRenderer.invoke(IPC.littleOp, op)
+  little: (op, at) => ipcRenderer.invoke(IPC.littleOp, op, at)
 }
 
 contextBridge.exposeInMainWorld('arc', api)

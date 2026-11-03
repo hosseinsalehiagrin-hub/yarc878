@@ -100,7 +100,9 @@ Drag the gap between panes to resize them, and double-click it to make them equa
 
 ![Little Arc](docs/screenshots/little-arc.png)
 
-A small, minimal window for quick lookups. Open one with `Ctrl+Alt+N` / `⌘⌥N`. When YARC is your default browser, links from other apps (Slack, Discord, email) open here too, so your sidebar stays tidy. If you want to keep the page, click **Open in YARC**: it moves into your Today tabs as it is, without reloading. If you don't, just close the window.
+A small, minimal window for quick lookups. Open one with `Ctrl+Alt+N` / `⌘⌥N`. When YARC is your default browser, links from other apps (Slack, Discord, email) open here too, so your sidebar stays tidy. If you want to keep the page, click **Open in** *your space*: it moves into your Today tabs as it is, without reloading. The arrow next to it picks another space. If you don't want to keep it, just close the window.
+
+The chip on the left of the address shows which profile the page uses, so which accounts you're signed in with. Click it to open the page with another profile; YARC remembers that choice for the site. The window also remembers the size you give it.
 
 ### Built-in ad and tracker blocking
 
@@ -221,7 +223,7 @@ These are Arc's shortcuts. **Mod** means `⌘` on macOS and `Ctrl` on Windows. T
 | Duplicate tab | `⌘⇧D` | `Ctrl+Shift+D` |
 | Open in Chrome | `⌘⌥O` | `Ctrl+Alt+O` |
 
-In a Little Arc window: `Mod+O` moves the page into the main window, `Mod+W` closes the window, and `Mod+Shift+C` copies the URL.
+In a Little Arc window: `Mod+O` moves the page into the main window, `Mod+Shift+O` picks the space to move it to, `Mod+W` closes the window, `Mod+Shift+C` copies the URL, and `Mod+[` / `Mod+]` (`Alt+←` / `Alt+→` on Windows) go back and forward.
 
 In Peek: `Esc` or `Mod+W` closes it, and `Mod+O` opens the page as a tab.
 
