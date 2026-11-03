@@ -292,6 +292,22 @@ test('Little Arc opens a mini window and can move the page into the main window'
   expect((await space()).today[0].url).toBe(`${base}/little`)
 })
 
+test('camera and microphone read as askable until blocked, so sites like Meet request them', async () => {
+  await dispatch({ type: 'open', url: `${base}/media`, where: 'tab' })
+  await expect.poll(async () => (await state()).live[(await space()).activeItemId!]?.loading).toBe(false)
+  const query = () =>
+    app.evaluate(() =>
+      (globalThis as any).arcBrowser
+        .activeTab()
+        .wc.executeJavaScript(`Promise.all(['camera', 'microphone'].map((name) => navigator.permissions.query({ name }).then((p) => p.state)))`)
+    )
+  expect(await query()).toEqual(['granted', 'granted'])
+  // Blocking is remembered per origin; Electron's check handler gets the origin as "http://host:port/".
+  await app.evaluate((_e, origin) => (globalThis as any).arcBrowser.profiles.decisions.set(`${origin}|media`, false), base)
+  expect(await query()).toEqual(['denied', 'denied'])
+  await app.evaluate((_e, origin) => (globalThis as any).arcBrowser.profiles.decisions.delete(`${origin}|media`), base)
+})
+
 test('built-in ad blocking blocks ad requests and can be turned off per site', async () => {
   test.setTimeout(90_000)
   // The filter lists download on first start; wait for the engine.
