@@ -125,6 +125,48 @@ test('command bar completes the top URL inline, like Arc', async () => {
   await input.press('Escape')
 })
 
+const pressInOverlay = (keyCode: string) =>
+  app.evaluate((_e, k) => {
+    const wc = (globalThis as any).arcBrowser.window.overlay.webContents
+    for (const type of ['keyDown', 'keyUp']) wc.sendInputEvent({ type, keyCode: k })
+  }, keyCode)
+
+test('Tab to Search: a site name, Tab, then a query searches that site, like Arc', async () => {
+  // Answer https locally: no network, and YouTube can't redirect to a consent page.
+  const partition = `persist:profile-${(await space()).profileId}`
+  await app.evaluate(({ session }, p) => {
+    session.fromPartition(p).protocol.handle('https', () => new Response('<title>stub</title>', { headers: { 'content-type': 'text/html' } }))
+  }, partition)
+  const before = (await space()).activeItemId
+  try {
+    await dispatch({ type: 'overlay', mode: { kind: 'none' } })
+    await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
+    const overlay = await pageWithUrl('overlay.html')
+    const input = overlay.locator('.command input')
+    await expect(input).toHaveValue('')
+    await input.pressSequentially('you', { delay: 30 })
+    await expect(overlay.locator('.command .tab-hint')).toContainText('Search YouTube')
+    await pressInOverlay('Tab')
+    await expect(overlay.locator('.command .site-chip')).toHaveText('YouTube')
+    await expect(input).toHaveValue('')
+    await expect(input).toHaveAttribute('placeholder', 'Search YouTube…')
+    // Backspace on the empty query leaves the mode and puts back what was typed.
+    await pressInOverlay('Backspace')
+    await expect(overlay.locator('.command .site-chip')).toHaveCount(0)
+    await expect(input).toHaveValue('you')
+    await pressInOverlay('Tab')
+    await input.pressSequentially('lofi beats', { delay: 20 })
+    await expect(overlay.locator('.result.sel')).toContainText('Search YouTube')
+    await input.press('Enter')
+    await expect.poll(async () => (await space()).today[0]?.url).toBe('https://www.youtube.com/results?search_query=lofi%20beats')
+    // Leave the tabs as the next tests expect them.
+    await dispatch({ type: 'close', id: (await space()).today[0].id })
+    if (before) await dispatch({ type: 'activate', id: before })
+  } finally {
+    await app.evaluate(({ session }, p) => session.fromPartition(p).protocol.unhandle('https'), partition)
+  }
+})
+
 test('target=_blank links open as new Today tabs', async () => {
   const tab = await pageWithUrl('/one')
   await tab.locator('#blank').click()

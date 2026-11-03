@@ -102,7 +102,7 @@ Notation: on macOS, ⌘ = Command, ⌥ = Option, ⌃ = Control, ⇧ = Shift. On 
 | Command Bar: open actions mode | Tab right after ⌘T, or type "/ " | same | [O] |
 | Command Bar: delete highlighted suggestion | ⌥⌘⌫ | [U] | [O] |
 | Command Bar: Instant Links (open top result directly; Arc Max) | ⇧Enter | [U] | [O] |
-| Command Bar: Site Search | type the keyword (e.g. "yt") then Tab | [U] | [O] |
+| Command Bar: Site Search ("Tab to Search") | type the site (e.g. "youtube") then Tab; see §5.1 | n/a | mac [O]; Windows lacks it [O, S26] |
 | Hide / minimize / quit | ⌘H / ⌘M / ⌘Q | — | macOS standard |
 
 **Verified-missing on Windows** [O, absence in the 2023–2026 Windows release notes + community sources]: Little Arc, Easels/Notes/Capture, Boosts [U], Air Traffic Control [U], custom shortcuts.
@@ -267,7 +267,7 @@ These values are measured from screenshots and are all [U] unless stated otherwi
   - **Arc actions**;
   - extensions by name;
   - "Paste and Go" when the clipboard holds a URL (top option) [O];
-  - Site Search keywords (keyword + Tab) [O].
+  - Site Search keywords (keyword + Tab) [O], see §5.1.
 - **Ordering** [U]:
   1. Top hit.
   2. Clipboard "Paste and Go" when present.
@@ -286,6 +286,42 @@ These values are measured from screenshots and are all [U] unless stated otherwi
   - **Other:** Undo/Redo [Last Action], Save Page As…, Print…, Reload, Zoom In/Out/Actual Size, Switch to Light/Dark Mode, Developer Tools, Enter Full Screen, Restore Data (restores older sidebar versions), Show Toolbar, Release Notes / What's New, Help Center, Contact the Team.
   - **Settings:** Preferences/Settings, Open Shortcuts, Link Preferences, Site Search Settings, Advanced Preferences, Account Preferences, Manage Passwords, Set as Default Browser, Check for Updates, Add/Manage Extensions, [Extension name].
 - **Instant Links** (Arc Max): ⇧Enter opens the top search result directly [O].
+
+### 5.1 Site Search ("Tab to Search")
+
+**Flow** [O, S26, S27]: ⌘T, type the site ("youtube", or a custom shortcut such as "yt"), press Tab, type the query, Enter. The results page opens like any Command Bar result. macOS only: the help article says it does not apply to Arc for Windows [O, S26]. Users add or edit sites in the Site Search section of Arc's settings, with a URL where `%s` is the query; Arc suggests one- or two-letter shortcuts for custom ones [O, S26]. The Command Bar action "Site Search Settings" opens that page.
+
+**How it works.** Arc's Command Bar passes a `keyword:` to Chromium's autocomplete (`autocomplete:cursorPosition:preventInlineAutocomplete:startFresh:keyword:` in the Arc binary), so Site Search is Chromium's search-engine keyword mode. Arc seeds the profile's Chromium `keywords` table on first run (`SiteSearchMigrations.swift`). The list below was read from that table in a real Arc profile (`~/Library/Application Support/Arc/User Data/Default/Web Data`, `select short_name, keyword, url from keywords where is_active = 1`, 2026-11-03) and matches the URL and favicon list in `/Applications/Arc.app/Contents/MacOS/Arc`.
+
+| Name | Keyword | Search URL (`%s` = query) |
+|---|---|---|
+| Google Drive | drive.google.com | `https://drive.google.com/drive/search?q=%s` |
+| Gmail | mail.google.com | `https://mail.google.com/mail/ca/u/0/#apps/%s` |
+| Google Maps | maps.google.com | `https://www.google.com/maps/search/%s` |
+| Google Calendar | calendar.google.com | `https://calendar.google.com/calendar/u/0/r/search?q=%s` |
+| Google Docs | docs.google.com | `https://docs.google.com/document/u/0/?q=%s` |
+| Dropbox | dropbox.com | `https://www.dropbox.com/search/personal?&query=%s` |
+| Amazon | amazon.com | `https://www.amazon.com/s?k=%s` |
+| GitHub | github.com | `https://github.com/search?q=%s` |
+| Figma | figma.com | `https://www.figma.com/files/search?q=%s` |
+| X | x.com | `https://x.com/search?q=%s` |
+| X | twitter.com | `https://twitter.com/search?q=%s` |
+| YouTube | youtube.com | `https://www.youtube.com/results?search_query=%s` |
+| Wikipedia | wikipedia.org | `https://wikipedia.org/w/index.php?search=%s` |
+| Reddit | reddit.com | `https://www.reddit.com/search/?q=%s` |
+| SoundCloud | soundcloud.com | `https://soundcloud.com/search?q=%s` |
+| Asana | asana.com | `https://app.asana.com/0/search?q=%s` |
+| LinkedIn | linkedin.com | `https://linkedin.com/search/results/all/?keywords=%s` |
+| Apple Music | music.apple.com | `https://music.apple.com/us/search?term=%s` |
+| Spotify | spotify.com | `https://open.spotify.com/search/%s` |
+
+The same table also holds Chromium's inactive default engines (Google, Bing, DuckDuckGo, Ecosia, Brave, Qwant, PrivacyWall, Perplexity) and the active starter packs `@bookmarks` and `@history`. A second, separate list in the binary (Google, YouTube, Amazon, Wikipedia, Reddit, Twitter, Threads, LinkedIn, Pinterest, TikTok, Spotify, GitHub, Stack Overflow, Goodreads, Netflix, plus image/news/maps/flights) belongs to Arc Max's AI "siteSearch" action (`gptSiteSearchShortcut`), not to Tab.
+
+**Mode details.** Not observed directly (driving Arc's UI from the agent failed on 2026-11-03); YARC follows Chromium's keyword mode [U]:
+- Matching: the typed text is a keyword prefix ("you" → youtube.com, "twitter" → twitter.com) or a site name prefix ("gmail", "google m"); `https://` and `www.` are ignored. YARC needs two letters unless one letter is a whole name ("x").
+- Hint: while Tab would switch, the field shows "Search YouTube" with a Tab key on the right.
+- Mode: a chip with the site's favicon and name sits before the input; the placeholder becomes "Search YouTube…"; the only row is the query, "Search YouTube".
+- Leaving: Backspace on an empty query leaves the mode and puts back what was typed; Esc closes the bar. Enter with an empty query opens the site itself (Chromium's behavior).
 
 ---
 
@@ -423,3 +459,5 @@ Several open-source Arc-clone efforts document the same behaviors and can be cro
 - S23 Arc Spaces & Profiles discussion (MPU Talk) — https://talk.macpowerusers.com/t/arc-browser-spaces-and-profiles/35872
 - S24 Lilo PR (favorites per profile on import) — https://github.com/Alexays/Lilo/pull/67
 - S25 TidBITS, Arc 1.5 brings back Today tab syncing — https://talk.tidbits.com/t/arc-1-5-brings-back-today-tab-syncing/23922
+- S26 Site Search: Directly Search any Website (official help) — https://resources.arc.net/hc/en-us/articles/20855018192791-Site-Search-Directly-Search-any-Website
+- S27 Arc update email ("type YouTube, press Tab"; Amazon, Twitter, GitHub work out of the box) — https://reallygoodemails.com/emails/arc-update-your-feedback-our-new-features/text

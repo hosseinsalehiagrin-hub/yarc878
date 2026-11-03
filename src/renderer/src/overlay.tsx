@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindingLabel, type CommandId } from '../../shared/keymap'
+import { matchSiteSearch, siteSearchUrl, type SiteSearch } from '../../shared/site-search'
 import { findItem } from '../../shared/tree'
 import type { AppState, OverlayMode, Rect, SearchResult } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac, useAppState, useOverlayMode, useSpaceTheme } from './api'
@@ -121,6 +122,8 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
   const [sel, setSel] = useState(0)
   /** Arc-style inline completion after the typed text, shown selected. */
   const [suffix, setSuffix] = useState('')
+  /** Tab to Search: the site the query goes to, and what was typed to pick it (Backspace brings it back). */
+  const [site, setSite] = useState<{ site: SiteSearch; typed: string }>()
   const typing = useRef(false)
   const input = useRef<HTMLInputElement>(null)
   const listRef = useRef<HTMLDivElement>(null)
@@ -132,6 +135,7 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
   }, [mode.editCurrent])
 
   useEffect(() => {
+    if (site) return
     let alive = true
     void arc.search(query).then((r) => {
       if (!alive) return
@@ -143,9 +147,13 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
       alive = false
       clearTimeout(t)
     }
-  }, [query])
+  }, [query, site])
 
   const results = useMemo(() => {
+    if (site) {
+      const q = query.trim()
+      return q ? [{ kind: 'suggestion', id: 'site', title: q, subtitle: `Search ${site.site.name}`, url: siteSearchUrl(site.site, q) } satisfies SearchResult] : []
+    }
     const seen = new Set(local.map((r) => r.title.toLowerCase()))
     const extra: SearchResult[] = suggestions
       .filter((s) => !seen.has(s.toLowerCase()))
@@ -155,7 +163,10 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
     const search = all.findIndex((r, i) => i > 0 && r.kind === 'suggestion')
     if (search > 1) all.splice(1, 0, ...all.splice(search, 1))
     return all.slice(0, MAX_RESULTS)
-  }, [local, suggestions])
+  }, [local, suggestions, site, query])
+
+  /** The site Tab would switch to. */
+  const tabSite = site ? undefined : matchSiteSearch(query)
 
   // Complete the top hit's URL inline while typing forward (not after deleting).
   useEffect(() => {
@@ -175,7 +186,9 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
 
   const run = (r: SearchResult | undefined, alt = false) => {
     if (!r) {
-      if (query.trim()) dispatch({ type: 'open', url: query, where: target === 'split' ? 'split' : target === 'current' ? 'current' : 'tab' })
+      // Enter with no query in Tab to Search goes to the site itself, like Chromium's keyword mode.
+      const url = site ? `https://${site.site.keyword}` : query.trim() ? query : ''
+      if (url) dispatch({ type: 'open', url, where: target === 'split' ? 'split' : target === 'current' ? 'current' : 'tab' })
       return
     }
     if ((r.kind === 'tab' || r.kind === 'favorite' || r.kind === 'pinned') && r.target) {
@@ -195,12 +208,24 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
     dispatch({ type: 'open', url: r.url ?? r.title, where })
   }
 
-  const placeholder = target === 'split' ? 'Open in split view…' : target === 'current' ? 'Edit URL or search…' : 'Search or Enter URL…'
+  const placeholder = site
+    ? `Search ${site.site.name}…`
+    : target === 'split'
+      ? 'Open in split view…'
+      : target === 'current'
+        ? 'Edit URL or search…'
+        : 'Search or Enter URL…'
 
   return (
     <div className="panel command" onMouseDown={(e) => e.stopPropagation()}>
       <div className="field">
         <Icon name="search" size={18} />
+        {site ? (
+          <span className="site-chip">
+            <Favicon url={`https://${site.site.keyword}`} favicon={site.site.favicon} />
+            {site.site.name}
+          </span>
+        ) : null}
         <input
           ref={input}
           value={query + suffix}
@@ -215,7 +240,22 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
             setQuery(value)
           }}
           onKeyDown={(e) => {
-            if (suffix && (e.key === 'ArrowRight' || e.key === 'End')) {
+            if (e.key === 'Tab' && !e.shiftKey && tabSite) {
+              e.preventDefault()
+              typing.current = false
+              setSite({ site: tabSite, typed: query })
+              setQuery('')
+              setSuffix('')
+              setSel(0)
+            } else if (e.key === 'Tab' && site) {
+              e.preventDefault()
+            } else if (e.key === 'Backspace' && site && !query) {
+              // Leave Tab to Search with what was typed before it.
+              e.preventDefault()
+              typing.current = false
+              setQuery(site.typed)
+              setSite(undefined)
+            } else if (suffix && (e.key === 'ArrowRight' || e.key === 'End')) {
               // Accept the completion.
               typing.current = false
               setQuery(query + suffix)
@@ -232,6 +272,11 @@ function CommandBar({ state, mode }: { state: AppState; mode: Extract<OverlayMod
             }
           }}
         />
+        {tabSite ? (
+          <span className="tab-hint">
+            Search {tabSite.name} <kbd className="kbd">Tab</kbd>
+          </span>
+        ) : null}
         {target === 'split' ? <span className="target">Split View</span> : null}
       </div>
       {results.length > 0 ? (

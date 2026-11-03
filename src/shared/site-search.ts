@@ -1,0 +1,74 @@
+// Arc's "Tab to Search": type a site's name in the command bar, press Tab, and the query goes to that site's search.
+
+export interface SiteSearch {
+  name: string
+  /** What the typed text is matched against, like Chromium's search engine keyword. */
+  keyword: string
+  /** Results page, `%s` is the query. */
+  url: string
+  favicon: string
+}
+
+/** Arc's built-in list, in Arc's order (its Chromium `keywords` table, docs/arc-reference.md). */
+export const SITE_SEARCHES: SiteSearch[] = [
+  { name: 'Google Drive', keyword: 'drive.google.com', url: 'https://drive.google.com/drive/search?q=%s', favicon: 'https://drive.google.com/favicon.ico' },
+  { name: 'Gmail', keyword: 'mail.google.com', url: 'https://mail.google.com/mail/ca/u/0/#apps/%s', favicon: 'https://mail.google.com/favicon.ico' },
+  {
+    name: 'Google Maps',
+    keyword: 'maps.google.com',
+    url: 'https://www.google.com/maps/search/%s',
+    favicon: 'https://www.google.com/images/branding/product/ico/maps15_bnuw3a_32dp.ico'
+  },
+  {
+    name: 'Google Calendar',
+    keyword: 'calendar.google.com',
+    url: 'https://calendar.google.com/calendar/u/0/r/search?q=%s',
+    favicon: 'https://calendar.google.com/googlecalendar/images/favicons_2020q4/calendar_14.ico'
+  },
+  {
+    name: 'Google Docs',
+    keyword: 'docs.google.com',
+    url: 'https://docs.google.com/document/u/0/?q=%s',
+    favicon: 'https://ssl.gstatic.com/docs/documents/images/kix-favicon7.ico'
+  },
+  {
+    name: 'Dropbox',
+    keyword: 'dropbox.com',
+    url: 'https://www.dropbox.com/search/personal?&query=%s',
+    favicon: 'https://cfl.dropboxstatic.com/static/metaserver/static/images/favicon-vfl8lUR9B.ico'
+  },
+  { name: 'Amazon', keyword: 'amazon.com', url: 'https://www.amazon.com/s?k=%s', favicon: 'https://www.amazon.com/favicon.ico' },
+  { name: 'GitHub', keyword: 'github.com', url: 'https://github.com/search?q=%s', favicon: 'https://github.com/favicon.ico' },
+  { name: 'Figma', keyword: 'figma.com', url: 'https://www.figma.com/files/search?q=%s', favicon: 'https://static.figma.com/app/icon/1/favicon.png' },
+  { name: 'X', keyword: 'x.com', url: 'https://x.com/search?q=%s', favicon: 'https://x.com/favicon.ico' },
+  { name: 'X', keyword: 'twitter.com', url: 'https://twitter.com/search?q=%s', favicon: 'https://x.com/favicon.ico' },
+  { name: 'YouTube', keyword: 'youtube.com', url: 'https://www.youtube.com/results?search_query=%s', favicon: 'https://www.youtube.com/favicon.ico' },
+  { name: 'Wikipedia', keyword: 'wikipedia.org', url: 'https://wikipedia.org/w/index.php?search=%s', favicon: 'https://en.wikipedia.org/favicon.ico' },
+  { name: 'Reddit', keyword: 'reddit.com', url: 'https://www.reddit.com/search/?q=%s', favicon: 'https://reddit.com/favicon.ico' },
+  { name: 'SoundCloud', keyword: 'soundcloud.com', url: 'https://soundcloud.com/search?q=%s', favicon: 'https://soundcloud.com/favicon.ico' },
+  { name: 'Asana', keyword: 'asana.com', url: 'https://app.asana.com/0/search?q=%s', favicon: 'https://asana.com/favicon.ico' },
+  { name: 'LinkedIn', keyword: 'linkedin.com', url: 'https://linkedin.com/search/results/all/?keywords=%s', favicon: 'https://www.linkedin.com/favicon.ico' },
+  { name: 'Apple Music', keyword: 'music.apple.com', url: 'https://music.apple.com/us/search?term=%s', favicon: 'https://music.apple.com/favicon.ico' },
+  { name: 'Spotify', keyword: 'spotify.com', url: 'https://open.spotify.com/search/%s', favicon: 'https://www.scdn.co/i/_global/favicon.ico' }
+]
+
+/**
+ * The site Tab would search, for what's typed so far: a keyword it starts ("you" → youtube.com),
+ * else a site name it starts ("gmail", "google m"). A single letter only matches a whole name ("x").
+ */
+export function matchSiteSearch(input: string): SiteSearch | undefined {
+  const text = input
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .replace(/\/$/, '')
+  if (!text) return undefined
+  const exact = SITE_SEARCHES.find((s) => s.keyword === text || s.name.toLowerCase() === text)
+  if (exact || text.length < 2) return exact
+  return SITE_SEARCHES.find((s) => s.keyword.startsWith(text)) ?? SITE_SEARCHES.find((s) => s.name.toLowerCase().startsWith(text))
+}
+
+export function siteSearchUrl(site: SiteSearch, query: string): string {
+  return site.url.replace('%s', encodeURIComponent(query.trim()))
+}
