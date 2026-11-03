@@ -14,6 +14,22 @@ export interface ProfileRuntime {
 const AUTO_GRANT = new Set(['fullscreen', 'clipboard-sanitized-write', 'pointerLock', 'window-management', 'speaker-selection'])
 const PROMPT = new Set(['media', 'geolocation', 'notifications', 'midi', 'midiSysex', 'clipboard-read', 'display-capture', 'idle-detection', 'hid', 'serial', 'usb'])
 
+/**
+ * Prompted permissions that report "granted" until the user blocks them. Electron's check handler
+ * can only say granted or denied, not "ask". Sites like Google Meet read "denied" as blocked and
+ * never request access. Each request still goes through the prompt below.
+ */
+const ASK_ON_REQUEST = new Set(['media'])
+
+/** "https://meet.google.com", whether Electron hands over an origin ("…/") or a URL. */
+function originOf(url: string): string {
+  try {
+    return new URL(url).origin
+  } catch {
+    return ''
+  }
+}
+
 export class Profiles {
   private runtimes = new Map<ID, ProfileRuntime>()
   private decisions = new Map<string, boolean>()
@@ -60,15 +76,12 @@ export class Profiles {
   private permissions(ses: Session): void {
     ses.setPermissionCheckHandler((_wc, permission, origin) => {
       if (AUTO_GRANT.has(permission)) return true
-      return this.decisions.get(`${origin}|${permission}`) ?? false
+      return this.decisions.get(`${originOf(origin)}|${permission}`) ?? ASK_ON_REQUEST.has(permission)
     })
     ses.setPermissionRequestHandler((wc, permission, callback, details) => {
       if (AUTO_GRANT.has(permission)) return callback(true)
       if (!PROMPT.has(permission)) return callback(false)
-      let origin = ''
-      try {
-        origin = new URL(details.requestingUrl).origin
-      } catch {}
+      const origin = originOf(details.requestingUrl)
       const key = `${origin}|${permission}`
       const known = this.decisions.get(key)
       if (known !== undefined) return callback(known)
