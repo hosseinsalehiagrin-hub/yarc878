@@ -36,7 +36,15 @@ export function defaultState(): PersistedState {
     today: [],
     splits: []
   }
-  return { version: 1, profiles: [profile], spaces: [space], activeSpaceId: space.id, settings: { ...DEFAULT_SETTINGS }, archive: [] }
+  return {
+    version: 1,
+    profiles: [profile],
+    spaces: [space],
+    activeSpaceId: space.id,
+    settings: { ...DEFAULT_SETTINGS },
+    archive: [],
+    littleArc: { profileByHost: {} }
+  }
 }
 
 /** Fill in fields that older or imported state files may lack. */
@@ -56,7 +64,8 @@ export function normalize(raw: Partial<PersistedState>): PersistedState {
     spaces,
     activeSpaceId: spaces.some((s) => s.id === raw.activeSpaceId) ? raw.activeSpaceId! : spaces[0].id,
     settings: { ...DEFAULT_SETTINGS, ...raw.settings },
-    archive: raw.archive ?? []
+    archive: raw.archive ?? [],
+    littleArc: { size: raw.littleArc?.size, profileByHost: raw.littleArc?.profileByHost ?? {} }
   }
 }
 

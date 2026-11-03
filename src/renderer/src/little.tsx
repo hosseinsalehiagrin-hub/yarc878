@@ -1,15 +1,29 @@
-// Little Arc toolbar.
-import { useEffect, useState } from 'react'
+// Little Arc toolbar, like Arc's: a URL pill (profile chip, domain, copy link) and "Open in <Space>".
+import { useEffect, useState, type MouseEvent } from 'react'
 import { createRoot } from 'react-dom/client'
-import type { LittleState } from '../../shared/ipc'
-import { arc, displayHost, isMac, useSpaceTheme } from './api'
+import type { LittleOp, LittleState } from '../../shared/ipc'
+import { arc, displayHost, isMac } from './api'
 import { Icon } from './icons'
 import './styles.css'
 
+/** Opens a native menu just below the clicked button. */
+function menuBelow(op: LittleOp) {
+  return (e: MouseEvent<HTMLButtonElement>) => {
+    const r = e.currentTarget.getBoundingClientRect()
+    void arc.little(op, { x: Math.round(r.left), y: Math.round(r.bottom + 4) })
+  }
+}
+
 function App() {
   const [s, setS] = useState<LittleState>()
-  useEffect(() => arc.onLittle(setS), [])
-  useSpaceTheme(s?.color)
+  useEffect(() => {
+    const off = arc.onLittle(setS)
+    void arc.little('sync')
+    return off
+  }, [])
+  useEffect(() => {
+    if (s) document.documentElement.style.setProperty('--little-bar', s.barColor)
+  }, [s?.barColor])
   useEffect(() => {
     if (s?.title) document.title = s.title
   }, [s?.title])
@@ -17,26 +31,29 @@ function App() {
   return (
     <div className={isMac ? 'mac' : 'win'}>
       <div className="little-bar">
-        <button className="icon-btn" disabled={!s?.canGoBack} onClick={() => void arc.little('back')} title="Back">
-          <Icon name="back" />
-        </button>
-        <button className="icon-btn" disabled={!s?.canGoForward} onClick={() => void arc.little('forward')} title="Forward">
-          <Icon name="forward" />
-        </button>
-        <button className="icon-btn" onClick={() => void arc.little('reload')} title="Reload">
-          <Icon name="reload" />
-        </button>
-        <span className="title" title={s?.url}>
-          {s ? s.title || displayHost(s.url) : ''}
-        </span>
-        <button className="icon-btn" onClick={() => void arc.little('copyUrl')} title="Copy URL">
-          <Icon name="copy" />
-        </button>
-        <button className="open-main" onClick={() => void arc.little('openInMain')} title={`Open in YARC (${isMac ? '⌘O' : 'Ctrl+O'})`}>
-          Open in YARC
-        </button>
+        <div className="little-url" title={s?.url}>
+          <button className="little-profile" onClick={menuBelow('profileMenu')} title="Open this page with another profile">
+            <Icon name="profile" size={14} stroke={2} />
+            {s?.profileName}
+          </button>
+          <span className="little-host">{s ? displayHost(s.url) : ''}</span>
+          <button className="icon-btn" onClick={() => void arc.little('copyUrl')} title={`Copy URL (${isMac ? '⇧⌘C' : 'Ctrl+Shift+C'})`}>
+            <Icon name="link" />
+          </button>
+        </div>
+        <div className="little-open">
+          <button className="little-open-main" onClick={() => void arc.little('openInMain')} title="Move this page into the main window">
+            <span className="dim">Open in</span> {s?.spaceName ?? 'YARC'}
+            <kbd>{isMac ? '⌘O' : 'Ctrl+O'}</kbd>
+          </button>
+          {s?.moreSpaces ? (
+            <button className="little-open-more" onClick={menuBelow('spaceMenu')} title={`Open in another space (${isMac ? '⇧⌘O' : 'Ctrl+Shift+O'})`}>
+              <Icon name="down" size={14} />
+            </button>
+          ) : null}
+        </div>
         {!isMac ? (
-          <button className="icon-btn" onClick={() => void arc.little('close')} title="Close">
+          <button className="icon-btn little-close" onClick={() => void arc.little('close')} title="Close">
             <Icon name="x" />
           </button>
         ) : null}

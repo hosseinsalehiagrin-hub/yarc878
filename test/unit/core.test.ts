@@ -97,7 +97,8 @@ function sample(): PersistedState {
     ],
     activeSpaceId: 's1',
     settings: {} as PersistedState['settings'],
-    archive: []
+    archive: [],
+    littleArc: { profileByHost: {} }
   }
 }
 

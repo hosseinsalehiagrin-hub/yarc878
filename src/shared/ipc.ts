@@ -34,7 +34,23 @@ export interface FindEvent {
   step?: 1 | -1
 }
 
-export type LittleOp = 'openInMain' | 'close' | 'copyUrl' | 'back' | 'forward' | 'reload'
+/** Toolbar requests; 'sync' asks for the current state once the toolbar listens. */
+export type LittleOp =
+  | 'sync'
+  | 'openInMain'
+  | 'close'
+  | 'copyUrl'
+  | 'back'
+  | 'forward'
+  | 'reload'
+  | 'profileMenu'
+  | 'spaceMenu'
+
+/** Where a Little Arc toolbar menu opens, in window coordinates. */
+export interface LittleAnchor {
+  x: number
+  y: number
+}
 
 /** The API the preload exposes to UI renderers as `window.arc`. */
 export interface ArcApi {
@@ -52,5 +68,5 @@ export interface ArcApi {
   suggest(query: string): Promise<string[]>
   history(query: string, offset: number): Promise<HistoryRow[]>
   deleteHistory(url: string): Promise<void>
-  little(op: LittleOp): Promise<void>
+  little(op: LittleOp, at?: LittleAnchor): Promise<void>
 }

@@ -104,6 +104,14 @@ export interface PersistedState {
   activeSpaceId: ID
   settings: Settings
   archive: ArchivedTab[]
+  littleArc: LittleArcMemory
+}
+
+export interface LittleArcMemory {
+  /** The size the user last gave a Little Arc window; absent = a size that suits the screen. */
+  size?: { width: number; height: number }
+  /** Hostname → profile picked with the toolbar's profile chip, like Arc remembers it per site. */
+  profileByHost: Record<string, ID>
 }
 
 /** Live (runtime-only) info for an item that currently has a web page attached. */

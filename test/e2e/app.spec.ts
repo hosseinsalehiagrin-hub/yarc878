@@ -292,6 +292,43 @@ test('Little Arc opens a mini window and can move the page into the main window'
   expect((await space()).today[0].url).toBe(`${base}/little`)
 })
 
+test('Little Arc reopens a page with the profile picked on its chip, remembered per site, and keeps its size', async () => {
+  const url = `${base}/little-profile`
+  const littles = () =>
+    app.evaluate(() => [...(globalThis as any).arcBrowser.littles].map((l: any) => ({ profile: l.profile.id, url: l.url, size: l.win.getSize() })))
+  await app.evaluate(() => (globalThis as any).arcBrowser.state.profiles.push({ id: 'p-little', name: 'Chip', favorites: [] }))
+  await dispatch({ type: 'littleArc', url })
+  await expect.poll(async () => (await littles()).find((l) => l.url === url)?.profile).toBeTruthy()
+  expect((await littles()).find((l) => l.url === url)?.profile).not.toBe('p-little')
+
+  await app.evaluate((_e, url) => {
+    const b = (globalThis as any).arcBrowser
+    b.switchLittleProfile([...b.littles].find((l: any) => l.url === url), 'p-little')
+  }, url)
+  await expect.poll(async () => (await littles()).filter((l) => l.url === url).map((l) => l.profile)).toEqual(['p-little'])
+  const chips = () => Promise.all(app.windows().filter((w) => w.url().includes('little.html') && !w.isClosed()).map((w) => w.locator('.little-profile').textContent()))
+  await expect.poll(chips).toContain('Chip')
+
+  // The user resizes it, closes it, and opens the site again: same profile, same size.
+  await app.evaluate((_e, url) => {
+    const l = [...(globalThis as any).arcBrowser.littles].find((l: any) => l.url === url)
+    l.win.setSize(1010, 710)
+    l.win.emit('resized')
+    l.win.close()
+  }, url)
+  await expect.poll(async () => (await littles()).length).toBe(0)
+  await dispatch({ type: 'littleArc', url })
+  await expect.poll(async () => (await littles()).find((l) => l.url === url)).toMatchObject({ profile: 'p-little', size: [1010, 710] })
+
+  await app.evaluate(() => {
+    const b = (globalThis as any).arcBrowser
+    for (const l of b.littles) l.win.close()
+    b.state.littleArc = { profileByHost: {} }
+    b.state.profiles = b.state.profiles.filter((p: any) => p.id !== 'p-little')
+  })
+  await expect.poll(async () => (await littles()).length).toBe(0)
+})
+
 test('camera and microphone read as askable until blocked, so sites like Meet request them', async () => {
   await dispatch({ type: 'open', url: `${base}/media`, where: 'tab' })
   await expect.poll(async () => (await state()).live[(await space()).activeItemId!]?.loading).toBe(false)
