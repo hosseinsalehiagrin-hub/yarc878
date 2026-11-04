@@ -1,10 +1,12 @@
 <p align="center"><img src="build/icon.svg" width="160" alt="YARC's icon: a purple A in a pirate hat, bandana and eyepatch"></p>
 
-# YARC
+# YARC: an open-source replacement for the Arc browser
 
-**Yarrr! Yet Another Arc Clone: an open-source browser that works the way Arc did.** It has a vertical sidebar, Spaces with their own profiles, a command bar, split view and Little Arc. It runs on Windows and macOS.
+**YARC is a free, open-source replacement for the Arc browser, which shuts down on 22 December 2026.** It works the way Arc did, with a vertical sidebar, Spaces with their own profiles, the command bar, split view, Little Arc and Peek. It imports your Arc spaces, profiles, favorites, pinned tabs, folders, archive and history in one step. It runs on macOS, Windows and Linux (experimental).
 
-The Browser Company is shutting Arc down on **22 December 2026**. After that date the app stops working and Arc accounts are deactivated. YARC is meant for people who don't want to switch to Dia or go back to a tab strip. It reproduces Arc's workflow and imports your Arc sidebar, so you can carry on as before.
+**[Download YARC](https://github.com/yenebeb/yarc/releases/latest)** · [Website](https://yenebeb.nl/yarc) · [Moving from Arc](#moving-from-arc)
+
+The Browser Company is shutting Arc down on **22 December 2026**. After that date the app stops working and Arc accounts are deactivated. YARC (*Yet Another Arc Clone*, yarrr!) is meant for people who don't want to switch to Dia or go back to a tab strip. It reproduces Arc's workflow and imports your Arc sidebar, so you can carry on as before.
 
 > YARC is an independent project. It is not affiliated with, endorsed by or connected to The Browser Company. "Arc" is their trademark; this project re-implements the interaction design on top of Chromium (via Electron).
 
@@ -132,7 +134,15 @@ The source browser's files are never changed: YARC copies them first and reads t
 
 ## Install
 
-Download the latest version from the **[Releases page](https://github.com/yenebeb/arc-shell/releases)**.
+Download the latest version from the **[Releases page](https://github.com/yenebeb/yarc/releases/latest)**:
+
+| Platform | File |
+| --- | --- |
+| macOS, Apple silicon (M1–M5) | `YARC-<version>-arm64.dmg` |
+| macOS, Intel | `YARC-<version>-x64.dmg` |
+| Windows 10 / 11, x64 | `YARC-Setup-<version>-x64.exe` |
+| Windows on ARM | `YARC-Setup-<version>-arm64.exe` |
+| Linux, x64 (experimental) | `YARC-<version>-x86_64.AppImage` |
 
 ### Windows 10 / 11
 
