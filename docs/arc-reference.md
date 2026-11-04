@@ -291,7 +291,7 @@ These values are measured from screenshots and are all [U] unless stated otherwi
 
 **Flow** [O, S26, S27]: ⌘T, type the site ("youtube", or a custom shortcut such as "yt"), press Tab, type the query, Enter. The results page opens like any Command Bar result. macOS only: the help article says it does not apply to Arc for Windows [O, S26]. Users add or edit sites in the Site Search section of Arc's settings, with a URL where `%s` is the query; Arc suggests one- or two-letter shortcuts for custom ones [O, S26]. The Command Bar action "Site Search Settings" opens that page.
 
-**How it works.** Arc's Command Bar passes a `keyword:` to Chromium's autocomplete (`autocomplete:cursorPosition:preventInlineAutocomplete:startFresh:keyword:` in the Arc binary), so Site Search is Chromium's search-engine keyword mode. Arc seeds the profile's Chromium `keywords` table on first run (`SiteSearchMigrations.swift`). The list below was read from that table in a real Arc profile (`~/Library/Application Support/Arc/User Data/Default/Web Data`, `select short_name, keyword, url from keywords where is_active = 1`, 2026-11-03) and matches the URL and favicon list in `/Applications/Arc.app/Contents/MacOS/Arc`.
+**How it works.** Arc's Command Bar passes a `keyword:` to Chromium's autocomplete (`autocomplete:cursorPosition:preventInlineAutocomplete:startFresh:keyword:` in the Arc binary), so Site Search is Chromium's search-engine keyword mode. Arc seeds the profile's Chromium `keywords` table on first run (`SiteSearchMigrations.swift`). The list below was read from that table in a real Arc profile (`~/Library/Application Support/Arc/User Data/Default/Web Data`, `select short_name, keyword, url, prepopulate_id, is_active from keywords`, 2026-11-03 and 2026-11-04). The 19 sites match the URL and favicon list in `/Applications/Arc.app/Contents/MacOS/Arc`.
 
 | Name | Keyword | Search URL (`%s` = query) |
 |---|---|---|
@@ -314,8 +314,16 @@ These values are measured from screenshots and are all [U] unless stated otherwi
 | LinkedIn | linkedin.com | `https://linkedin.com/search/results/all/?keywords=%s` |
 | Apple Music | music.apple.com | `https://music.apple.com/us/search?term=%s` |
 | Spotify | spotify.com | `https://open.spotify.com/search/%s` |
+| Google | google.com | `https://www.google.com/search?q=%s` |
+| Microsoft Bing | bing.com | `https://www.bing.com/search?q=%s` |
+| DuckDuckGo | duckduckgo.com | `https://duckduckgo.com/?q=%s` |
+| Ecosia | ecosia.org | `https://www.ecosia.org/search?q=%s` |
+| Brave | search.brave.com | `https://search.brave.com/search?q=%s` |
+| Qwant | qwant.com | `https://www.qwant.com/?q=%s` |
+| PrivacyWall | privacywall.org | `https://www.privacywall.org/search/secure/?q=%s` |
+| Perplexity | perplexity.ai | `https://www.perplexity.ai/search?q=%s` |
 
-The same table also holds Chromium's inactive default engines (Google, Bing, DuckDuckGo, Ecosia, Brave, Qwant, PrivacyWall, Perplexity) and the active starter packs `@bookmarks` and `@history`. A second, separate list in the binary (Google, YouTube, Amazon, Wikipedia, Reddit, Twitter, Threads, LinkedIn, Pinterest, TikTok, Spotify, GitHub, Stack Overflow, Goodreads, Netflix, plus image/news/maps/flights) belongs to Arc Max's AI "siteSearch" action (`gptSiteSearchShortcut`), not to Tab.
+The last eight are Chromium's default search engines (`prepopulate_id` set, `is_active = 0`, meaning "unspecified", not off). They work with Tab in Arc too ("bing" → Microsoft Bing, checked by a user on 2026-11-04). This is the EEA choice-screen set from a Dutch install; Chromium picks it per country, and YARC uses this one everywhere. The table also holds the starter packs `@bookmarks` and `@history`, which YARC doesn't have. A second, separate list in the binary (Google, YouTube, Amazon, Wikipedia, Reddit, Twitter, Threads, LinkedIn, Pinterest, TikTok, Spotify, GitHub, Stack Overflow, Goodreads, Netflix, plus image/news/maps/flights) belongs to Arc Max's AI "siteSearch" action (`gptSiteSearchShortcut`), not to Tab.
 
 **Mode details.** Not observed directly (driving Arc's UI from the agent failed on 2026-11-03); YARC follows Chromium's keyword mode [U]:
 - Matching: the typed text is a keyword prefix ("you" → youtube.com, "twitter" → twitter.com) or a site name prefix ("gmail", "google m"); `https://` and `www.` are ignored. YARC needs two letters unless one letter is a whole name ("x").

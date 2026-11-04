@@ -4,8 +4,8 @@ import { matchSiteSearch, SITE_SEARCHES, siteSearchUrl } from '../../src/shared/
 
 const name = (input: string) => matchSiteSearch(input)?.name
 
-test('Arc\'s site search list: 19 sites, each with a %s search URL', () => {
-  assert.equal(SITE_SEARCHES.length, 19)
+test('Arc\'s site search list: 19 sites and 8 search engines, each with a %s search URL', () => {
+  assert.equal(SITE_SEARCHES.length, 27)
   for (const s of SITE_SEARCHES) assert.match(s.url, /^https:\/\/[^%]+%s/, s.name)
   assert.equal(new Set(SITE_SEARCHES.map((s) => s.keyword)).size, SITE_SEARCHES.length)
 })
@@ -20,6 +20,11 @@ test('matchSiteSearch matches keyword and name prefixes', () => {
   assert.equal(name('google m'), 'Google Maps')
   assert.equal(name('apple music'), 'Apple Music')
   assert.equal(name('wiki'), 'Wikipedia')
+  assert.equal(name('google'), 'Google')
+  assert.equal(name('bing'), 'Microsoft Bing')
+  assert.equal(name('duck'), 'DuckDuckGo')
+  assert.equal(name('brave'), 'Brave')
+  assert.equal(name('perp'), 'Perplexity')
   assert.equal(matchSiteSearch('twitter')?.keyword, 'twitter.com')
   assert.equal(matchSiteSearch('x')?.keyword, 'x.com')
   for (const s of SITE_SEARCHES) assert.equal(matchSiteSearch(s.keyword), s, s.keyword)

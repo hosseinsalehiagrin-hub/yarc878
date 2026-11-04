@@ -49,7 +49,16 @@ export const SITE_SEARCHES: SiteSearch[] = [
   { name: 'Asana', keyword: 'asana.com', url: 'https://app.asana.com/0/search?q=%s', favicon: 'https://asana.com/favicon.ico' },
   { name: 'LinkedIn', keyword: 'linkedin.com', url: 'https://linkedin.com/search/results/all/?keywords=%s', favicon: 'https://www.linkedin.com/favicon.ico' },
   { name: 'Apple Music', keyword: 'music.apple.com', url: 'https://music.apple.com/us/search?term=%s', favicon: 'https://music.apple.com/favicon.ico' },
-  { name: 'Spotify', keyword: 'spotify.com', url: 'https://open.spotify.com/search/%s', favicon: 'https://www.scdn.co/i/_global/favicon.ico' }
+  { name: 'Spotify', keyword: 'spotify.com', url: 'https://open.spotify.com/search/%s', favicon: 'https://www.scdn.co/i/_global/favicon.ico' },
+  // Chromium's default search engines, in the same table and reachable with Tab too ("bing", "google").
+  { name: 'Google', keyword: 'google.com', url: 'https://www.google.com/search?q=%s', favicon: 'https://www.google.com/favicon.ico' },
+  { name: 'Microsoft Bing', keyword: 'bing.com', url: 'https://www.bing.com/search?q=%s', favicon: 'https://www.bing.com/favicon.ico' },
+  { name: 'DuckDuckGo', keyword: 'duckduckgo.com', url: 'https://duckduckgo.com/?q=%s', favicon: 'https://duckduckgo.com/favicon.ico' },
+  { name: 'Ecosia', keyword: 'ecosia.org', url: 'https://www.ecosia.org/search?q=%s', favicon: 'https://www.ecosia.org/favicon.ico' },
+  { name: 'Brave', keyword: 'search.brave.com', url: 'https://search.brave.com/search?q=%s', favicon: 'https://search.brave.com/favicon.ico' },
+  { name: 'Qwant', keyword: 'qwant.com', url: 'https://www.qwant.com/?q=%s', favicon: 'https://www.qwant.com/favicon.ico' },
+  { name: 'PrivacyWall', keyword: 'privacywall.org', url: 'https://www.privacywall.org/search/secure/?q=%s', favicon: 'https://www.privacywall.org/favicon.ico' },
+  { name: 'Perplexity', keyword: 'perplexity.ai', url: 'https://www.perplexity.ai/search?q=%s', favicon: 'https://www.perplexity.ai/favicon.ico' }
 ]
 
 /**
