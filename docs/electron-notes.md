@@ -669,10 +669,13 @@ are what catch them.
 2. **Dependabot** (`.github/dependabot.yml`) checks npm daily and opens a PR for it. `electron` is
    in its own group, so its PR never waits on another package's.
 3. **CI** (`ci.yml`, the `check` job) typechecks, tests and builds the PR.
-4. **Auto-merge** (`.github/workflows/dependabot-automerge.yml`): if the PR is Dependabot's, touches
-   only `electron`, and is a semver *patch* (`dependabot/fetch-metadata`), it runs
-   `gh pr merge --auto --merge`, so the PR merges once `check` passes. Minors, majors and other
-   packages wait for a person (supply-chain risk). Needs the repo setting `allow_auto_merge`.
+4. **Auto-merge** (`.github/workflows/dependabot-automerge.yml`): if the PR is Dependabot's and a
+   semver *patch* or *minor* (`dependabot/fetch-metadata`; for a group, its biggest bump), it runs
+   `gh pr merge --auto --merge`, so the PR merges once `check` passes. This covers every package,
+   not just `electron`; majors wait for a person, because CI doesn't run the e2e tests. Against
+   supply-chain attacks, Dependabot only proposes a new version of any other package once it has
+   been out for 3 days (`cooldown` in `.github/dependabot.yml`; security updates skip it). Needs
+   the repo setting `allow_auto_merge`.
 5. **Release**: GitHub starts no workflows for a push made with `GITHUB_TOKEN`, so the auto-merge
    doesn't trigger `release.yml` on its own. The auto-merge job waits for the merge and then runs
    `gh workflow run release.yml -f bump=patch` (dispatch is the exception to that rule). The
@@ -689,7 +692,7 @@ Gaps:
 - Once Electron has a newer major, Dependabot proposes that major instead of the next patch on
   ours, and majors aren't auto-merged. Merge the major (by hand, after a look) to get patch
   auto-merges back.
-- If `check` fails on an Electron patch PR, nothing ships until someone fixes it.
+- If `check` fails on a Dependabot PR, nothing ships until someone fixes it.
 - Dependabot alerts and security updates are on too, for advisories on other packages.
 
 ---

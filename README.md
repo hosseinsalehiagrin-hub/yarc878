@@ -310,7 +310,7 @@ The macOS zips are signed with an Ed25519 key, and the app only installs a zip s
 Chromium and V8 security fixes reach YARC only through a newer Electron, so they ship without waiting for anyone:
 
 1. [Dependabot](.github/dependabot.yml) checks npm daily and opens a PR when Electron releases a new version.
-2. If that PR is an Electron **patch** bump, [dependabot-automerge](.github/workflows/dependabot-automerge.yml) merges it once CI passes and starts the release workflow. Electron minors and majors, and every other package, wait for a person.
+2. If that PR is a **patch** or **minor** bump, [dependabot-automerge](.github/workflows/dependabot-automerge.yml) merges it once CI passes and starts the release workflow. This goes for every Dependabot PR, not just Electron; majors wait for a person. Other packages are only proposed once a version has been out for 3 days (Dependabot's cooldown), so a hijacked release is usually pulled before it reaches YARC.
 3. Installed copies find the release within the hour. Windows and macOS download it and ask to relaunch; Linux shows a notice with the download.
 
 Details and gaps are in [docs/electron-notes.md](docs/electron-notes.md#6-security-updates-from-an-electron-release-to-users).
