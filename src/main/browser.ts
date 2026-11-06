@@ -5,6 +5,7 @@ import {
   clipboard,
   ipcMain,
   nativeTheme,
+  screen,
   shell,
   WebContentsView,
   type BrowserWindowConstructorOptions,
@@ -50,6 +51,13 @@ import { MainWindow, PAD } from './window'
 
 const isMac = process.platform === 'darwin'
 const MAX_ARCHIVE = 1000
+/**
+ * The hidden sidebar stays out while the cursor is within this many pixels past its edge, and
+ * goes away once the cursor has been further for PEEK_HIDE_DELAY ms, like Arc. Room to grab the
+ * edge and resize, and no flicker from mouse enter/leave events at the screen's edge.
+ */
+const PEEK_GRACE = 32
+const PEEK_HIDE_DELAY = 300
 
 interface ClosedTab {
   url: string
@@ -70,6 +78,7 @@ export class Browser implements TabHost {
   downloads: DownloadItemInfo[] = []
   extensionList: Record<ID, ExtensionInfo[]> = {}
   private sidebarPeek = false
+  private peekWatch: ReturnType<typeof setInterval> | undefined
   private fullscreenTab: LiveTab | undefined
   private switcher: { order: ID[]; index: number } | undefined
   private emitTimer: NodeJS.Timeout | undefined
@@ -380,11 +389,32 @@ export class Browser implements TabHost {
     if (mode.kind !== 'peek') this.dropPeek()
     if (this.window.overlayMode.kind === 'find' && mode.kind !== 'find') this.activeTab()?.wc.stopFindInPage('keepSelection')
     if (mode.kind !== 'sidebar') this.sidebarPeek = false
+    this.watchPeek(mode.kind === 'sidebar')
     if (mode.kind !== 'switcher') this.switcher = undefined
     this.window.setOverlay(mode, this.overlayRect(mode))
     if (isMac && !this.state.settings.sidebarVisible) this.window.win.setWindowButtonVisibility(mode.kind === 'sidebar')
     if (mode.kind === 'none' && refocus) this.activeTab()?.wc.focus()
     this.emitSoon()
+  }
+
+  /** While the hidden sidebar is out, hides it once the cursor has stayed away from it (PEEK_GRACE). */
+  private watchPeek(on: boolean): void {
+    clearInterval(this.peekWatch)
+    this.peekWatch = undefined
+    if (!on) return
+    let awaySince = 0
+    this.peekWatch = setInterval(() => {
+      const win = this.window.win
+      if (win.isDestroyed()) return this.watchPeek(false)
+      const b = win.getContentBounds()
+      const s = this.state.settings
+      const p = screen.getCursorScreenPoint()
+      const reach = s.sidebarWidth + PAD + PEEK_GRACE
+      const near = s.sidebarRight ? p.x >= b.x + b.width - reach : p.x <= b.x + reach
+      if (near && p.y >= b.y - PEEK_GRACE && p.y <= b.y + b.height + PEEK_GRACE) awaySince = 0
+      else if (!awaySince) awaySince = Date.now()
+      else if (Date.now() - awaySince >= PEEK_HIDE_DELAY) this.setOverlay({ kind: 'none' }, false)
+    }, 50)
   }
 
   // ---------------------------------------------------------------- Peek
