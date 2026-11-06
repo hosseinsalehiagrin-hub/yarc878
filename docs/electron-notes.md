@@ -354,6 +354,34 @@ Other requirements for "Sign in with Google" and OAuth popups:
 - Never launch with `--remote-debugging-port`. A report (NousResearch/hermes-agent #137774) says it
   sets `navigator.webdriver`, which Google flags.
 
+### Microsoft Teams needs the UA without `Electron/` **[tested 2026-11-06, Electron 45.2.1]**
+
+Teams' server reads `Electron/` as its own desktop app, which is built on Electron. A meeting link
+(`https://teams.microsoft.com/meet/<id>?p=<passcode>`) then redirects to
+`/statics/evergreen-assets/tabs/meet/<id>`, a path only the desktop app serves. In a browser it is an
+empty 404, a blank page. The same link with a Chrome or Edge UA redirects to
+`/dl/launcher/launcher.html` ("Continue on this browser"). Only the `Electron/` token decides it:
+adding `Edg/` or `Teams/` changes nothing (tested with curl).
+
+The header alone is not enough. With a Chrome-shaped request header but `Electron/` still in
+`navigator.userAgent`, the web app at `/v2/` never gets past its loading screen. With both
+Chrome-shaped, "Continue on this browser" reaches the pre-join screen (name, camera, microphone).
+
+So YARC gives the hosts in `CHROME_UA_HOSTS` (`src/main/useragent.ts`: teams.microsoft.com,
+teams.live.com, teams.cloud.microsoft) the UA without `Electron/`, and everything else keeps
+Electron's:
+
+- `did-start-navigation` (main frame) calls `webContents.setUserAgent()` for the destination, in
+  `src/main/index.ts`. The committed page's `navigator.userAgent` follows it, but the request that
+  started the navigation was already sent with the old UA, and redirects keep it.
+- So `session.webRequest.onBeforeSendHeaders`, filtered to those hosts, rewrites the header too
+  (`src/main/profiles.ts`). This is the only `onBeforeSendHeaders` listener: none of the
+  dependencies register one.
+
+Leaving Teams switches back to Electron's UA for the next page. The first request off Teams still
+carries the Chrome-shaped header, which only matters if that request goes straight to Google
+sign-in.
+
 ### CDP `Emulation.setUserAgentOverride` (for completeness; not recommended)
 
 Params (protocol JSON): `userAgent` (required), `acceptLanguage?`, `platform?`, `userAgentMetadata?`.
