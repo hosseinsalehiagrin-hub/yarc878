@@ -90,9 +90,9 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
         setDragging(false)
         setHint(undefined)
       }}
-      onMouseLeave={floating ? () => dispatch({ type: 'sidebarPeek', show: false }) : undefined}
     >
-      {floating ? null : <ResizeHandle width={state.settings.sidebarWidth} right={right} />}
+      {/* The hidden sidebar goes away once the cursor stays away from it: the main process watches (watchPeek). */}
+      <ResizeHandle width={state.settings.sidebarWidth} right={right} />
       <TopBar state={state} />
 
       <div className="urlbar" onClick={() => void arc.dispatch({ type: 'command', id: 'editUrl' })} title={url}>
