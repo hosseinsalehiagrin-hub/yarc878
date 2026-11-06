@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs'
 import { pathToFileURL } from 'node:url'
 import { Browser } from './browser'
 import { Extensions } from './extensions'
-import { installAppMenu } from './menus'
+import { installAppMenu, installDockMenu } from './menus'
 import { profileDir } from './profile-dir'
 import { browserUserAgent, userAgentFor } from './useragent'
 
@@ -103,6 +103,7 @@ if (!app.requestSingleInstanceLock()) {
     // End-to-end tests drive the controller directly.
     if (process.env.YARC_TEST) Object.assign(globalThis, { arcBrowser: browser })
     installAppMenu(browser)
+    installDockMenu(browser)
     browser.start()
     installJumpList()
     if (pendingUrl) browser.openExternalUrl(pendingUrl)
