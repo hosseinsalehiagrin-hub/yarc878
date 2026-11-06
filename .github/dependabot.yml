@@ -1,7 +1,9 @@
 # Daily npm checks are how Chromium/V8 security fixes reach users: Electron ships them as patch
 # releases, often with no advisory on the `electron` npm package, so security alerts alone miss
-# them. Electron has its own group so its PR never waits on another package's. Electron patch
-# bumps auto-merge once CI passes (.github/workflows/dependabot-automerge.yml).
+# them. Electron has its own group so its PR never waits on another package's. Patch and minor
+# bumps auto-merge once CI passes (.github/workflows/dependabot-automerge.yml). Because they merge
+# unattended, every package but electron waits out a cooldown: a hijacked release is usually
+# caught and pulled within days. Cooldowns don't apply to security updates.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -14,8 +16,13 @@ updates:
       dependencies:
         patterns: ['*']
         exclude-patterns: [electron]
+    cooldown:
+      default-days: 3
+      exclude: [electron]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
