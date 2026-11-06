@@ -8,6 +8,7 @@ export type CommandId =
   | 'copyUrl'
   | 'copyUrlMarkdown'
   | 'littleArc'
+  | 'newIncognitoWindow'
   | 'closeTab'
   | 'reopenClosed'
   | 'togglePin'
@@ -76,6 +77,7 @@ export const BINDINGS: Binding[] = [
   { id: 'copyUrl', title: 'Copy URL', ...both('Mod+Shift+C'), palette: true },
   { id: 'copyUrlMarkdown', title: 'Copy URL as Markdown', ...both('Mod+Shift+Alt+C'), palette: true },
   { id: 'littleArc', title: 'New Little Arc Window', ...both('Mod+Alt+N'), palette: true },
+  { id: 'newIncognitoWindow', title: 'New Incognito Window', ...both('Mod+Shift+N'), palette: true },
   { id: 'closeTab', title: 'Close Tab', mac: ['Cmd+W'], other: ['Ctrl+W', 'Ctrl+F4'], palette: true },
   { id: 'reopenClosed', title: 'Reopen Closed Tab', ...both('Mod+Shift+T'), palette: true },
   { id: 'togglePin', title: 'Pin / Unpin Tab', ...both('Mod+D'), palette: true },

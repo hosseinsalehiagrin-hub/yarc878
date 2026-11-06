@@ -25,15 +25,17 @@ app.on('web-contents-created', (_e, wc) => {
 if (process.platform === 'win32') app.setAppUserModelId('org.arcshell.browser')
 
 /** Taskbar jump-list tasks arrive as flags, in a fresh launch or a second instance. */
-type LaunchTask = 'newTab' | 'littleArc'
+type LaunchTask = 'newTab' | 'littleArc' | 'incognito'
 function taskArg(argv: string[]): LaunchTask | undefined {
   if (argv.includes('--new-tab')) return 'newTab'
   if (argv.includes('--little-arc')) return 'littleArc'
+  if (argv.includes('--incognito')) return 'incognito'
   return undefined
 }
 
 function runTask(browser: Browser, task: LaunchTask): void {
   if (task === 'littleArc') return void browser.openLittle()
+  if (task === 'incognito') return void browser.openIncognito()
   browser.focusWindow()
   browser.runCommand('newTab')
 }
@@ -50,7 +52,8 @@ function installJumpList(): void {
   })
   app.setUserTasks([
     task('--new-tab', 'New Tab', 'Open the command bar in YARC'),
-    task('--little-arc', 'New Little Arc Window', 'Open a small window for a quick lookup')
+    task('--little-arc', 'New Little Arc Window', 'Open a small window for a quick lookup'),
+    task('--incognito', 'New Incognito Window', 'Browse without saving history, cookies or site data')
   ])
 }
 

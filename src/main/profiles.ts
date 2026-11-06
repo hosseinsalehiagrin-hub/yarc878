@@ -35,7 +35,11 @@ export class Profiles {
   private runtimes = new Map<ID, ProfileRuntime>()
   private decisions = new Map<string, boolean>()
 
-  constructor(private onCreated: (rt: ProfileRuntime) => void) {}
+  /** Incognito profiles keep nothing on disk: an in-memory session and history. */
+  constructor(
+    private onCreated: (rt: ProfileRuntime) => void,
+    private incognito = false
+  ) {}
 
   static partition(id: ID): string {
     return `persist:profile-${id}`
@@ -48,14 +52,15 @@ export class Profiles {
   get(id: ID): ProfileRuntime {
     let rt = this.runtimes.get(id)
     if (rt) return rt
-    const ses = session.fromPartition(Profiles.partition(id))
+    // A partition without "persist:" stays in memory.
+    const ses = session.fromPartition(this.incognito ? `incognito-${id}` : Profiles.partition(id))
     ses.setUserAgent(app.userAgentFallback)
     ses.webRequest.onBeforeSendHeaders({ urls: CHROME_UA_HOSTS.map((host) => `*://${host}/*`) }, (details, callback) => {
       callback({ requestHeaders: { ...details.requestHeaders, 'User-Agent': userAgentFor(details.url, app.userAgentFallback) } })
     })
     ses.setSpellCheckerLanguages(app.getPreferredSystemLanguages().slice(0, 3).filter((l) => ses.availableSpellCheckerLanguages.includes(l)))
     this.permissions(ses)
-    rt = { id, session: ses, history: new History(this.dir(id)) }
+    rt = { id, session: ses, history: new History(this.incognito ? undefined : this.dir(id)) }
     this.runtimes.set(id, rt)
     this.onCreated(rt)
     return rt
