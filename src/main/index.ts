@@ -5,13 +5,22 @@ import { Browser } from './browser'
 import { Extensions } from './extensions'
 import { installAppMenu } from './menus'
 import { profileDir } from './profile-dir'
-import { browserUserAgent } from './useragent'
+import { browserUserAgent, userAgentFor } from './useragent'
 
 // Tests and portable setups can point the profile somewhere else.
 if (process.env.YARC_USER_DATA) app.setPath('userData', process.env.YARC_USER_DATA)
 else app.setPath('userData', profileDir(app.getPath('appData'), app.isPackaged ? 'YARC' : 'YARC (dev)'))
 
-app.userAgentFallback = browserUserAgent()
+app.userAgentFallback = browserUserAgent(app.userAgentFallback)
+// Pages read navigator.userAgent from their webContents, so switch it as a tab heads to a host that
+// needs another UA. The request that starts the navigation is already sent: profiles.ts fixes its header.
+app.on('web-contents-created', (_e, wc) => {
+  wc.on('did-start-navigation', (e) => {
+    if (!e.isMainFrame || e.isSameDocument) return
+    const ua = userAgentFor(e.url, wc.session.getUserAgent())
+    if (wc.getUserAgent() !== ua) wc.setUserAgent(ua)
+  })
+})
 // Windows groups taskbar buttons and routes notifications by this id (matches electron-builder's appId).
 if (process.platform === 'win32') app.setAppUserModelId('org.arcshell.browser')
 

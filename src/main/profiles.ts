@@ -2,6 +2,7 @@
 import { app, BrowserWindow, dialog, session, type Session } from 'electron'
 import { join } from 'node:path'
 import { History } from './history'
+import { CHROME_UA_HOSTS, userAgentFor } from './useragent'
 import type { ID } from '../shared/types'
 
 export interface ProfileRuntime {
@@ -49,6 +50,9 @@ export class Profiles {
     if (rt) return rt
     const ses = session.fromPartition(Profiles.partition(id))
     ses.setUserAgent(app.userAgentFallback)
+    ses.webRequest.onBeforeSendHeaders({ urls: CHROME_UA_HOSTS.map((host) => `*://${host}/*`) }, (details, callback) => {
+      callback({ requestHeaders: { ...details.requestHeaders, 'User-Agent': userAgentFor(details.url, app.userAgentFallback) } })
+    })
     ses.setSpellCheckerLanguages(app.getPreferredSystemLanguages().slice(0, 3).filter((l) => ses.availableSpellCheckerLanguages.includes(l)))
     this.permissions(ses)
     rt = { id, session: ses, history: new History(this.dir(id)) }
