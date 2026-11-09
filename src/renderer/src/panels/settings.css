@@ -9,6 +9,8 @@
   --set-input-line: rgb(0 0 0 / 0.1);
   --set-seg-on: #fff;
   --set-off: rgb(29 27 34 / 0.16);
+  /* Filled buttons and the selected icon: dark enough for white text in both themes. */
+  --set-fill: var(--accent);
   flex-direction: row;
   top: 8vh;
   width: min(840px, calc(100vw - 48px));
@@ -29,6 +31,7 @@
     --set-input-line: rgb(255 255 255 / 0.1);
     --set-seg-on: rgb(255 255 255 / 0.16);
     --set-off: rgb(255 255 255 / 0.18);
+    --set-fill: color-mix(in oklab, var(--space) 78%, #000);
   }
 }
 
@@ -41,6 +44,7 @@
   --set-input-line: rgb(255 255 255 / 0.1);
   --set-seg-on: rgb(255 255 255 / 0.16);
   --set-off: rgb(255 255 255 / 0.18);
+  --set-fill: color-mix(in oklab, var(--space) 78%, #000);
 }
 
 /* ---------------------------------------------------------------- section list */
@@ -103,7 +107,7 @@
 
 .settings .set-nav-item[aria-selected='true'] .set-nav-icon {
   color: #fff;
-  background: var(--accent);
+  background: var(--set-fill);
   box-shadow: 0 1px 3px color-mix(in oklab, var(--space) 45%, transparent);
 }
 
@@ -273,14 +277,14 @@
 }
 
 .settings .btn.primary {
-  background: var(--accent);
+  background: var(--set-fill);
   border-color: transparent;
   color: #fff;
   box-shadow: 0 1px 2px color-mix(in oklab, var(--space) 40%, transparent);
 }
 
 .settings .btn.primary:hover {
-  background: color-mix(in oklab, var(--accent) 88%, #000);
+  background: color-mix(in oklab, var(--set-fill) 88%, #000);
 }
 
 .settings .set-select {
