@@ -77,53 +77,6 @@
   width: 160px;
 }
 
-/* toggle switch on a checkbox */
-.switch {
-  appearance: none;
-  flex: none;
-  width: 34px;
-  height: 20px;
-  margin: 0;
-  border-radius: 10px;
-  background: var(--line);
-  position: relative;
-  transition: background 0.15s;
-  outline: none;
-}
-
-.switch::before {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 2px rgb(0 0 0 / 0.25);
-  transition: transform 0.15s;
-}
-
-.switch:checked {
-  background: var(--accent);
-}
-
-.switch:checked::before {
-  transform: translateX(14px);
-}
-
-.switch:focus-visible {
-  box-shadow: 0 0 0 2px color-mix(in oklab, var(--accent) 40%, transparent);
-}
-
-.range-value {
-  display: inline-block;
-  width: 48px;
-  text-align: right;
-  color: var(--text-2);
-  font-variant-numeric: tabular-nums;
-}
-
 /* list rows used by every panel */
 .sheet .list-row {
   min-height: 36px;
@@ -240,80 +193,6 @@
 
 .list-row.current .t {
   font-weight: 600;
-}
-
-/* profiles */
-.profile-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--panel-line);
-}
-
-.profile-row .text-input {
-  width: 220px;
-}
-
-.profile-row .used-by {
-  flex: 1;
-  min-width: 0;
-  color: var(--text-2);
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-
-.chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: var(--field);
-  border: 1px solid var(--panel-line);
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-/* shortcuts */
-.shortcuts {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.shortcuts td {
-  padding: 6px 8px;
-  border-bottom: 1px solid var(--panel-line);
-}
-
-.shortcuts td:last-child {
-  text-align: right;
-  white-space: nowrap;
-}
-
-.shortcuts .kbd {
-  display: inline-block;
-  min-width: 22px;
-  text-align: center;
-}
-
-.about {
-  padding: 28px 0 12px;
-  text-align: center;
-  line-height: 1.6;
-}
-
-.about .logo {
-  display: block;
-  width: 88px;
-  height: 88px;
-  margin: 0 auto 8px;
-}
-
-.about h2 {
-  margin: 0 0 4px;
-  font-size: 20px;
 }
 
 /* space editor */
