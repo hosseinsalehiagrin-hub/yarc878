@@ -37,8 +37,10 @@ import type {
   TabItem
 } from '../shared/types'
 import { appendPane, groupAt, layoutPanes, newSplitRoot, paneIds, placePane, removePane, type Side } from '../shared/split'
+import { isFloating, stepAfter, type TourEvent, type TourStep } from '../shared/tour'
 import { resolveInput } from '../shared/url'
 import { AdBlock, hostOf } from './adblock'
+import { recentChanges, startupScreen, type Changelog } from './changelog'
 import { openInChrome } from './chrome'
 import { Extensions } from './extensions'
 import { runImport } from './importers'
@@ -53,6 +55,10 @@ import { Updater } from './updater'
 import { MainWindow, PAD } from './window'
 
 const isMac = process.platform === 'darwin'
+
+/** Built in by electron.vite.config.ts from build/changelog.json; empty outside release builds. */
+declare const __CHANGELOG__: Changelog
+const CHANGELOG: Changelog = __CHANGELOG__
 const MAX_ARCHIVE = 1000
 /**
  * The hidden sidebar stays out while the cursor is within this many pixels past its edge, and
@@ -92,6 +98,11 @@ export class Browser implements TabHost {
   readonly littles = new Set<LittleWindow>()
   private peek: Peek | undefined
   private windowFile: string | undefined
+  /**
+   * The tour's step while it runs. Its card can be out of sight while the user tries a step (the
+   * command bar, the peeking sidebar, a tab drag); it comes back when that closes.
+   */
+  private tour: TourStep | undefined
   /** Every controller with a window: the main one, plus one per incognito window. IPC goes to the sender's. */
   private static readonly all = new Set<Browser>()
 
@@ -125,7 +136,9 @@ export class Browser implements TabHost {
 
   /** Opens an incognito window, with `url` or with the command bar. */
   openIncognito(url?: string): Browser {
-    const b = new Browser(this.main ?? this)
+    const main = this.main ?? this
+    main.tourEvent('newIncognitoWindow')
+    const b = new Browser(main)
     b.start()
     if (url) b.newTab(url)
     else b.window.win.once('show', () => b.runCommand('newTab'))
@@ -150,6 +163,44 @@ export class Browser implements TabHost {
     setInterval(() => this.autoArchive(), 5 * 60_000)
     this.autoArchive()
     this.updater.sync()
+    this.showStartupScreen()
+  }
+
+  /**
+   * The welcome screen on a first run, What's New on the first launch after an update. Never in
+   * incognito windows (start() returns before this) and, so e2e tests see a plain window, not under
+   * YARC_TEST unless YARC_STARTUP_SCREENS is set too.
+   */
+  private showStartupScreen(): void {
+    const current = app.getVersion()
+    const intro = startupScreen(this.store.firstRun, this.state.lastSeenVersion, current, CHANGELOG)
+    if (this.state.lastSeenVersion !== current) {
+      this.state.lastSeenVersion = current
+      this.changed()
+    }
+    if (intro.kind === 'none' || (process.env.YARC_TEST && !process.env.YARC_STARTUP_SCREENS)) return
+    const mode: OverlayMode = intro.kind === 'welcome' ? { kind: 'tour', step: 'welcome' } : intro
+    const win = this.window.win
+    if (win.isVisible()) this.setOverlay(mode)
+    else win.once('show', () => this.setOverlay(mode))
+  }
+
+  /** The user did something a try-it step of the tour asks for: go on to the next step. */
+  private tourEvent(event: TourEvent): void {
+    const step = this.tour
+    if (!step) return
+    const next = stepAfter(step, event)
+    if (next === step) return
+    this.tour = next
+    // Otherwise the card comes back with the next step when the overlay in front of it closes.
+    const kind = this.window.overlayMode.kind
+    if (kind === 'tour' || kind === 'none') this.setOverlay({ kind: 'tour', step: next }, false)
+  }
+
+  /** No panel in front of the page: an empty overlay, or only a floating tour card. */
+  private pageInFront(): boolean {
+    const mode = this.window.overlayMode
+    return mode.kind === 'none' || (mode.kind === 'tour' && isFloating(mode.step))
   }
 
   openWindow(): void {
@@ -365,7 +416,7 @@ export class Browser implements TabHost {
     const tab = this.liveFor(found.item)
     this.extensions.selectTab(tab)
     this.layout()
-    if (focus && this.window.overlayMode.kind === 'none') tab.wc.focus()
+    if (focus && this.pageInFront()) tab.wc.focus()
     this.changed()
   }
 
@@ -431,12 +482,28 @@ export class Browser implements TabHost {
       }
       case 'peek':
         return this.currentLayout.content
+      case 'tour': {
+        if (!isFloating(mode.step)) return { x: 0, y: 0, width, height }
+        // A card at the bottom of the page area, leaving the page and the sidebar usable.
+        const c = this.currentLayout.content
+        const w = Math.min(460, c.width - 24)
+        const h = 176
+        return { x: Math.round(c.x + (c.width - w) / 2), y: c.y + c.height - h - 16, width: w, height: h }
+      }
       default:
         return { x: 0, y: 0, width, height }
     }
   }
 
   setOverlay(mode: OverlayMode, refocus = true): void {
+    if (mode.kind === 'tour') this.tour = mode.step
+    else if (this.tour && mode.kind === 'none') {
+      // Esc on a centered tour card ends the tour (so do its buttons: endTour). Anything else that
+      // clears the overlay, like the command bar closing or a tab opening, brings the card back.
+      const current = this.window.overlayMode
+      if (current.kind === 'tour' && !isFloating(current.step)) this.tour = undefined
+      else mode = { kind: 'tour', step: this.tour }
+    }
     if (mode.kind !== 'peek') this.dropPeek()
     if (this.window.overlayMode.kind === 'find' && mode.kind !== 'find') this.activeTab()?.wc.stopFindInPage('keepSelection')
     if (mode.kind !== 'sidebar') this.sidebarPeek = false
@@ -446,6 +513,7 @@ export class Browser implements TabHost {
     this.window.setOverlay(mode, this.overlayRect(mode))
     if (isMac && !this.state.settings.sidebarVisible) this.window.win.setWindowButtonVisibility(mode.kind === 'sidebar')
     if (mode.kind === 'none' && refocus) this.activeTab()?.wc.focus()
+    if (mode.kind === 'command') this.tourEvent('newTab')
     this.emitSoon()
   }
 
@@ -664,6 +732,7 @@ export class Browser implements TabHost {
   togglePin(id: ID): void {
     const found = findItem(this.state, id)
     if (!found) return
+    this.tourEvent('togglePin')
     const item = found.item
     const space = found.loc.kind === 'favorite' ? this.space : this.store.space(found.loc.spaceId)!
     found.loc.list.splice(found.loc.index, 1)
@@ -776,6 +845,7 @@ export class Browser implements TabHost {
       if (root) split.root = root
     }
     this.activate(id)
+    this.tourEvent('split')
   }
 
   /**
@@ -799,6 +869,7 @@ export class Browser implements TabHost {
     if (split) split.root = root
     else space.splits.push({ id: newId(), root })
     this.activate(id)
+    this.tourEvent('split')
   }
 
   /** A sidebar tab drag starts (`id`) or ends: the page area shows split drop zones meanwhile. */
@@ -807,7 +878,7 @@ export class Browser implements TabHost {
     const kind = this.window.overlayMode.kind
     if (id) {
       // Drop zones only over a plain page or beside the peeking sidebar, not under panels or Peek.
-      if (kind !== 'none' && kind !== 'sidebar') return
+      if (!this.pageInFront() && kind !== 'sidebar') return
       this.tabDrag = id
       this.setOverlay(kind === 'sidebar' ? { kind: 'sidebar' } : { kind: 'split-drop' }, false)
     } else {
@@ -886,7 +957,8 @@ export class Browser implements TabHost {
       return
     }
     if (input.type === 'keyDown' && input.key === 'Escape') {
-      if (this.window.overlayMode.kind !== 'none' && this.window.overlayMode.kind !== 'sidebar') {
+      // A floating tour card leaves Esc to the page; it has its own close button.
+      if (!this.pageInFront() && this.window.overlayMode.kind !== 'sidebar') {
         e.preventDefault()
         this.setOverlay({ kind: 'none' })
         return
@@ -1030,6 +1102,10 @@ export class Browser implements TabHost {
         return void this.updater.check(true)
       case 'installUpdate':
         return void this.updater.apply()
+      case 'tour':
+        return this.setOverlay({ kind: 'tour', step: 'welcome' })
+      case 'whatsNew':
+        return this.setOverlay({ kind: 'whats-new', releases: recentChanges(CHANGELOG, app.getVersion()) })
     }
   }
 
@@ -1199,17 +1275,21 @@ export class Browser implements TabHost {
         if (this.window.overlayMode.kind === 'sidebar') this.window.setOverlay({ kind: 'none' }, undefined)
         if (isMac) this.window.win.setWindowButtonVisibility(s.sidebarVisible)
         this.layout()
-        return this.changed()
+        this.changed()
+        if (this.tour && this.window.overlayMode.kind === 'none') this.setOverlay({ kind: 'tour', step: this.tour }, false)
+        return this.tourEvent('toggleSidebar')
       }
       case 'sidebarPeek': {
         if (this.state.settings.sidebarVisible || this.sidebarPeek === a.show) return
-        const k = this.window.overlayMode.kind
-        if (k !== 'none' && k !== 'sidebar') return
+        if (!this.pageInFront() && this.window.overlayMode.kind !== 'sidebar') return
         this.sidebarPeek = a.show
         return this.setOverlay(a.show ? { kind: 'sidebar' } : { kind: 'none' }, false)
       }
       case 'overlay':
         return this.setOverlay(a.mode)
+      case 'endTour':
+        this.tour = undefined
+        return this.setOverlay({ kind: 'none' })
       case 'window': {
         const win = this.window.win
         if (a.op === 'minimize') win.minimize()
@@ -1272,7 +1352,7 @@ export class Browser implements TabHost {
         this.state.archive = []
         return this.changed()
       case 'import': {
-        this.setOverlay({ kind: 'none' }, false)
+        if (!a.keepOverlay) this.setOverlay({ kind: 'none' }, false)
         try {
           const summary = await runImport(this, a.source, a.path)
           if (summary) this.toast(summary)
@@ -1283,7 +1363,7 @@ export class Browser implements TabHost {
         return
       }
       case 'command':
-        this.setOverlay({ kind: 'none' }, false)
+        if (!a.keepOverlay) this.setOverlay({ kind: 'none' }, false)
         return this.runCommand(a.id)
       case 'adblockToggleSite': {
         const t = a.id ? this.live.get(a.id) : tab
@@ -1410,6 +1490,7 @@ export class Browser implements TabHost {
 
   openLittle(url?: string, profileId = this.littleProfile(url), bounds?: Rectangle): LittleWindow {
     const little = new LittleWindow(this, this.profiles.get(profileId), url, bounds)
+    this.tourEvent('littleArc')
     this.littles.add(little)
     little.win.on('closed', () => this.littles.delete(little))
     return little

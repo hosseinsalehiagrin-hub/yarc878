@@ -3,6 +3,7 @@
 // A Peek page sits above even the overlay, which draws its backdrop and buttons.
 import { BrowserWindow, WebContentsView, nativeTheme, screen, type BrowserWindowConstructorOptions, type Rectangle, type WebContents } from 'electron'
 import { join } from 'node:path'
+import { isFloating } from '../shared/tour'
 import type { OverlayMode } from '../shared/types'
 
 export const PAD = 8
@@ -144,8 +145,9 @@ export class MainWindow {
     this.overlay.setBounds(rect)
     this.overlayAttached = true
     this.raiseOverlay()
-    // Peek keeps the focus on its page, and drop zones on whatever had it.
-    if (mode.kind !== 'sidebar' && mode.kind !== 'peek' && mode.kind !== 'split-drop') this.overlay.webContents.focus()
+    // Peek keeps the focus on its page, and drop zones and a floating tour card on whatever had it.
+    const keepFocus = mode.kind === 'sidebar' || mode.kind === 'peek' || mode.kind === 'split-drop' || (mode.kind === 'tour' && isFloating(mode.step))
+    if (!keepFocus) this.overlay.webContents.focus()
   }
 
   private raiseOverlay(): void {

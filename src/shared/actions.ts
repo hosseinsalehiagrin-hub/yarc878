@@ -58,6 +58,8 @@ export type Action =
   | { type: 'toggleSidebar' }
   | { type: 'sidebarPeek'; show: boolean }
   | { type: 'overlay'; mode: OverlayMode }
+  /** Skip, Start Browsing or the close button of the tour. */
+  | { type: 'endTour' }
   | { type: 'window'; op: 'minimize' | 'maximize' | 'close' }
   | { type: 'settings'; patch: Partial<Settings> }
   | { type: 'searchEngine'; engine: SearchEngine }
@@ -70,8 +72,9 @@ export type Action =
   | { type: 'downloadsClear' }
   | { type: 'archiveRestore'; id: ID }
   | { type: 'archiveClear' }
-  | { type: 'import'; source: 'arc' | 'zen' | 'chrome'; path?: string }
-  | { type: 'command'; id: string }
+  /** `keepOverlay`: from the welcome screen, which stays open for its other steps. */
+  | { type: 'import'; source: 'arc' | 'zen' | 'chrome'; path?: string; keepOverlay?: boolean }
+  | { type: 'command'; id: string; keepOverlay?: boolean }
   | { type: 'itemMenu'; id: ID }
   | { type: 'folderMenu'; id: ID }
   | { type: 'spaceMenu'; id: ID }

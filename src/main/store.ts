@@ -66,7 +66,8 @@ export function normalize(raw: Partial<PersistedState>): PersistedState {
     activeSpaceId: spaces.some((s) => s.id === raw.activeSpaceId) ? raw.activeSpaceId! : spaces[0].id,
     settings: { ...DEFAULT_SETTINGS, ...raw.settings },
     archive: raw.archive ?? [],
-    littleArc: { size: raw.littleArc?.size, profileByHost: raw.littleArc?.profileByHost ?? {} }
+    littleArc: { size: raw.littleArc?.size, profileByHost: raw.littleArc?.profileByHost ?? {} },
+    lastSeenVersion: raw.lastSeenVersion
   }
 }
 
@@ -81,6 +82,8 @@ export function incognitoState(settings: Settings): PersistedState {
 
 export class Store {
   state: PersistedState
+  /** No state file existed before this launch: YARC's first run on this profile (the welcome screen). */
+  readonly firstRun: boolean
   private timer: NodeJS.Timeout | undefined
 
   /** Without a file (incognito), the state lives in memory only. */
@@ -88,6 +91,7 @@ export class Store {
     private file: string | undefined,
     initial?: PersistedState
   ) {
+    this.firstRun = !!file && !existsSync(file)
     this.state = initial ?? this.load()
   }
 

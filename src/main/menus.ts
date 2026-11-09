@@ -147,6 +147,8 @@ export function installAppMenu(browser: Browser): void {
       submenu: [
         { role: 'about' },
         updateItem(),
+        { label: "What's New", click: run('whatsNew') },
+        { label: 'Take the Tour', click: run('tour') },
         { type: 'separator' },
         { label: 'Settings…', click: run('settings') },
         { type: 'separator' },

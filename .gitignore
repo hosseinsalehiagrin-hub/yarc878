@@ -5,6 +5,9 @@ node_modules/
 out/
 release/
 
+# What's New changelog, made by scripts/changelog.mjs in the release workflow
+build/changelog.json
+
 # Test artifacts (Playwright)
 test-results/
 playwright-report/

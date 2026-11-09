@@ -32,6 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.next.outputs.version }}
+      changelog: ${{ steps.changelog.outputs.changelog }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -88,6 +89,21 @@ jobs:
           gh release create "v$version" --draft --verify-tag --title "YARC v$version" --generate-notes \
             --notes "Downloads: Windows \`YARC-Setup-*-x64.exe\` (or \`-arm64.exe\`), macOS \`YARC-*-arm64.dmg\` (Apple silicon) or \`-x64.dmg\` (Intel), Linux \`.AppImage\`. Not code-signed: on Windows click More info > Run anyway; on macOS open it once, then System Settings > Privacy & Security > Open Anyway."
           echo "version=$version" >> "$GITHUB_OUTPUT"
+      # What's New in the app: PR titles per release tag, including the one just made, so an update
+      # that skips versions still lists them all. One JSON line, written into each build below.
+      - id: changelog
+        name: Build the What's New changelog
+        if: steps.next.outputs.version != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/changelog.mjs build/changelog.json
+          {
+            echo "changelog<<CHANGELOG_EOF"
+            node -e 'process.stdout.write(JSON.stringify(JSON.parse(require("fs").readFileSync("build/changelog.json", "utf8"))))'
+            echo
+            echo "CHANGELOG_EOF"
+          } >> "$GITHUB_OUTPUT"
 
   build:
     needs: version
@@ -121,6 +137,11 @@ jobs:
       - run: pnpm install --frozen-lockfile
       # The app's version (About, installers, auto-update metadata) is the tag's.
       - run: npm pkg set version="$VERSION"
+      # Baked into the app by electron.vite.config.ts (What's New).
+      - name: Write the changelog
+        env:
+          CHANGELOG: ${{ needs.version.outputs.changelog }}
+        run: if [ -n "$CHANGELOG" ]; then printf '%s' "$CHANGELOG" > build/changelog.json; fi
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build

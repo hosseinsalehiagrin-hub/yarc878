@@ -5,10 +5,12 @@ import { createRoot } from 'react-dom/client'
 import { bindingLabel, type CommandId } from '../../shared/keymap'
 import { matchSiteSearch, siteSearchUrl, type SiteSearch } from '../../shared/site-search'
 import { paneIds, placePane, previewRect, sideAt, type Side } from '../../shared/split'
+import { isFloating } from '../../shared/tour'
 import { findItem } from '../../shared/tree'
 import type { AppState, ID, OverlayMode, Rect, SearchResult } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac, useAppState, useOverlayMode, useSpaceTheme } from './api'
 import { Favicon, Icon, type IconName } from './icons'
+import { Tour, WhatsNew } from './panels/Intro'
 import { Library } from './panels/Library'
 import { Settings } from './panels/Settings'
 import { SpaceEditor } from './panels/SpaceEditor'
@@ -16,6 +18,7 @@ import { Sidebar } from './Sidebar'
 import './styles.css'
 
 const close = () => dispatch({ type: 'overlay', mode: { kind: 'none' } })
+const endTour = () => dispatch({ type: 'endTour' })
 
 function App() {
   const state = useAppState()
@@ -78,6 +81,22 @@ function App() {
       return <PeekFrame card={mode.card} />
     case 'split-drop':
       return <SplitDropZones state={state} origin={state.layout.content} />
+    case 'tour':
+      // Try-it steps: only the card, in a small overlay at the bottom of the page.
+      if (isFloating(mode.step)) return <Tour state={state} step={mode.step} close={endTour} />
+      return (
+        <>
+          <div className="scrim intro-scrim" />
+          <Tour key={key} state={state} step={mode.step} close={endTour} />
+        </>
+      )
+    case 'whats-new':
+      return (
+        <>
+          <div className="scrim intro-scrim" onMouseDown={close} />
+          <WhatsNew key={key} releases={mode.releases} close={close} />
+        </>
+      )
   }
 }
 
