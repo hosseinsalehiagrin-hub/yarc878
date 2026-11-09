@@ -2,17 +2,19 @@
 // builds are only ad-hoc signed, which Squirrel.Mac refuses, so macOS replaces its own bundle
 // with a signed zip from the release (mac-update.ts). Linux, and a Mac that can't write to the
 // app's folder, only hear about a new release and open its download.
-// Updates are how Chromium security fixes arrive, so checks are hourly. A downloaded update offers a
-// relaunch in YARC's own card, listing every version since the running one, at most once a day
-// (every merge to main is a release, so several can land in a day); it also installs on quit.
-import { app, dialog, net, shell, type MessageBoxOptions } from 'electron'
+// Updates are how Chromium security fixes arrive, so checks are hourly. Releases are frequent, so,
+// like Arc and Chrome, a downloaded update stays quiet: a "Restart to Update" pill in the sidebar,
+// and it installs on quit. YARC's relaunch card (listing every version since the running one) only
+// opens once an update has waited too long without a restart (update-escalation.ts).
+import { app, BrowserWindow, dialog, net, shell, type MessageBoxOptions } from 'electron'
 import type { NsisUpdater } from 'electron-updater'
-import type { ReleaseNotes, UpdateStatus } from '../shared/types'
+import type { ReleaseNotes, UpdateStatus, WaitingUpdate } from '../shared/types'
 import type { Browser } from './browser'
 import { cleanUpStaging, installStaged, stageUpdate, updatableBundle } from './mac-update'
 import { installAppMenu } from './menus'
 import { isNewer, LATEST_RELEASE_API, pickDownload, pickMacUpdate, type GithubRelease, type MacUpdate } from './release'
-import { dayKey, pendingReleases, promptDue, RELEASES_API, type GithubReleaseNotes } from './update-notes'
+import { isSecurityUpdate, releaseInfoUrl, shouldAsk, startWaiting } from './update-escalation'
+import { pendingReleases, RELEASES_API, type GithubReleaseNotes } from './update-notes'
 
 const CHECK_EVERY = 60 * 60_000
 
@@ -22,6 +24,8 @@ export class Updater {
   private download = { installer: '', page: '' }
   private nsis: NsisUpdater | undefined
   private timer: NodeJS.Timeout | undefined
+  /** The ready update has a newer Electron, so Chromium security fixes: the card comes sooner. */
+  private security = false
   private checking = false
   /** macOS: a version that failed to update in place, offered as a download instead of retried every hour. */
   private failedVersion = ''
@@ -50,7 +54,7 @@ export class Updater {
       return
     }
     if (this.status.state === 'ready') {
-      // The hourly check is also what brings the card back on a new day.
+      // The hourly check is also what opens the card once the update has waited too long.
       if (manual) this.browser.toast(`YARC ${this.status.version} is ready. Restart to update.`)
       else this.offerRelaunch()
       return
@@ -119,25 +123,47 @@ export class Updater {
   }
 
   /**
-   * The update is downloaded: fetch what's new in every version since the running one (the card lists
-   * them all), then offer the relaunch.
+   * The update is downloaded and installs on quit: show the sidebar pill (and the menu item), with
+   * what's new in every version since the running one for the card, and start the wait that ends in
+   * the card only if the user doesn't restart for a long time.
    */
   async ready(version: string): Promise<void> {
-    this.set({ state: 'ready', version, notes: await this.notesUpTo(version) })
+    const [notes, security] = await Promise.all([this.notesUpTo(version), this.isSecurity(version)])
+    this.security = security
+    this.set({ state: 'ready', version, notes })
+    const waiting = startWaiting(this.browser.state.waitingUpdate, app.getVersion(), Date.now())
+    if (waiting !== this.browser.state.waitingUpdate) this.saveWaiting(waiting)
     this.offerRelaunch()
   }
 
   /**
-   * Shows the relaunch card, unless it already showed today or now is a bad moment (another panel is
-   * open, or the window is hidden): the hourly check tries again.
+   * Opens the relaunch card once the update has waited too long (a week; a day for a new Electron),
+   * and then at most once a day. Not at a bad moment (another panel is open, or the window is
+   * hidden): the hourly check tries again.
    */
-  offerRelaunch(now = new Date()): void {
-    if (this.status.state !== 'ready' || !promptDue(this.browser.state.updatePromptDay, now)) return
+  offerRelaunch(now = Date.now()): void {
+    const waiting = this.browser.state.waitingUpdate
+    if (this.status.state !== 'ready' || !waiting || !shouldAsk(waiting, this.security, now)) return
     const w = this.browser.window
     if (!w || w.win.isDestroyed() || !w.win.isVisible() || w.win.isMinimized() || w.overlayMode.kind !== 'none') return
-    this.browser.state.updatePromptDay = dayKey(now)
-    this.browser.store.save()
+    this.saveWaiting({ ...waiting, askedAt: now })
     this.browser.setOverlay({ kind: 'update' })
+  }
+
+  /** Whether the release changes Electron (its release.json); unknown counts as a normal update. */
+  private async isSecurity(version: string): Promise<boolean> {
+    try {
+      const res = await net.fetch(releaseInfoUrl(version))
+      return res.ok && isSecurityUpdate(process.versions.electron, await res.json())
+    } catch (err) {
+      console.warn('[updater] no release info for', version, err)
+      return false
+    }
+  }
+
+  private saveWaiting(waiting: WaitingUpdate): void {
+    this.browser.state.waitingUpdate = waiting
+    this.browser.store.save()
   }
 
   private async notesUpTo(version: string): Promise<ReleaseNotes[]> {
@@ -152,16 +178,17 @@ export class Updater {
     }
   }
 
-  /** A message box on the main window, or a free-standing one when that's closed. */
+  /** A message box on the focused window (an incognito one too), else the main window, else free-standing. */
   private async ask(options: MessageBoxOptions): Promise<number> {
-    const win = this.browser.window?.win
+    const win = BrowserWindow.getFocusedWindow() ?? this.browser.window?.win
     const { response } = win && !win.isDestroyed() ? await dialog.showMessageBox(win, options) : await dialog.showMessageBox(options)
     return response
   }
 
   private set(status: UpdateStatus): void {
     this.status = status
-    this.browser.emitSoon()
+    // Every window shows it: incognito windows share this updater.
+    this.browser.emitAll()
     installAppMenu(this.browser)
   }
 
@@ -204,15 +231,12 @@ export class Updater {
         return true
       }
     }
-    const known = this.status.state === 'available' && this.status.version === version
-    if (!known) {
-      this.set({ state: 'available', version })
-      this.browser.toast(`YARC ${version} is available`)
-    }
+    // No toast: the sidebar pill says it, and a newer release only updates the pill.
+    if (this.status.state !== 'available' || this.status.version !== version) this.set({ state: 'available', version })
     return true
   }
 
-  /** Downloads and unpacks the update in the background, then asks to relaunch; it installs as the app quits. */
+  /** Downloads and unpacks the update in the background; it installs as the app quits. */
   private async updateMac(update: MacUpdate, version: string, bundle: string): Promise<void> {
     this.set({ state: 'downloading', version })
     try {
@@ -226,12 +250,11 @@ export class Updater {
           console.error('[updater] installing the update failed', err)
         }
       })
-      await this.ready(version)
+      void this.ready(version)
     } catch (err) {
       console.error('[updater] macOS update failed; offering the download instead', err)
       this.failedVersion = version
       this.set({ state: 'available', version })
-      this.browser.toast(`YARC ${version} is available`)
     }
   }
 }

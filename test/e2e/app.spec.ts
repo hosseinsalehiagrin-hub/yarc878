@@ -561,7 +561,7 @@ test('links and .html files from other apps open in Little Arc', async () => {
   await expect.poll(littles).toBe(0)
 })
 
-test('updates: command bar check, then a notice and menu item once one is found', async () => {
+test('updates: command bar check, then a sidebar pill and menu item once one is found', async () => {
   await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
   const overlay = await pageWithUrl('overlay.html')
   await overlay.locator('.command input').fill('updates')
@@ -572,7 +572,7 @@ test('updates: command bar check, then a notice and menu item once one is found'
   // The real check needs the installed app; pretend it found a release.
   await app.evaluate(() => (globalThis as any).arcBrowser.updater.set({ state: 'available', version: '99.0.0' }))
   const ui = await pageWithUrl('index.html')
-  await expect(ui.locator('.update-notice')).toContainText('YARC 99.0.0 is available')
+  await expect(ui.locator('.update-pill')).toContainText('Update Available')
   if (process.platform === 'darwin') {
     const labels = await app.evaluate(({ Menu }) => Menu.getApplicationMenu()!.items[0].submenu!.items.map((i) => i.label))
     expect(labels).toContain('Update Available…')
@@ -582,8 +582,9 @@ test('updates: command bar check, then a notice and menu item once one is found'
   await expect(overlay.locator('.result', { hasText: 'Download YARC 99.0.0…' })).toHaveCount(1)
   await dispatch({ type: 'overlay', mode: { kind: 'none' } })
 
-  await ui.locator('.update-notice .icon-btn').click()
-  await expect(ui.locator('.update-notice')).toHaveCount(0)
+  await ui.locator('.update-pill').hover()
+  await ui.locator('.update-pill-close').click()
+  await expect(ui.locator('.update-pill')).toHaveCount(0)
   await app.evaluate(() => (globalThis as any).arcBrowser.updater.set({ state: 'none' }))
 })
 
@@ -598,14 +599,22 @@ test('pages cannot turn themselves into window-drag areas', async () => {
     .toBe('no-drag')
 })
 
-test('a downloaded update offers a relaunch card at most once a day, listing every version', async () => {
-  const offer = (iso: string) => app.evaluate((_e, iso) => (globalThis as any).arcBrowser.updater.offerRelaunch(new Date(iso)), iso)
+test('a downloaded update opens the relaunch card only after a week, then at most once a day', async () => {
+  const DAY = 24 * 60 * 60_000
+  const since = Date.parse('2026-11-02T09:00:00')
+  const offer = (iso: string) => app.evaluate((_e, iso) => (globalThis as any).arcBrowser.updater.offerRelaunch(Date.parse(iso)), iso)
   const kind = () => app.evaluate(() => (globalThis as any).arcBrowser.window.overlayMode.kind)
-  await app.evaluate(() => {
+  await app.evaluate((_e, since) => {
     const b = (globalThis as any).arcBrowser
     b.updater.status = { state: 'ready', version: '9.0.2', notes: [{ version: '9.0.2', changes: ['Second'] }, { version: '9.0.1', changes: ['First'] }] }
-    b.state.updatePromptDay = undefined
-  })
+    b.state.waitingUpdate = { from: '0.0.0', since }
+  }, since)
+  // Six days after the download: only the sidebar pill.
+  await offer(new Date(since + 6 * DAY).toISOString())
+  expect(await kind()).toBe('none')
+  const ui = await pageWithUrl('index.html')
+  await expect(ui.locator('.update-pill')).toContainText('Restart to Update')
+  // A week: the card.
   await offer('2026-11-09T09:00:00')
   expect(await kind()).toBe('update')
   const overlay = await pageWithUrl('overlay.html')
@@ -613,13 +622,17 @@ test('a downloaded update offers a relaunch card at most once a day, listing eve
   await expect(overlay.locator('.update-ready li')).toHaveText(['Second', 'First'])
   await overlay.locator('.update-ready button', { hasText: 'Later' }).click()
   expect(await kind()).toBe('none')
-  // A later update the same day stays quiet; the next day it asks again.
+  // "Later" holds for the rest of the day; a day later it asks again.
   await offer('2026-11-09T21:00:00')
   expect(await kind()).toBe('none')
-  await offer('2026-11-10T08:00:00')
+  await offer('2026-11-10T09:00:00')
   expect(await kind()).toBe('update')
   await dispatch({ type: 'overlay', mode: { kind: 'none' } })
-  await app.evaluate(() => ((globalThis as any).arcBrowser.updater.status = { state: 'none' }))
+  await app.evaluate(() => {
+    const b = (globalThis as any).arcBrowser
+    b.state.waitingUpdate = undefined
+    b.updater.set({ state: 'none' })
+  })
 })
 
 test('state survives a restart', async () => {

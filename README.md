@@ -179,9 +179,9 @@ There's an `.AppImage` for x64 on the Releases page. Make it executable (`chmod 
 
 YARC checks for a new version when it starts and every hour. You can turn that off in **Settings → General → Check for updates automatically**, and check by hand with *Check for Updates…* in the command bar (or the **YARC** menu on macOS).
 
-- **Windows and macOS** update themselves. The new version downloads in the background; then YARC asks you to *Relaunch* to update (your spaces and tabs reopen). If you choose *Later*, it asks again a day later, a *Restart to Update* button stays at the bottom of the sidebar and in the command bar (and the **YARC** menu on macOS), and the update installs the next time you quit anyway. Updates often carry Chromium security fixes, so relaunch soon. Your spaces, tabs and logins are kept.
+- **Windows and macOS** update themselves, quietly, like Arc and Chrome. The new version downloads in the background and installs the next time you quit. Until then a small *Restart to Update* pill sits at the bottom of the sidebar (also in the command bar, and the **YARC** menu on macOS); click it to restart into the update now. Your spaces, tabs and logins are kept. YARC only asks, with a card listing what's new, when an update has waited a week without a restart, or a day when it brings a new Electron (Chromium security fixes). *Later* keeps the card away for a day.
 - **macOS** asks for nothing in Terminal and shows no *Open Anyway* again after an update. Two things to know, both because the builds aren't signed with an Apple Developer ID: macOS may ask again for camera, microphone or screen recording the first time a site uses them after an update, and YARC can only update itself if your user can write to the folder it's in (an admin account can write to **Applications**). If it can't, *Update Available…* downloads the new `.dmg` instead: drag it to **Applications** to replace the old one, then allow it once with **Open Anyway** as above.
-- **Linux:** you're told when a new version is out; download the new `.AppImage` and use it instead of the old one.
+- **Linux:** an *Update Available* pill at the bottom of the sidebar says when a new version is out; download the new `.AppImage` and use it instead of the old one.
 
 After an update, YARC shows **What's New** once: the changes in every version since the one you had.
 
@@ -308,7 +308,7 @@ pnpm dev             # start with hot reload
 Releases are automatic: every pull request merged into `main` becomes a release.
 
 1. The [release workflow](.github/workflows/release.yml) tags the merge commit with the next version: a patch bump by default (`v0.1.2` → `v0.1.3`). Add the PR label `release:minor` or `release:major` for a bigger bump, or `release:skip` (or put `[skip release]` in the commit message) to not release.
-2. It builds Windows, macOS and Linux from that tag and uploads them to the release.
+2. It builds Windows, macOS and Linux from that tag and uploads them to the release, with a `release.json` that names the Electron version, so installed copies can tell a security update from a normal one.
 3. Once all three builds succeed, the release is published. If one fails, the release stays a draft.
 
 The PR titles are also the app's **What's New**: before the builds, [`scripts/changelog.mjs`](scripts/changelog.mjs) collects the titles of the PRs merged for each release tag into `build/changelog.json`, which the build bakes into the app, so it shows offline. Dependabot PRs and PRs labeled `release:skip` are left out, so write titles as user-facing sentences. Local builds have an empty changelog; run `node scripts/changelog.mjs` (needs `gh`) to build one.
@@ -324,8 +324,8 @@ The macOS zips are signed with an Ed25519 key, and the app only installs a zip s
 Chromium and V8 security fixes reach YARC only through a newer Electron, so they ship without waiting for anyone:
 
 1. [Dependabot](.github/dependabot.yml) checks npm daily and opens a PR when Electron releases a new version.
-2. If that PR is a **patch** or **minor** bump, [dependabot-automerge](.github/workflows/dependabot-automerge.yml) merges it once CI passes and starts the release workflow. This goes for every Dependabot PR, not just Electron; majors wait for a person. Other packages are only proposed once a version has been out for 3 days (Dependabot's cooldown), so a hijacked release is usually pulled before it reaches YARC.
-3. Installed copies find the release within the hour. Windows and macOS download it and ask to relaunch; Linux shows a notice with the download.
+2. If that PR is a **patch** or **minor** bump, [dependabot-automerge](.github/workflows/dependabot-automerge.yml) merges it once CI passes and starts the release workflow. Other Dependabot patch and minor bumps merge the same way but get the `release:skip` label and no release of their own: they ship with the next real change, so users aren't asked to update for a dev dependency. Majors wait for a person. Other packages are only proposed once a version has been out for 3 days (Dependabot's cooldown), so a hijacked release is usually pulled before it reaches YARC.
+3. Installed copies find the release within the hour. Windows and macOS download it and show *Restart to Update* in the sidebar; because the release's Electron differs from the running one, they ask with the relaunch card if there's no restart within a day. Linux shows *Update Available* with the download.
 
 Details and gaps are in [docs/electron-notes.md](docs/electron-notes.md#6-security-updates-from-an-electron-release-to-users).
 

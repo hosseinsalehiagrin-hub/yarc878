@@ -164,6 +164,11 @@ jobs:
           # No Apple certificate: never pick one up from the keychain; electron-builder.yml
           # sets identity "-" (ad-hoc), which is used regardless of this flag.
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+      # Installed copies read it to tell an update with a new Electron (Chromium security fixes,
+      # worth a sooner restart prompt) from a normal one: src/main/update-escalation.ts.
+      - name: Write release.json
+        if: runner.os == 'Linux'
+        run: node -e 'require("fs").writeFileSync("release/release.json", JSON.stringify({ electron: require("electron/package.json").version }) + "\n")'
       # What mac-update.ts checks before installing, plus: signed with the certificate if there is one.
       - name: Check the macOS code signatures
         if: runner.os == 'macOS'
@@ -195,7 +200,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           shopt -s nullglob
-          files=(release/*.exe release/*.dmg release/*.zip release/*.zip.sig release/*.AppImage release/*.blockmap release/latest*.yml)
+          files=(release/*.exe release/*.dmg release/*.zip release/*.zip.sig release/*.AppImage release/*.blockmap release/latest*.yml release/release.json)
           if [ ${#files[@]} -eq 0 ]; then
             echo "::error::No installers in release/"
             exit 1

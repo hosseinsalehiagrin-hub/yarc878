@@ -122,10 +122,23 @@ export interface PersistedState {
   littleArc: LittleArcMemory
   /** The YARC version that last ran with this state, so the next newer one shows What's New. */
   lastSeenVersion?: string
-  /** The local day ("2026-11-09") the relaunch-to-update card last showed: it shows at most once a day. */
-  updatePromptDay?: string
+  /** A downloaded update the user hasn't restarted into yet (src/main/update-escalation.ts). */
+  waitingUpdate?: WaitingUpdate
   /** The open main windows (the last focused one last), restored at launch. */
   windows: WindowView[]
+}
+
+/**
+ * Kept while an update waits, so the wait survives a restart that didn't install it (a crash, a
+ * failed install). `from` is the version that was running; once another version runs, the update
+ * went in and the record is stale.
+ */
+export interface WaitingUpdate {
+  from: string
+  /** When this version first had an update ready, in ms since the epoch. */
+  since: number
+  /** When the relaunch card last opened by itself. */
+  askedAt?: number
 }
 
 /** What one main window shows; the sidebar's contents are shared by all windows, like Arc. */
