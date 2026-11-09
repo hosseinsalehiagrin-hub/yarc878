@@ -9,6 +9,12 @@ import type { PromptView } from './prompt-view'
 
 export const PAD = 8
 
+const mac = process.platform === 'darwin'
+/** Height of the strip at the top of the window with the native min/max/close buttons (Windows, Linux). */
+export const CAPTION_H = mac ? 0 : 32
+/** Caption button glyphs: the UI's --text for light and dark (styles.css). */
+export const captionSymbols = (dark: boolean): string => (dark ? '#f1eff6' : '#1d1b22')
+
 export interface ViewSlot {
   view: WebContentsView
   rect: Rectangle
@@ -50,10 +56,12 @@ export class MainWindow {
   private top: WebContentsView | undefined
   /** The site permission prompt, kept above everything else. */
   prompt: PromptView | undefined
+  /** The active space's appearance, which colors the caption buttons; unset follows the system. */
+  private appearance: 'light' | 'dark' | undefined
+  private captionDark: boolean | undefined
 
   /** `background`: show without taking the focus (windows restored behind the front one). */
   constructor(bounds: Partial<Rectangle> | undefined, background = false) {
-    const mac = process.platform === 'darwin'
     const area = screen.getPrimaryDisplay().workArea
     // Ignore saved positions on a monitor that's no longer connected.
     if (bounds?.x !== undefined && bounds.y !== undefined && !onSomeDisplay(bounds as Rectangle)) bounds = { width: bounds.width, height: bounds.height }
@@ -77,8 +85,16 @@ export class MainWindow {
       options.backgroundColor = '#00000000'
     } else {
       options.backgroundColor = nativeTheme.shouldUseDarkColors ? '#1f1e24' : '#e9e7f3'
+      // Native caption buttons at the top-right, over the space-tinted UI, like Arc for Windows.
+      this.captionDark = nativeTheme.shouldUseDarkColors
+      options.titleBarOverlay = { color: '#00000000', symbolColor: captionSymbols(this.captionDark), height: CAPTION_H }
     }
     this.win = new BrowserWindow(options)
+    if (!mac) {
+      const sync = () => this.syncCaption()
+      nativeTheme.on('updated', sync)
+      this.win.once('closed', () => nativeTheme.off('updated', sync))
+    }
     this.win.setMenuBarVisibility(false)
     loadRenderer(this.win.webContents, 'index')
     this.win.once('ready-to-show', () => (background ? this.win.showInactive() : this.win.show()))
@@ -97,13 +113,32 @@ export class MainWindow {
     return { width, height }
   }
 
-  /** The area web pages occupy, given the sidebar configuration. */
+  /** The caption buttons' strip; Windows hides the buttons in fullscreen. */
+  captionHeight(): number {
+    return mac || this.win.isFullScreen() ? 0 : CAPTION_H
+  }
+
+  setAppearance(appearance: 'light' | 'dark' | undefined): void {
+    this.appearance = appearance
+    this.syncCaption()
+  }
+
+  private syncCaption(): void {
+    if (mac || this.win.isDestroyed()) return
+    const dark = this.appearance ? this.appearance === 'dark' : nativeTheme.shouldUseDarkColors
+    if (dark === this.captionDark) return
+    this.captionDark = dark
+    this.win.setTitleBarOverlay({ symbolColor: captionSymbols(dark) })
+  }
+
+  /** The area web pages occupy, given the sidebar configuration. Below the caption buttons on Windows. */
   contentRect(sidebarVisible: boolean, sidebarWidth: number, right: boolean, fullscreenPage: boolean): Rectangle {
     const { width, height } = this.size()
     if (fullscreenPage) return { x: 0, y: 0, width, height }
     const side = sidebarVisible ? sidebarWidth : PAD
     const w = Math.max(100, width - side - PAD)
-    return { x: right ? PAD : side, y: PAD, width: w, height: Math.max(100, height - 2 * PAD) }
+    const top = Math.max(PAD, this.captionHeight())
+    return { x: right ? PAD : side, y: top, width: w, height: Math.max(100, height - top - PAD) }
   }
 
   /** Shows exactly these views (in order), detaching any others. */

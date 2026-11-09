@@ -52,11 +52,6 @@ function App() {
             </button>
           ) : null}
         </div>
-        {!isMac ? (
-          <button className="icon-btn little-close" onClick={() => void arc.little('close')} title="Close">
-            <Icon name="x" />
-          </button>
-        ) : null}
       </div>
     </div>
   )

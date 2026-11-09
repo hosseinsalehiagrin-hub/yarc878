@@ -32,7 +32,7 @@ The Browser Company is shutting Arc down on **22 December 2026**. After that dat
 
 Everything sits in one vertical sidebar, with the page taking up the rest of the window. From top to bottom:
 
-- **Window controls and navigation:** toggle the sidebar, back, forward and reload. On Windows the minimize, maximize and close buttons are here too; on macOS the traffic lights are.
+- **Window controls and navigation:** toggle the sidebar, back, forward and reload. On macOS the traffic lights are here too; on Windows and Linux the native minimize, maximize and close buttons sit at the top-right of the window, above the page, like Arc for Windows.
 - **URL pill:** shows the current site. Click it, or press `Ctrl/⌘+L`, to edit the URL. Buttons for installed extensions appear on the right of the pill.
 - **Favorites:** a grid of icons for the sites you always have open (mail, calendar, chat). A dot shows which ones are loaded.
 - **Pinned tabs and folders:** tabs that stay until you remove them. Folders can be nested and collapsed.

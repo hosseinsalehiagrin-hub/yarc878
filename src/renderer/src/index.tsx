@@ -24,9 +24,10 @@ function App() {
   return (
     <div className={`${isMac ? 'mac' : 'win'}${hidden ? ' sidebar-hidden' : ''}${state.fullscreen ? ' fullscreen' : ''}`} style={{ height: '100%' }}>
       {!hidden && !fullscreenPage ? <Sidebar state={state} /> : null}
+      {!isMac && !state.fullscreen && !fullscreenPage ? <CaptionStrip state={state} /> : null}
       {hidden ? (
         <>
-          <div className="drag-strip" />
+          {isMac ? <div className="drag-strip" /> : null}
           <div
             className="peek-strip"
             style={s.sidebarRight ? { right: 0 } : { left: 0 }}
@@ -41,6 +42,15 @@ function App() {
       </div>
     </div>
   )
+}
+
+/** The title bar strip above the page, beside the native caption buttons (Windows, Linux): drags the window. */
+function CaptionStrip({ state }: { state: AppState }) {
+  const { content } = state.layout
+  const s = state.settings
+  // Over the sidebar too where nothing of it is up there: when it's hidden or on the right (styles.css).
+  const left = s.sidebarVisible && !s.sidebarRight ? content.x : 0
+  return <div className="caption-strip" style={{ left, right: 0, height: content.y }} />
 }
 
 function useToast(): string | undefined {

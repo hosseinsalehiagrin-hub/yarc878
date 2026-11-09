@@ -39,7 +39,7 @@ function App() {
   switch (mode.kind) {
     case 'sidebar':
       return (
-        <div className={`${isMac ? 'mac' : 'win'}${state.fullscreen ? ' fullscreen' : ''}`} style={{ height: '100%' }}>
+        <div className={`${isMac ? 'mac' : 'win'}${state.fullscreen ? ' fullscreen' : ''}${state.settings.sidebarRight ? ' sidebar-right' : ''}`} style={{ height: '100%' }}>
           <Sidebar state={state} floating />
           {/* A tab dragged out of the peeking sidebar: this overlay then covers the whole window. */}
           {state.tabDrag ? <SplitDropZones state={state} origin={{ x: 0, y: 0 }} /> : null}
