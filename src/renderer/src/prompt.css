@@ -1,0 +1,136 @@
+/* The site permission prompt: Arc's popover (an NSPopover in the system appearance) with a
+   round icon, the question, and two equal buttons; Allow is the brighter one. */
+
+body.page-prompt,
+body.page-prompt #root {
+  background: transparent;
+}
+
+.page-prompt {
+  --perm-bg: #f4f3f6;
+  --perm-edge: rgb(0 0 0 / 0.14);
+  --perm-text: #1d1b22;
+  --perm-icon-bg: rgb(0 0 0 / 0.06);
+  --perm-icon: rgb(29 27 34 / 0.62);
+  --perm-button: rgb(0 0 0 / 0.06);
+  --perm-button-hover: rgb(0 0 0 / 0.1);
+  --perm-primary: #fff;
+  --perm-primary-hover: #fafafa;
+  --perm-primary-edge: rgb(0 0 0 / 0.12);
+  --perm-shadow: 0 6px 16px rgb(0 0 0 / 0.16), 0 1px 3px rgb(0 0 0 / 0.1);
+}
+
+@media (prefers-color-scheme: dark) {
+  .page-prompt {
+    --perm-bg: #3a3739;
+    --perm-edge: rgb(255 255 255 / 0.16);
+    --perm-text: rgb(255 255 255 / 0.92);
+    --perm-icon-bg: rgb(255 255 255 / 0.1);
+    --perm-icon: rgb(255 255 255 / 0.72);
+    --perm-button: rgb(255 255 255 / 0.08);
+    --perm-button-hover: rgb(255 255 255 / 0.13);
+    --perm-primary: rgb(255 255 255 / 0.22);
+    --perm-primary-hover: rgb(255 255 255 / 0.28);
+    --perm-primary-edge: rgb(255 255 255 / 0.1);
+    --perm-shadow: 0 6px 16px rgb(0 0 0 / 0.4), 0 0 0 0.5px rgb(0 0 0 / 0.6);
+  }
+}
+
+.perm {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  width: 236px;
+  padding: 12px 9px 10px;
+  border-radius: 15px;
+  background: var(--perm-bg);
+  box-shadow: inset 0 0 0 0.5px var(--perm-edge), var(--perm-shadow);
+  color: var(--perm-text);
+  outline: none;
+  animation: perm-in 0.14s ease-out;
+}
+
+@keyframes perm-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
+.perm-arrow {
+  position: absolute;
+  top: -10px;
+  overflow: visible;
+}
+
+.perm-arrow .fill {
+  fill: var(--perm-bg);
+}
+
+.perm-arrow .edge {
+  fill: none;
+  stroke: var(--perm-edge);
+  stroke-width: 0.5px;
+}
+
+.perm-body {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding-right: 12px;
+}
+
+.perm-icon {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--perm-icon-bg);
+  color: var(--perm-icon);
+}
+
+.perm-text {
+  margin: 0;
+  padding-top: 1px;
+  font-size: 15px;
+  line-height: 17px;
+  font-weight: 400;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+.perm-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.perm-buttons button {
+  height: 32px;
+  border-radius: 8px;
+  background: var(--perm-button);
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--perm-text);
+}
+
+.perm-buttons button:hover {
+  background: var(--perm-button-hover);
+}
+
+.perm-buttons button.primary {
+  background: var(--perm-primary);
+  box-shadow: inset 0 0 0 0.5px var(--perm-primary-edge);
+}
+
+.perm-buttons button.primary:hover {
+  background: var(--perm-primary-hover);
+}
+
+.perm-buttons button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--perm-text) 40%, transparent);
+  outline-offset: 1px;
+}

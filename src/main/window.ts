@@ -5,6 +5,7 @@ import { BrowserWindow, WebContentsView, nativeTheme, screen, type BrowserWindow
 import { join } from 'node:path'
 import { isFloating } from '../shared/tour'
 import type { OverlayMode } from '../shared/types'
+import type { PromptView } from './prompt-view'
 
 export const PAD = 8
 
@@ -13,13 +14,15 @@ export interface ViewSlot {
   rect: Rectangle
 }
 
-export function rendererUrl(page: 'index' | 'overlay' | 'little'): { url?: string; file?: string } {
+export type RendererPage = 'index' | 'overlay' | 'little' | 'prompt'
+
+export function rendererUrl(page: RendererPage): { url?: string; file?: string } {
   const dev = process.env.ELECTRON_RENDERER_URL
   if (dev) return { url: `${dev}/${page}.html` }
   return { file: join(__dirname, `../renderer/${page}.html`) }
 }
 
-export function loadRenderer(wc: WebContents, page: 'index' | 'overlay' | 'little'): void {
+export function loadRenderer(wc: WebContents, page: RendererPage): void {
   const target = rendererUrl(page)
   void (target.url ? wc.loadURL(target.url) : wc.loadFile(target.file!))
 }
@@ -45,6 +48,8 @@ export class MainWindow {
   private shown: WebContentsView[] = []
   private overlayAttached = false
   private top: WebContentsView | undefined
+  /** The site permission prompt, kept above everything else. */
+  prompt: PromptView | undefined
 
   constructor(bounds: Partial<Rectangle> | undefined) {
     const mac = process.platform === 'darwin'
@@ -110,6 +115,7 @@ export class MainWindow {
     }
     this.shown = next
     if (this.overlayAttached) this.raiseOverlay()
+    else this.prompt?.raise()
   }
 
   /** Shows a view above everything else (Peek), or removes it. */
@@ -119,6 +125,7 @@ export class MainWindow {
     if (!view) return
     if (rect) view.setBounds(rect)
     this.win.contentView.addChildView(view)
+    this.prompt?.raise()
   }
 
   detach(view: WebContentsView): void {
@@ -154,5 +161,6 @@ export class MainWindow {
     // Re-adding an existing child moves it to the top of the z-order.
     this.win.contentView.addChildView(this.overlay)
     if (this.top) this.win.contentView.addChildView(this.top)
+    this.prompt?.raise()
   }
 }

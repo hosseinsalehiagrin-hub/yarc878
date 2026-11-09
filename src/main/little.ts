@@ -16,7 +16,9 @@ import { matches } from '../shared/keymap'
 import type { Browser } from './browser'
 import { littleBarColor, littleBounds } from './little-layout'
 import { buildContextMenu } from './menus'
+import type { PermissionQueue } from './permission-queue'
 import type { ProfileRuntime } from './profiles'
+import { PromptView } from './prompt-view'
 import { LiveTab, type OpenDisposition, type TabHost } from './tab'
 import { loadRenderer, uiWebPreferences } from './window'
 
@@ -28,6 +30,7 @@ export class LittleWindow implements TabHost {
   readonly win: BrowserWindow
   private tab: LiveTab | undefined
   private released = false
+  private prompt: PromptView
 
   constructor(
     private browser: Browser,
@@ -56,6 +59,13 @@ export class LittleWindow implements TabHost {
     this.tab.view.setBorderRadius(0)
     this.browser.extensions.addTab(this.tab, this.win)
     this.win.contentView.addChildView(this.tab.view)
+    this.prompt = new PromptView(this.win, (id, answer) => {
+      browser.profiles.permissionQueue.answer(id, answer)
+      if (!this.prompt.visible) this.tab?.wc.focus()
+    })
+    this.prompt.webContents.on('before-input-event', (e, input) => {
+      if (input.key !== 'Escape') this.onTabInput(undefined, e, input)
+    })
     this.layout()
     this.win.on('resize', () => this.layout())
     // 'resized' fires once the user lets go, not for programmatic resizes.
@@ -71,6 +81,20 @@ export class LittleWindow implements TabHost {
 
   get url(): string {
     return this.tab?.wc.getURL() ?? ''
+  }
+
+  /** The page's webContents id, while this window has it. */
+  get pageId(): number | undefined {
+    return this.tab && !this.tab.destroyed && !this.released ? this.tab.wc.id : undefined
+  }
+
+  /** Shows the page's permission question under the toolbar's URL pill, pointing at the site's name. */
+  syncPrompt(queue: PermissionQueue): void {
+    if (this.win.isDestroyed()) return
+    const id = this.pageId
+    if (id === undefined || this.win.isFullScreen()) return this.prompt.show(undefined)
+    // The pill starts after the traffic lights (83px on macOS, 8px elsewhere) and ends 8px above the page.
+    this.prompt.show(queue.next([id]), { arrow: true, x: (isMac ? 83 : 8) + 120, y: TOOLBAR - 6 })
   }
 
   private layout(): void {
@@ -184,6 +208,7 @@ export class LittleWindow implements TabHost {
 
   onTabFullscreen(_tab: LiveTab, on: boolean): void {
     this.win.setFullScreen(on)
+    this.browser.syncPrompts()
     if (on && this.tab) this.tab.view.setBounds({ x: 0, y: 0, ...sizeOf(this.win) })
     else this.layout()
   }
