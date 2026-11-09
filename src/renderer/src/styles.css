@@ -808,6 +808,13 @@ browser-action-list::part(action):hover {
   padding: 4px 10px;
 }
 
+.update-notice .link {
+  color: inherit;
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .update-notice .icon-btn {
   width: 22px;
   height: 22px;

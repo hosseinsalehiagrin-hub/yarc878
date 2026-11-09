@@ -589,6 +589,30 @@ test('pages cannot turn themselves into window-drag areas', async () => {
     .toBe('no-drag')
 })
 
+test('a downloaded update offers a relaunch card at most once a day, listing every version', async () => {
+  const offer = (iso: string) => app.evaluate((_e, iso) => (globalThis as any).arcBrowser.updater.offerRelaunch(new Date(iso)), iso)
+  const kind = () => app.evaluate(() => (globalThis as any).arcBrowser.window.overlayMode.kind)
+  await app.evaluate(() => {
+    const b = (globalThis as any).arcBrowser
+    b.updater.status = { state: 'ready', version: '9.0.2', notes: [{ version: '9.0.2', changes: ['Second'] }, { version: '9.0.1', changes: ['First'] }] }
+    b.state.updatePromptDay = undefined
+  })
+  await offer('2026-11-09T09:00:00')
+  expect(await kind()).toBe('update')
+  const overlay = await pageWithUrl('overlay.html')
+  await expect(overlay.locator('.update-ready h1')).toHaveText('2 updates are ready')
+  await expect(overlay.locator('.update-ready li')).toHaveText(['Second', 'First'])
+  await overlay.locator('.update-ready button', { hasText: 'Later' }).click()
+  expect(await kind()).toBe('none')
+  // A later update the same day stays quiet; the next day it asks again.
+  await offer('2026-11-09T21:00:00')
+  expect(await kind()).toBe('none')
+  await offer('2026-11-10T08:00:00')
+  expect(await kind()).toBe('update')
+  await dispatch({ type: 'overlay', mode: { kind: 'none' } })
+  await app.evaluate(() => ((globalThis as any).arcBrowser.updater.status = { state: 'none' }))
+})
+
 test('state survives a restart', async () => {
   const before = await state()
   await app.close()

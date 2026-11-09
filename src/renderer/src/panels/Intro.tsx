@@ -6,7 +6,7 @@ import logo from '../../../../build/icon.svg'
 import { bindingLabel, type CommandId } from '../../../shared/keymap'
 import { isFloating, nextStep, previousStep, TOUR_STEPS, tryEvent, type TourStep } from '../../../shared/tour'
 import { spaceItems } from '../../../shared/tree'
-import type { AppState, ReleaseNotes } from '../../../shared/types'
+import type { AppState, ReleaseNotes, UpdateStatus } from '../../../shared/types'
 import { activeSpace, dispatch, isMac } from '../api'
 import { Icon } from '../icons'
 import './panels.css'
@@ -231,6 +231,55 @@ export function Tour({ step, state, close }: { step: TourStep; state: AppState; 
             {first ? 'Take the Tour' : step === 'import' || step === 'default' ? 'Next' : 'Continue'}
           </button>
         )}
+      </footer>
+    </div>
+  )
+}
+
+/**
+ * The relaunch card for a downloaded update, at most once a day: every version since the running one
+ * with its changes. Neither button has the focus, so typing meant for a page can't restart YARC.
+ */
+export function UpdateReady({ update, close }: { update: UpdateStatus; close: () => void }) {
+  if (update.state !== 'ready') return null
+  const releases = update.notes ?? []
+  const count = Math.max(1, releases.length)
+  return (
+    <div className="panel intro whats-new update-ready" onMouseDown={(e) => e.stopPropagation()}>
+      <div className="intro-hero compact">
+        <img className="logo" src={logo} alt="" />
+        <h1>{count > 1 ? `${count} updates are ready` : 'An update is ready'}</h1>
+        <p>Relaunch to get YARC {update.version}. Your spaces and tabs come right back.</p>
+      </div>
+      <div className="intro-body">
+        {releases.some((r) => r.changes.length) ? (
+          releases.map((r) => (
+            <section key={r.version} className="release">
+              <h2>Version {r.version}</h2>
+              {r.changes.length ? (
+                <ul>
+                  {r.changes.map((change, i) => (
+                    <li key={i}>{change}</li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="muted">Small fixes and improvements.</p>
+              )}
+            </section>
+          ))
+        ) : (
+          <p className="muted">Fixes and improvements, including the latest Chromium security fixes.</p>
+        )}
+      </div>
+      <footer className="intro-footer">
+        <span className="muted hint">Otherwise it installs the next time you quit.</span>
+        <span className="spacer" />
+        <button className="btn" onClick={close}>
+          Later
+        </button>
+        <button className="btn primary" onClick={() => dispatch({ type: 'relaunchUpdate' })}>
+          Relaunch now
+        </button>
       </footer>
     </div>
   )

@@ -10,7 +10,7 @@ import { findItem } from '../../shared/tree'
 import type { AppState, ID, OverlayMode, Rect, SearchResult } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac, useAppState, useOverlayMode, useSpaceTheme } from './api'
 import { Favicon, Icon, type IconName } from './icons'
-import { Tour, WhatsNew } from './panels/Intro'
+import { Tour, UpdateReady, WhatsNew } from './panels/Intro'
 import { Library } from './panels/Library'
 import { Settings } from './panels/Settings'
 import { SpaceEditor } from './panels/SpaceEditor'
@@ -88,6 +88,13 @@ function App() {
         <>
           <div className="scrim intro-scrim" />
           <Tour key={key} state={state} step={mode.step} close={endTour} />
+        </>
+      )
+    case 'update':
+      return (
+        <>
+          <div className="scrim intro-scrim" onMouseDown={close} />
+          <UpdateReady key={key} update={state.update} close={close} />
         </>
       )
     case 'whats-new':

@@ -122,6 +122,8 @@ export interface PersistedState {
   littleArc: LittleArcMemory
   /** The YARC version that last ran with this state, so the next newer one shows What's New. */
   lastSeenVersion?: string
+  /** The local day ("2026-11-09") the relaunch-to-update card last showed: it shows at most once a day. */
+  updatePromptDay?: string
   /** The open main windows (the last focused one last), restored at launch. */
   windows: WindowView[]
 }
@@ -220,7 +222,7 @@ export interface AppState extends PersistedState {
 export type UpdateStatus =
   | { state: 'none' }
   | { state: 'downloading'; version: string }
-  | { state: 'ready'; version: string }
+  | { state: 'ready'; version: string; /** Every version since the running one, newest first, for the relaunch card. */ notes?: ReleaseNotes[] }
   | { state: 'available'; version: string }
 
 export interface Rect {
@@ -247,6 +249,7 @@ export type OverlayMode =
   | { kind: 'tour'; step: TourStep }
   /** The changes in the versions since the user's last one, newest first. */
   | { kind: 'whats-new'; releases: ReleaseNotes[] }
+  | { kind: 'update' }
 
 export interface SearchResult {
   kind: 'tab' | 'favorite' | 'pinned' | 'history' | 'suggestion' | 'url' | 'command' | 'archive'
