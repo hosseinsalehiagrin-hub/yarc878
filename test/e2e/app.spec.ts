@@ -70,6 +70,21 @@ test('starts with a default space and the sidebar', async () => {
   await expect(ui.locator('.space-name')).toContainText('Personal')
 })
 
+test('pages start below the native caption buttons on Windows and Linux', async () => {
+  const ui = await pageWithUrl('index.html')
+  const mac = process.platform === 'darwin'
+  // CAPTION_H (window.ts) on Windows and Linux; the 8px gap on macOS, where the traffic lights sit over the sidebar.
+  expect((await state()).layout.content.y).toBe(mac ? 8 : 32)
+  // Window Controls Overlay: the native min/max/close buttons drawn over the UI at the top-right.
+  expect(await ui.evaluate(() => (navigator as any).windowControlsOverlay?.visible ?? false)).toBe(!mac)
+  if (!mac) {
+    // The strip above the page drags the window, like a title bar.
+    await expect(ui.locator('.caption-strip')).toHaveCSS('-webkit-app-region', 'drag')
+    await expect(ui.locator('.caption-strip')).toHaveCSS('height', '32px')
+    await expect(ui.locator('.win-controls')).toHaveCount(0)
+  }
+})
+
 test('command bar opens a new tab at the top of Today', async () => {
   const ui = await pageWithUrl('index.html')
   await ui.locator('.newtab').click()

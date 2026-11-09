@@ -605,6 +605,7 @@ export class Browser implements TabHost {
     const s = this.state.settings
     const fs = this.cur.fullscreenTab
     const content = w.contentRect(s.sidebarVisible, s.sidebarWidth, s.sidebarRight, !!fs)
+    w.setAppearance(this.space.appearance)
     const views: AppState['layout']['views'] = []
     let splitId: ID | undefined
     if (fs && !fs.destroyed) {
@@ -783,8 +784,11 @@ export class Browser implements TabHost {
       const { width } = this.window.size()
       // The URL field: below the sidebar's 8px padding, 32px top bar and 6px gap; 36px tall (styles.css).
       const inset = floating ? 4 : 0
+      // Where the top bar starts: in the caption buttons' strip on Windows, or below it on the right.
+      const cap = this.window.captionHeight()
+      const barTop = !cap ? inset + 8 : s.sidebarRight ? cap + (floating ? 8 : 0) : floating ? inset + 8 : 0
       const fieldRight = s.sidebarRight ? width - 10 : inset + s.sidebarWidth - 6
-      return { arrow: true, x: fieldRight - 22, y: inset + 8 + 32 + 6 + 36 + 2 }
+      return { arrow: true, x: fieldRight - 22, y: barTop + 32 + 6 + 36 + 2 }
     }
     // No URL field on screen: the top-left corner of the page, where it would be.
     const x = s.sidebarRight ? content.x + content.width - PROMPT_WIDTH - 12 : content.x + 12
@@ -1572,13 +1576,6 @@ export class Browser implements TabHost {
       case 'endTour':
         this.tour = undefined
         return this.setOverlay({ kind: 'none' })
-      case 'window': {
-        const win = this.window.win
-        if (a.op === 'minimize') win.minimize()
-        else if (a.op === 'maximize') win.isMaximized() ? win.unmaximize() : win.maximize()
-        else win.close()
-        return
-      }
       case 'settings': {
         Object.assign(this.state.settings, a.patch)
         this.syncAdblock()

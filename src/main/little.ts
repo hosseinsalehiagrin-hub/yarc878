@@ -46,6 +46,8 @@ export class LittleWindow implements TabHost {
       minHeight: 240,
       titleBarStyle: isMac ? 'hiddenInset' : 'hidden',
       trafficLightPosition: { x: 11, y: 17 },
+      // Windows, Linux: native caption buttons at the right end of the dark toolbar.
+      titleBarOverlay: isMac ? undefined : { color: '#00000000', symbolColor: '#f1eff6', height: TOOLBAR },
       backgroundColor: littleBarColor(browser.store.activeSpace.color),
       show: false,
       webPreferences: uiWebPreferences()

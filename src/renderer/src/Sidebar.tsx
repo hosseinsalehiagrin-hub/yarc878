@@ -268,23 +268,6 @@ function TopBar({ state }: { state: AppState }) {
       >
         <Icon name={live?.loading ? 'x' : 'reload'} />
       </button>
-      {!isMac ? <WindowControls maximized={state.maximized} /> : null}
-    </div>
-  )
-}
-
-export function WindowControls({ maximized }: { maximized: boolean }) {
-  return (
-    <div className="win-controls">
-      <button onClick={() => dispatch({ type: 'window', op: 'minimize' })} title="Minimize">
-        <Icon name="minimize" size={14} />
-      </button>
-      <button onClick={() => dispatch({ type: 'window', op: 'maximize' })} title={maximized ? 'Restore' : 'Maximize'}>
-        <Icon name={maximized ? 'restore' : 'maximize'} size={13} />
-      </button>
-      <button className="close" onClick={() => dispatch({ type: 'window', op: 'close' })} title="Close">
-        <Icon name="x" size={14} />
-      </button>
     </div>
   )
 }

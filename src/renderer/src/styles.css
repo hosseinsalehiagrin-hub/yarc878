@@ -229,29 +229,24 @@ input {
   padding-left: 0;
 }
 
-.win-controls {
-  display: flex;
-  margin-left: 2px;
-  -webkit-app-region: no-drag;
+/* Windows, Linux: the native min/max/close buttons sit in a 32px strip at the top-right (CAPTION_H, window.ts).
+   The sidebar's top bar shares that strip; pages start below it, and so does a sidebar on the right. */
+.win:not(.fullscreen) .sidebar:not(.floating):not(.right) {
+  padding-top: 0;
 }
 
-.win-controls button {
-  width: 30px;
-  height: 28px;
-  border-radius: 7px;
-  display: grid;
-  place-items: center;
-  color: var(--text-2);
+.win:not(.fullscreen) .sidebar.right:not(.floating) {
+  padding-top: 32px;
 }
 
-.win-controls button:hover {
-  background: var(--hover);
-  color: var(--text);
+.win.sidebar-right:not(.fullscreen) .sidebar.floating {
+  top: 32px;
 }
 
-.win-controls button.close:hover {
-  background: #e81123;
-  color: #fff;
+.caption-strip {
+  position: absolute;
+  top: 0;
+  -webkit-app-region: drag;
 }
 
 .urlbar {
@@ -1327,6 +1322,11 @@ body.page-little::before {
   padding-left: 83px;
 }
 
+/* Windows, Linux: room for the native caption buttons on the right (titleBarOverlay, little.ts). */
+.win .little-bar {
+  padding-right: calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw) + 7px);
+}
+
 .little-bar button {
   -webkit-app-region: no-drag;
 }
@@ -1447,14 +1447,6 @@ body.page-little::before {
   color: rgb(255 255 255 / 0.55);
 }
 
-.little-close {
-  color: rgb(255 255 255 / 0.6);
-}
-
-.little-close:hover:not(:disabled) {
-  background: rgb(255 255 255 / 0.1);
-  color: #fff;
-}
 
 /* Dragging a tab onto the middle of another tab row: the row shows the split it would become. */
 .row.drop-split {

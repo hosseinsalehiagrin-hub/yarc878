@@ -59,14 +59,6 @@ const paths: Record<string, ReactNode> = {
       <path d="M5 9v10a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V9M10 13h4" />
     </>
   ),
-  minimize: <path d="M5 12h14" />,
-  maximize: <rect x="5" y="5" width="14" height="14" rx="1.5" />,
-  restore: (
-    <>
-      <rect x="5" y="8" width="11" height="11" rx="1.5" />
-      <path d="M8 5h10a1 1 0 0 1 1 1v10" />
-    </>
-  ),
   split: (
     <>
       <rect x="3" y="4" width="18" height="16" rx="3" />
