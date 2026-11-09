@@ -462,3 +462,188 @@
 .contents {
   display: contents;
 }
+
+/* ------------------------------------------------------------------ welcome & what's new */
+
+/* Arc's onboarding and release cards: centered, roomy, the space color washing the top. */
+.scrim.intro-scrim {
+  background: rgb(10 5 25 / 0.42);
+  backdrop-filter: blur(6px);
+}
+
+.intro {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(560px, calc(100vw - 48px));
+  max-height: calc(100vh - 48px);
+  display: flex;
+  flex-direction: column;
+  border-radius: 20px;
+  animation: intro-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+
+.intro.whats-new {
+  width: min(480px, calc(100vw - 48px));
+}
+
+@keyframes intro-pop {
+  from {
+    transform: translate(-50%, -48%) scale(0.96);
+    opacity: 0;
+  }
+}
+
+.intro-hero {
+  padding: 32px 32px 22px;
+  text-align: center;
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in oklab, var(--space) 55%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in oklab, var(--space) 18%, var(--panel)), var(--panel));
+}
+
+.intro-hero .logo {
+  width: 64px;
+  height: 64px;
+  display: block;
+  margin: 0 auto 12px;
+  filter: drop-shadow(0 6px 14px rgb(20 10 40 / 0.25));
+}
+
+.intro-hero h1 {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.intro-hero p {
+  margin: 6px 0 0;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+.intro-hero.compact {
+  padding: 24px 28px 16px;
+}
+
+.intro-hero.compact .logo {
+  width: 44px;
+  height: 44px;
+  margin-bottom: 8px;
+}
+
+.intro-hero.compact h1 {
+  font-size: 22px;
+}
+
+.intro-body {
+  overflow-y: auto;
+  padding: 6px 24px 8px;
+  min-height: 0;
+}
+
+.intro h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.intro-step {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 16px;
+  margin-bottom: 8px;
+  border-radius: 12px;
+  background: var(--field);
+  border: 1px solid var(--panel-line);
+}
+
+.intro-step-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.intro-step-text p {
+  margin: 3px 0 0;
+  color: var(--text-2);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.intro-buttons {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.intro-shortcuts {
+  padding: 10px 4px 4px;
+}
+
+.intro-shortcuts ul {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 18px;
+}
+
+.intro-shortcuts li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-2);
+  font-size: 12.5px;
+}
+
+.intro-shortcuts .kbd {
+  min-width: 46px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--text);
+}
+
+.intro .release + .release {
+  margin-top: 14px;
+}
+
+.intro .release h2 {
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+.intro .release ul {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+
+.intro .release li + li {
+  margin-top: 4px;
+}
+
+.intro-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 24px 20px;
+}
+
+.intro-footer .spacer {
+  flex: 1;
+}
+
+.intro .btn.ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+
+.intro .btn.ghost:hover {
+  background: var(--hover);
+}

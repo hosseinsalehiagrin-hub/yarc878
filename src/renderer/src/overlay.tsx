@@ -9,6 +9,7 @@ import { findItem } from '../../shared/tree'
 import type { AppState, ID, OverlayMode, Rect, SearchResult } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac, useAppState, useOverlayMode, useSpaceTheme } from './api'
 import { Favicon, Icon, type IconName } from './icons'
+import { Welcome, WhatsNew } from './panels/Intro'
 import { Library } from './panels/Library'
 import { Settings } from './panels/Settings'
 import { SpaceEditor } from './panels/SpaceEditor'
@@ -78,6 +79,20 @@ function App() {
       return <PeekFrame card={mode.card} />
     case 'split-drop':
       return <SplitDropZones state={state} origin={state.layout.content} />
+    case 'welcome':
+      return (
+        <>
+          <div className="scrim intro-scrim" />
+          <Welcome key={key} close={close} />
+        </>
+      )
+    case 'whats-new':
+      return (
+        <>
+          <div className="scrim intro-scrim" onMouseDown={close} />
+          <WhatsNew key={key} releases={mode.releases} close={close} />
+        </>
+      )
   }
 }
 

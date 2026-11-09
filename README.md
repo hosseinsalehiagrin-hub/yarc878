@@ -134,6 +134,8 @@ The source browser's files are never changed: YARC copies them first and reads t
 - **Open in Chrome** (`Ctrl/⌘+Alt+O`) for the rare site that only works in Google Chrome.
 - Permission prompts for the camera, microphone, location and notifications, asked once per site.
 - Light, dark or system theme, and a choice of Google, DuckDuckGo, Bing, Kagi or Brave Search.
+- **Welcome screen** on the first launch: import from Arc, Chrome or Zen, make YARC your default browser, and the shortcuts worth learning first. *Skip* or Esc closes it.
+- **What's New** on the first launch after an update lists every change since the version you had, even when one update skips several releases. Open it again with *What's New* in the command bar (or the **YARC** menu on macOS).
 
 ## Install
 
@@ -176,6 +178,8 @@ YARC checks for a new version when it starts and every hour. You can turn that o
 - **Windows and macOS** update themselves. The new version downloads in the background; then YARC asks you to *Relaunch* to update (your spaces and tabs reopen). If you choose *Later*, it asks again a day later, a *Restart to Update* button stays at the bottom of the sidebar and in the command bar (and the **YARC** menu on macOS), and the update installs the next time you quit anyway. Updates often carry Chromium security fixes, so relaunch soon. Your spaces, tabs and logins are kept.
 - **macOS** asks for nothing in Terminal and shows no *Open Anyway* again after an update. Two things to know, both because the builds aren't signed with an Apple Developer ID: macOS may ask again for camera, microphone or screen recording the first time a site uses them after an update, and YARC can only update itself if your user can write to the folder it's in (an admin account can write to **Applications**). If it can't, *Update Available…* downloads the new `.dmg` instead: drag it to **Applications** to replace the old one, then allow it once with **Open Anyway** as above.
 - **Linux:** you're told when a new version is out; download the new `.AppImage` and use it instead of the old one.
+
+After an update, YARC shows **What's New** once: the changes in every version since the one you had.
 
 **Coming from Arc Shell?** YARC is the same app under a new name: it updates from Arc Shell like from any other version and keeps using your Arc Shell profile. On macOS the updated app keeps its file name, **Arc Shell**, in Applications; quit it and rename it to **YARC** in Finder if you like.
 
@@ -301,6 +305,8 @@ Releases are automatic: every pull request merged into `main` becomes a release.
 1. The [release workflow](.github/workflows/release.yml) tags the merge commit with the next version: a patch bump by default (`v0.1.2` → `v0.1.3`). Add the PR label `release:minor` or `release:major` for a bigger bump, or `release:skip` (or put `[skip release]` in the commit message) to not release.
 2. It builds Windows, macOS and Linux from that tag and uploads them to the release.
 3. Once all three builds succeed, the release is published. If one fails, the release stays a draft.
+
+The PR titles are also the app's **What's New**: before the builds, [`scripts/changelog.mjs`](scripts/changelog.mjs) collects the titles of the PRs merged for each release tag into `build/changelog.json`, which the build bakes into the app, so it shows offline. Dependabot PRs and PRs labeled `release:skip` are left out, so write titles as user-facing sentences. Local builds have an empty changelog; run `node scripts/changelog.mjs` (needs `gh`) to build one.
 
 The version lives in git tags; `package.json` says `0.0.0-dev` and CI stamps the tag's version into it at build time. To release by hand, run the workflow from the Actions tab and pick the bump.
 

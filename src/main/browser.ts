@@ -39,6 +39,7 @@ import type {
 import { appendPane, groupAt, layoutPanes, newSplitRoot, paneIds, placePane, removePane, type Side } from '../shared/split'
 import { resolveInput } from '../shared/url'
 import { AdBlock, hostOf } from './adblock'
+import { recentChanges, startupScreen, type Changelog } from './changelog'
 import { openInChrome } from './chrome'
 import { Extensions } from './extensions'
 import { runImport } from './importers'
@@ -53,6 +54,10 @@ import { Updater } from './updater'
 import { MainWindow, PAD } from './window'
 
 const isMac = process.platform === 'darwin'
+
+/** Built in by electron.vite.config.ts from build/changelog.json; empty outside release builds. */
+declare const __CHANGELOG__: Changelog
+const CHANGELOG: Changelog = __CHANGELOG__
 const MAX_ARCHIVE = 1000
 /**
  * The hidden sidebar stays out while the cursor is within this many pixels past its edge, and
@@ -150,6 +155,25 @@ export class Browser implements TabHost {
     setInterval(() => this.autoArchive(), 5 * 60_000)
     this.autoArchive()
     this.updater.sync()
+    this.showStartupScreen()
+  }
+
+  /**
+   * The welcome screen on a first run, What's New on the first launch after an update. Never in
+   * incognito windows (start() returns before this) and, so e2e tests see a plain window, not under
+   * YARC_TEST unless YARC_STARTUP_SCREENS is set too.
+   */
+  private showStartupScreen(): void {
+    const current = app.getVersion()
+    const intro = startupScreen(this.store.firstRun, this.state.lastSeenVersion, current, CHANGELOG)
+    if (this.state.lastSeenVersion !== current) {
+      this.state.lastSeenVersion = current
+      this.changed()
+    }
+    if (intro.kind === 'none' || (process.env.YARC_TEST && !process.env.YARC_STARTUP_SCREENS)) return
+    const win = this.window.win
+    if (win.isVisible()) this.setOverlay(intro)
+    else win.once('show', () => this.setOverlay(intro))
   }
 
   openWindow(): void {
@@ -1030,6 +1054,8 @@ export class Browser implements TabHost {
         return void this.updater.check(true)
       case 'installUpdate':
         return void this.updater.apply()
+      case 'whatsNew':
+        return this.setOverlay({ kind: 'whats-new', releases: recentChanges(CHANGELOG, app.getVersion()) })
     }
   }
 
@@ -1272,7 +1298,7 @@ export class Browser implements TabHost {
         this.state.archive = []
         return this.changed()
       case 'import': {
-        this.setOverlay({ kind: 'none' }, false)
+        if (!a.keepOverlay) this.setOverlay({ kind: 'none' }, false)
         try {
           const summary = await runImport(this, a.source, a.path)
           if (summary) this.toast(summary)
@@ -1283,7 +1309,7 @@ export class Browser implements TabHost {
         return
       }
       case 'command':
-        this.setOverlay({ kind: 'none' }, false)
+        if (!a.keepOverlay) this.setOverlay({ kind: 'none' }, false)
         return this.runCommand(a.id)
       case 'adblockToggleSite': {
         const t = a.id ? this.live.get(a.id) : tab

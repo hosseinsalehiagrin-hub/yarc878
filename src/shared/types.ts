@@ -118,6 +118,14 @@ export interface PersistedState {
   settings: Settings
   archive: ArchivedTab[]
   littleArc: LittleArcMemory
+  /** The YARC version that last ran with this state, so the next newer one shows What's New. */
+  lastSeenVersion?: string
+}
+
+/** One version's entries in What's New. */
+export interface ReleaseNotes {
+  version: string
+  changes: string[]
 }
 
 export interface LittleArcMemory {
@@ -214,6 +222,10 @@ export type OverlayMode =
   | { kind: 'peek'; card: Rect }
   /** A sidebar tab is being dragged: the overlay covers the page area and draws split drop zones. */
   | { kind: 'split-drop' }
+  /** First run: import, default browser, a few shortcuts. */
+  | { kind: 'welcome' }
+  /** The changes in the versions since the user's last one, newest first. */
+  | { kind: 'whats-new'; releases: ReleaseNotes[] }
 
 export interface SearchResult {
   kind: 'tab' | 'favorite' | 'pinned' | 'history' | 'suggestion' | 'url' | 'command' | 'archive'
