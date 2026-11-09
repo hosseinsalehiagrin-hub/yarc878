@@ -1,0 +1,159 @@
+// The site permission prompt, drawn like Arc's: a small popover pointing at the URL field, over the
+// page. Its own little view (not the overlay), so the page stays usable around it and the command
+// bar can open without losing the question.
+import { ipcMain, WebContentsView, type BrowserWindow, type Rectangle } from 'electron'
+import { IPC } from '../shared/ipc'
+import type { PermissionPrompt, PromptOp } from '../shared/permissions'
+import type { PermissionRequest, PromptAnswer } from './permission-queue'
+import { loadRenderer, uiWebPreferences } from './window'
+
+/** The popover's width (like Arc's), plus room around it for the shadow and the arrow. */
+export const PROMPT_WIDTH = 236
+const MARGIN = 16
+const VIEW_WIDTH = PROMPT_WIDTH + 2 * MARGIN
+/** How far below the view's top the arrow's tip is drawn (prompt.css). */
+const ARROW_TIP = 10
+
+/** Where the prompt goes, in window coordinates. */
+export type PromptAnchor =
+  /** The arrow's tip: the popover hangs below it, centered on it where the window allows. */
+  | { arrow: true; x: number; y: number }
+  /** The popover's top-left corner, without an arrow (no URL field on screen). */
+  | { arrow: false; x: number; y: number }
+
+const views = new Map<number, PromptView>()
+
+export class PromptView {
+  readonly view: WebContentsView
+  private current: PermissionRequest | undefined
+  private anchor: PromptAnchor | undefined
+  private height = 0
+  private attached = false
+  private ready = false
+
+  constructor(
+    private win: BrowserWindow,
+    private onAnswer: (id: string, answer: PromptAnswer) => void,
+    /** Called after the view (re)joins the window, so the owner can keep its z-order. */
+    private onAttach: () => void = () => {}
+  ) {
+    PromptView.registerIpc()
+    this.view = new WebContentsView({ webPreferences: uiWebPreferences() })
+    this.view.setBackgroundColor('#00000000')
+    const wc = this.view.webContents
+    const id = wc.id
+    views.set(id, this)
+    wc.once('destroyed', () => views.delete(id))
+    win.once('closed', () => {
+      if (!wc.isDestroyed()) wc.close()
+    })
+    loadRenderer(wc, 'prompt')
+  }
+
+  get webContents() {
+    return this.view.webContents
+  }
+
+  get visible(): boolean {
+    return this.attached
+  }
+
+  /** Shows `req` at `anchor`, or hides the prompt when there's nothing to ask. */
+  show(req: PermissionRequest | undefined, anchor?: PromptAnchor): void {
+    if (this.win.isDestroyed()) return
+    if (!req || !anchor) return this.hide()
+    const changed = req.id !== this.current?.id
+    const moved = JSON.stringify(anchor) !== JSON.stringify(this.anchor)
+    this.current = req
+    this.anchor = anchor
+    if (changed) {
+      // Wait for the new text's height before showing it.
+      this.height = 0
+      this.detach()
+    }
+    if (changed || moved) this.send()
+    if (this.height) this.place()
+  }
+
+  hide(): void {
+    this.current = undefined
+    this.anchor = undefined
+    this.height = 0
+    this.detach()
+    if (this.ready && !this.view.webContents.isDestroyed()) this.view.webContents.send(IPC.prompt, null)
+  }
+
+  /** Puts the view back on top of the window's other views. */
+  raise(): void {
+    if (this.attached) this.win.contentView.addChildView(this.view)
+  }
+
+  private detach(): void {
+    if (!this.attached) return
+    this.attached = false
+    if (!this.win.isDestroyed()) this.win.contentView.removeChildView(this.view)
+  }
+
+  /** The view's left edge: centered on the arrow, kept inside the window. */
+  private left(a: PromptAnchor): number {
+    const [winWidth] = this.win.getContentSize()
+    const wanted = a.arrow ? a.x - VIEW_WIDTH / 2 : a.x - MARGIN
+    return Math.round(Math.max(0, Math.min(wanted, winWidth - VIEW_WIDTH)))
+  }
+
+  private rect(): Rectangle | undefined {
+    const a = this.anchor
+    if (!a || !this.height) return undefined
+    // With an arrow, its tip (10px below the view's top, in the margin) sits at the anchor.
+    return { x: this.left(a), y: Math.round(a.arrow ? a.y - ARROW_TIP : a.y - MARGIN), width: VIEW_WIDTH, height: Math.ceil(this.height) }
+  }
+
+  private info(): PermissionPrompt | null {
+    const req = this.current
+    if (!req) return null
+    const a = this.anchor
+    // Near the window's edge the popover can't center on the arrow, so the arrow moves instead.
+    const arrowX = a?.arrow ? Math.max(MARGIN + 18, Math.min(a.x - this.left(a), VIEW_WIDTH - MARGIN - 18)) : undefined
+    return { id: req.id, origin: req.origin, permission: req.permission, mediaTypes: req.mediaTypes, arrowX }
+  }
+
+  private send(): void {
+    if (this.ready && !this.view.webContents.isDestroyed()) this.view.webContents.send(IPC.prompt, this.info())
+  }
+
+  private place(): void {
+    const rect = this.rect()
+    if (!rect || this.win.isDestroyed()) return
+    this.view.setBounds(rect)
+    const first = !this.attached
+    this.attached = true
+    this.win.contentView.addChildView(this.view)
+    this.onAttach()
+    // Like Arc's popover, it takes the keyboard: Escape dismisses it, Tab reaches the buttons.
+    if (first) this.view.webContents.focus()
+  }
+
+  private op(op: PromptOp): void {
+    switch (op.kind) {
+      case 'sync':
+        this.ready = true
+        return this.send()
+      case 'size':
+        if (op.id !== this.current?.id) return
+        this.height = op.height
+        return this.place()
+      case 'answer':
+        if (op.id !== this.current?.id) return
+        this.hide()
+        return this.onAnswer(op.id, op.answer)
+    }
+  }
+
+  private static ipcReady = false
+
+  private static registerIpc(): void {
+    if (PromptView.ipcReady) return
+    PromptView.ipcReady = true
+    ipcMain.handle(IPC.promptOp, (e, op: PromptOp) => views.get(e.sender.id)?.op(op))
+  }
+}

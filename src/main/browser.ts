@@ -48,6 +48,7 @@ import { LittleWindow } from './little'
 import { Peek, sameSite } from './peek'
 import { buildContextMenu, buildFolderMenu, buildItemMenu, buildSpaceMenu } from './menus'
 import { Profiles, type ProfileRuntime } from './profiles'
+import { PROMPT_WIDTH, PromptView, type PromptAnchor } from './prompt-view'
 import { search, suggest } from './search'
 import { incognitoState, newId, SPACE_COLORS, Store } from './store'
 import { LiveTab, type OpenDisposition, type TabHost } from './tab'
@@ -113,7 +114,7 @@ export class Browser implements TabHost {
   constructor(main?: Browser) {
     this.main = main
     this.extensions = new Extensions(this)
-    this.profiles = new Profiles((rt) => this.onProfileCreated(rt), !!main)
+    this.profiles = new Profiles((rt) => this.onProfileCreated(rt), !!main, () => this.syncPrompts())
     if (main) {
       this.store = new Store(undefined, incognitoState(main.state.settings))
       this.adblock = main.adblock
@@ -215,6 +216,12 @@ export class Browser implements TabHost {
     for (const wc of [win.webContents, this.window.overlay.webContents]) {
       wc.on('before-input-event', (e, input) => this.handleInput(e, input))
     }
+    const prompt = new PromptView(win, (id, answer) => this.answerPrompt(id, answer))
+    this.window.prompt = prompt
+    // Shortcuts work while the prompt has the keyboard; Escape is the prompt's own (dismiss).
+    prompt.webContents.on('before-input-event', (e, input) => {
+      if (input.key !== 'Escape') this.handleInput(e, input)
+    })
     const relayout = () => {
       this.layout()
       this.saveWindowBounds()
@@ -458,6 +465,7 @@ export class Browser implements TabHost {
     if (this.peek) w.setTop(this.peek.tab.view, this.peekRects().card)
     const mode = w.overlayMode.kind === 'peek' ? this.peekMode() : w.overlayMode
     if (mode.kind !== 'none') w.setOverlay(mode, this.overlayRect(mode))
+    this.syncPrompts()
     this.emitSoon()
   }
 
@@ -514,7 +522,71 @@ export class Browser implements TabHost {
     if (isMac && !this.state.settings.sidebarVisible) this.window.win.setWindowButtonVisibility(mode.kind === 'sidebar')
     if (mode.kind === 'none' && refocus) this.activeTab()?.wc.focus()
     if (mode.kind === 'command') this.tourEvent('newTab')
+    this.syncPrompts()
     this.emitSoon()
+  }
+
+  // ---------------------------------------------------------------- permission prompts
+
+  /**
+   * Shows the site permission prompt for a page on screen, like Arc: requests from tabs in the
+   * background wait until their tab is shown. Panels that cover the window (command bar, settings…)
+   * hide it until they close.
+   */
+  syncPrompts(): void {
+    const queue = this.profiles.permissionQueue
+    // Pages that can show a prompt: this window's tabs, Peek and Little Arc. Anything else (an
+    // extension page, say) has nowhere to ask, so it hears "no".
+    const pages = new Set<number>([...this.live.values()].filter((t) => !t.destroyed).map((t) => t.wc.id))
+    if (this.peek && !this.peek.tab.destroyed) pages.add(this.peek.tab.wc.id)
+    for (const l of this.littles) if (l.pageId !== undefined) pages.add(l.pageId)
+    for (const wcId of queue.waitingPages()) {
+      if (pages.has(wcId)) continue
+      const req = queue.next([wcId])
+      if (req) queue.answer(req.id, 'dismiss')
+    }
+    for (const l of this.littles) l.syncPrompt(queue)
+    const w = this.window
+    if (!w?.prompt || w.win.isDestroyed()) return
+    const kind = w.overlayMode.kind
+    if (kind !== 'none' && kind !== 'sidebar' && kind !== 'find' && kind !== 'peek') return w.prompt.show(undefined)
+    w.prompt.show(queue.next(this.pagesOnScreen()), this.promptAnchor())
+  }
+
+  /** The webContents on screen, the one the URL field shows first: Peek, the active tab, then its split partners. */
+  private pagesOnScreen(): number[] {
+    const ids: number[] = []
+    if (this.peek && !this.peek.tab.destroyed) ids.push(this.peek.tab.wc.id)
+    const active = this.space.activeItemId
+    const order = [...this.currentLayout.views.map((v) => v.id)].sort((a, b) => Number(b === active) - Number(a === active))
+    for (const id of order) {
+      const t = this.live.get(id)
+      if (t && !t.destroyed && this.window.isShown(t.view)) ids.push(t.wc.id)
+    }
+    return ids
+  }
+
+  /** Arc's prompt points at the site controls at the right end of the sidebar's URL field. */
+  private promptAnchor(): PromptAnchor {
+    const s = this.state.settings
+    const content = this.currentLayout.content
+    const floating = !s.sidebarVisible && this.window.overlayMode.kind === 'sidebar'
+    if ((s.sidebarVisible || floating) && !this.fullscreenTab) {
+      const { width } = this.window.size()
+      // The URL field: below the sidebar's 8px padding, 32px top bar and 6px gap; 36px tall (styles.css).
+      const inset = floating ? 4 : 0
+      const fieldRight = s.sidebarRight ? width - 10 : inset + s.sidebarWidth - 6
+      return { arrow: true, x: fieldRight - 22, y: inset + 8 + 32 + 6 + 36 + 2 }
+    }
+    // No URL field on screen: the top-left corner of the page, where it would be.
+    const x = s.sidebarRight ? content.x + content.width - PROMPT_WIDTH - 12 : content.x + 12
+    return { arrow: false, x, y: content.y + 12 }
+  }
+
+  private answerPrompt(id: string, answer: 'allow' | 'deny' | 'dismiss'): void {
+    this.profiles.permissionQueue.answer(id, answer)
+    // The keyboard goes back to the page, unless another question took it.
+    if (!this.window.prompt?.visible && this.window.overlayMode.kind === 'none') this.activeTab()?.wc.focus()
   }
 
   /** While the hidden sidebar is out, hides it once the cursor has stayed away from it (PEEK_GRACE). */

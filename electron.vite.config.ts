@@ -29,7 +29,8 @@ export default defineConfig({
         input: {
           index: resolve('src/renderer/index.html'),
           overlay: resolve('src/renderer/overlay.html'),
-          little: resolve('src/renderer/little.html')
+          little: resolve('src/renderer/little.html'),
+          prompt: resolve('src/renderer/prompt.html')
         }
       }
     }

@@ -1,4 +1,4 @@
-// Preload for YARC's own UI (sidebar, overlay, Little Arc toolbar). Never used for web pages.
+// Preload for YARC's own UI (sidebar, overlay, Little Arc toolbar, permission prompt). Never used for web pages.
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
 import { injectBrowserAction } from 'electron-chrome-extensions/browser-action'
 import { IPC, type ArcApi } from '../shared/ipc'
@@ -24,12 +24,14 @@ const api: ArcApi = {
   suggest: (query) => ipcRenderer.invoke(IPC.suggest, query),
   history: (query, offset) => ipcRenderer.invoke(IPC.history, query, offset),
   deleteHistory: (url) => ipcRenderer.invoke(IPC.historyDelete, url),
-  little: (op, at) => ipcRenderer.invoke(IPC.littleOp, op, at)
+  little: (op, at) => ipcRenderer.invoke(IPC.littleOp, op, at),
+  onPrompt: (cb) => listen(IPC.prompt, cb),
+  prompt: (op) => ipcRenderer.invoke(IPC.promptOp, op)
 }
 
 contextBridge.exposeInMainWorld('arc', api)
 
 // Registers the <browser-action-list> element used to show extension buttons in the sidebar.
-if (!location.pathname.endsWith('little.html')) {
+if (!location.pathname.endsWith('little.html') && !location.pathname.endsWith('prompt.html')) {
   injectBrowserAction()
 }

@@ -1,6 +1,7 @@
 import type { Action } from './actions'
 import type { AppState, OverlayMode, SearchResult } from './types'
 import type { HistoryRow, LittleState } from './ipc-types'
+import type { PermissionPrompt, PromptOp } from './permissions'
 
 export type { HistoryRow, LittleState } from './ipc-types'
 
@@ -18,7 +19,9 @@ export const IPC = {
   suggest: 'arc:suggest',
   history: 'arc:history',
   historyDelete: 'arc:history-delete',
-  littleOp: 'arc:little-op'
+  littleOp: 'arc:little-op',
+  prompt: 'arc:prompt',
+  promptOp: 'arc:prompt-op'
 } as const
 
 /** Main asks the sidebar to start inline editing (after a native context menu choice). */
@@ -69,4 +72,7 @@ export interface ArcApi {
   history(query: string, offset: number): Promise<HistoryRow[]>
   deleteHistory(url: string): Promise<void>
   little(op: LittleOp, at?: LittleAnchor): Promise<void>
+  /** The site permission prompt (prompt.html): what to ask, or null for nothing. */
+  onPrompt(cb: (p: PermissionPrompt | null) => void): () => void
+  prompt(op: PromptOp): Promise<void>
 }
