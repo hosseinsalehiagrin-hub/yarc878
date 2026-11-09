@@ -246,9 +246,16 @@ export class Browser implements TabHost {
     this.window.overlay.webContents.on('blur', () => {
       // Closing the window blurs the overlay too, after the window is gone.
       if (win.isDestroyed()) return
-      // Clicking back into the page closes transient panels, like Arc.
       const k = this.window.overlayMode.kind
-      if (k === 'command' || k === 'switcher') this.setOverlay({ kind: 'none' }, false)
+      if (k !== 'command' && k !== 'switcher') return
+      // These panels cover the whole window (clicking the backdrop closes them), so a blur while the
+      // window keeps focus is a page taking the keyboard: Windows does that whenever a page finishes
+      // loading. Hand the keyboard back; only leaving the window closes the panel.
+      setTimeout(() => {
+        if (win.isDestroyed() || this.window.overlayMode.kind !== k) return
+        if (win.isFocused()) this.window.overlay.webContents.focus()
+        else this.setOverlay({ kind: 'none' }, false)
+      }, 50)
     })
     const active = this.space.activeItemId
     if (active && findItem(this.state, active)) this.activate(active)

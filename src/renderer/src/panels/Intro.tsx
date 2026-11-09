@@ -122,7 +122,8 @@ function content(step: TourStep, state: AppState): StepContent {
       return {
         title: 'Little Arc',
         text: 'A small window for a quick look, and where links from other apps open. One click makes it a tab.',
-        tryIt: <>Press {key('littleArc')}</>
+        // Ctrl+Alt+N types ñ on US-International and other AltGr keyboards, so offer the command bar too.
+        tryIt: isMac ? <>Press {key('littleArc')}</> : <>Press {key('littleArc')}, or pick New Little Arc window in the command bar</>
       }
     case 'incognito':
       return {
