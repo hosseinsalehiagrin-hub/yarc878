@@ -1,0 +1,607 @@
+/* Settings window: section list on the left, grouped cards on the right, tinted by the space. */
+
+.panel.sheet.settings {
+  --set-nav: color-mix(in oklab, var(--space) 10%, #f1f0f5);
+  --set-bg: color-mix(in oklab, var(--space) 4%, #f7f6fa);
+  --set-card: #fff;
+  --set-card-shadow: 0 1px 2px rgb(20 10 40 / 0.05);
+  --set-input: rgb(0 0 0 / 0.045);
+  --set-input-line: rgb(0 0 0 / 0.1);
+  --set-seg-on: #fff;
+  --set-off: rgb(29 27 34 / 0.16);
+  flex-direction: row;
+  top: 8vh;
+  width: min(840px, calc(100vw - 48px));
+  height: min(620px, 84vh);
+  max-height: none;
+  background: var(--set-bg);
+  border-radius: 16px;
+  font-size: 13px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-appearance='light']) .panel.sheet.settings {
+    --set-nav: color-mix(in oklab, var(--space) 9%, #1c1b21);
+    --set-bg: color-mix(in oklab, var(--space) 4%, #242229);
+    --set-card: rgb(255 255 255 / 0.045);
+    --set-card-shadow: none;
+    --set-input: rgb(255 255 255 / 0.07);
+    --set-input-line: rgb(255 255 255 / 0.1);
+    --set-seg-on: rgb(255 255 255 / 0.16);
+    --set-off: rgb(255 255 255 / 0.18);
+  }
+}
+
+:root[data-appearance='dark'] .panel.sheet.settings {
+  --set-nav: color-mix(in oklab, var(--space) 9%, #1c1b21);
+  --set-bg: color-mix(in oklab, var(--space) 4%, #242229);
+  --set-card: rgb(255 255 255 / 0.045);
+  --set-card-shadow: none;
+  --set-input: rgb(255 255 255 / 0.07);
+  --set-input-line: rgb(255 255 255 / 0.1);
+  --set-seg-on: rgb(255 255 255 / 0.16);
+  --set-off: rgb(255 255 255 / 0.18);
+}
+
+/* ---------------------------------------------------------------- section list */
+
+.settings .set-nav {
+  flex: none;
+  width: 212px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 18px 10px;
+  background: var(--set-nav);
+  border-right: 1px solid var(--panel-line);
+}
+
+.settings .set-nav-title {
+  padding: 2px 10px 14px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.settings .set-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: 9px;
+  color: var(--text-2);
+  text-align: left;
+  outline: none;
+}
+
+.settings .set-nav-item:hover {
+  background: color-mix(in oklab, var(--text) 6%, transparent);
+  color: var(--text);
+}
+
+.settings .set-nav-item[aria-selected='true'] {
+  background: color-mix(in oklab, var(--space) 22%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.settings .set-nav-item:focus-visible {
+  box-shadow: inset 0 0 0 2px color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+.settings .set-nav-icon {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+  background: color-mix(in oklab, var(--space) 16%, transparent);
+  transition: background 0.12s, color 0.12s;
+}
+
+.settings .set-nav-item[aria-selected='true'] .set-nav-icon {
+  color: #fff;
+  background: var(--accent);
+  box-shadow: 0 1px 3px color-mix(in oklab, var(--space) 45%, transparent);
+}
+
+.settings .set-nav-icon img {
+  width: 20px;
+  height: 20px;
+}
+
+/* ---------------------------------------------------------------- content */
+
+.settings .set-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.sheet.settings header.set-head {
+  padding: 16px 14px 10px 28px;
+  gap: 10px;
+}
+
+.settings .set-head h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.settings .set-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  padding: 6px 18px 28px 28px;
+}
+
+/* Thin, arrowless scrollbar (Windows draws the classic one otherwise). */
+.settings .set-body::-webkit-scrollbar {
+  width: 10px;
+}
+
+.settings .set-body::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 5px;
+  background: color-mix(in oklab, var(--text) 20%, transparent) content-box;
+}
+
+.settings .set-body::-webkit-scrollbar-thumb:hover {
+  background-color: color-mix(in oklab, var(--text) 32%, transparent);
+}
+
+.settings .set-group + .set-group,
+.settings .set-note + .set-group,
+.settings .set-group + .set-note {
+  margin-top: 22px;
+}
+
+.settings .set-group h3 {
+  margin: 0 0 7px 4px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--text-2);
+}
+
+.settings .set-card {
+  background: var(--set-card);
+  border: 1px solid var(--panel-line);
+  border-radius: 12px;
+  box-shadow: var(--set-card-shadow);
+}
+
+.settings .set-note {
+  margin: 0 4px 14px;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.55;
+}
+
+.settings .set-note code {
+  font-size: 11.5px;
+  padding: 1px 5px;
+  border-radius: 5px;
+  background: var(--set-input);
+}
+
+.settings .muted {
+  color: var(--text-3);
+}
+
+/* One option: text on the left, its control on the right. Hairlines are inset like macOS. */
+.settings .set-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 54px;
+  padding: 10px 16px;
+}
+
+.settings .set-row + .set-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: var(--panel-line);
+}
+
+.settings .set-row.click:hover {
+  background: color-mix(in oklab, var(--text) 2.5%, transparent);
+}
+
+.settings .set-card > .set-row:first-child {
+  border-radius: 11px 11px 0 0;
+}
+
+.settings .set-card > .set-row:last-child {
+  border-radius: 0 0 11px 11px;
+}
+
+.settings .set-card > .set-row:only-child {
+  border-radius: 11px;
+}
+
+.settings .set-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.settings .set-row-title {
+  font-weight: 550;
+  color: var(--text);
+}
+
+.settings .set-row-text small {
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+
+.settings .set-control {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ---------------------------------------------------------------- controls */
+
+.settings .btn {
+  padding: 6px 13px;
+  font-size: 12.5px;
+  font-weight: 550;
+  border-radius: 8px;
+  background: var(--set-input);
+  border-color: var(--set-input-line);
+}
+
+.settings .btn:hover {
+  background: color-mix(in oklab, var(--text) 9%, transparent);
+}
+
+.settings .btn.primary {
+  background: var(--accent);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--space) 40%, transparent);
+}
+
+.settings .btn.primary:hover {
+  background: color-mix(in oklab, var(--accent) 88%, #000);
+}
+
+.settings .set-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.settings .set-select select {
+  appearance: none;
+  min-width: 180px;
+  max-width: 260px;
+  padding: 6px 30px 6px 11px;
+  font-size: 12.5px;
+  border-radius: 8px;
+  background: var(--set-input);
+  border: 1px solid var(--set-input-line);
+  text-overflow: ellipsis;
+}
+
+.settings .set-select select:hover {
+  background: color-mix(in oklab, var(--text) 8%, transparent);
+}
+
+.settings .set-select select:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+.settings .set-select select option {
+  background: var(--panel);
+  color: var(--text);
+}
+
+.settings .set-select .icon {
+  position: absolute;
+  right: 10px;
+  transform: rotate(90deg);
+  color: var(--text-3);
+  pointer-events: none;
+}
+
+/* Segmented control, like macOS's appearance picker. */
+.settings .set-seg {
+  display: inline-flex;
+  padding: 2px;
+  gap: 2px;
+  border-radius: 9px;
+  background: var(--set-input);
+  border: 1px solid var(--set-input-line);
+}
+
+.settings .set-seg button {
+  min-width: 64px;
+  padding: 4px 12px;
+  border-radius: 7px;
+  font-size: 12.5px;
+  color: var(--text-2);
+  transition: background 0.12s, color 0.12s;
+}
+
+.settings .set-seg button:hover:not(.on) {
+  color: var(--text);
+}
+
+.settings .set-seg button.on {
+  background: var(--set-seg-on);
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12), 0 0 0 0.5px rgb(0 0 0 / 0.06);
+}
+
+.settings .set-seg button:focus-visible {
+  outline: 2px solid color-mix(in oklab, var(--accent) 60%, transparent);
+}
+
+/* Slider with the filled part in the accent color. */
+.settings .set-range {
+  appearance: none;
+  width: 180px;
+  height: 20px;
+  margin: 0;
+  background: transparent;
+  outline: none;
+}
+
+.settings .set-range::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--pct), var(--set-off) var(--pct));
+}
+
+.settings .set-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  margin-top: -7px;
+  border-radius: 50%;
+  background: #fff;
+  border: 0.5px solid rgb(0 0 0 / 0.12);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+}
+
+.settings .set-range:focus-visible::-webkit-slider-thumb {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 35%, transparent), 0 1px 3px rgb(0 0 0 / 0.3);
+}
+
+.settings .set-value {
+  min-width: 54px;
+  padding: 3px 0;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-2);
+  background: var(--set-input);
+}
+
+/* Toggle switch on a checkbox. */
+.settings .switch {
+  appearance: none;
+  flex: none;
+  position: relative;
+  width: 38px;
+  height: 22px;
+  margin: 0;
+  border-radius: 11px;
+  background: var(--set-off);
+  outline: none;
+  transition: background 0.16s;
+}
+
+.settings .switch::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.28);
+  transition: transform 0.16s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+.settings .switch:checked {
+  background: var(--accent);
+}
+
+.settings .switch:checked::before {
+  transform: translateX(16px);
+}
+
+.settings .switch:focus-visible {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 30%, transparent);
+}
+
+/* ---------------------------------------------------------------- profiles */
+
+.settings .set-profile {
+  gap: 12px;
+}
+
+.settings .set-avatar {
+  --avatar: var(--space);
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(145deg, color-mix(in oklab, var(--avatar) 80%, #fff), color-mix(in oklab, var(--avatar) 85%, #000));
+  text-shadow: 0 1px 1px rgb(0 0 0 / 0.2);
+}
+
+.settings .set-name {
+  flex: none;
+  width: 200px;
+  padding: 5px 8px;
+  margin-left: -4px;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  outline: none;
+}
+
+.settings .set-name:hover {
+  background: var(--set-input);
+}
+
+.settings .set-name:focus {
+  background: var(--set-input);
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent);
+}
+
+.settings .used-by {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 5px;
+  color: var(--text-2);
+}
+
+.settings .chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: var(--set-input);
+  border: 1px solid var(--set-input-line);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ---------------------------------------------------------------- extensions */
+
+.settings .set-ext {
+  min-height: 46px;
+  gap: 12px;
+}
+
+.settings .set-ext .set-row-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings .set-ext-icon {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  display: grid;
+  place-items: center;
+  color: var(--text-3);
+}
+
+.settings .set-ext-id {
+  font-size: 11px;
+  color: var(--text-3);
+  font-family: ui-monospace, 'Cascadia Mono', Consolas, monospace;
+}
+
+.settings .set-empty {
+  padding: 30px 16px;
+  text-align: center;
+  color: var(--text-3);
+}
+
+/* ---------------------------------------------------------------- shortcuts */
+
+.settings .set-shortcut {
+  min-height: 40px;
+  padding-block: 7px;
+  justify-content: space-between;
+}
+
+.settings .set-shortcut .set-row-title {
+  font-weight: 450;
+}
+
+.settings .set-keys {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.settings .set-keys kbd {
+  min-width: 22px;
+  padding: 2px 6px;
+  font-family: var(--font);
+  font-size: 11.5px;
+  text-align: center;
+  color: var(--text-2);
+  background: var(--set-input);
+  border: 1px solid var(--set-input-line);
+  border-bottom-width: 2px;
+  border-radius: 6px;
+}
+
+/* ---------------------------------------------------------------- about */
+
+.settings .set-about {
+  margin-top: 4px;
+  padding: 40px 32px 36px;
+  text-align: center;
+  border-radius: 14px;
+  border: 1px solid var(--panel-line);
+  background:
+    radial-gradient(120% 90% at 50% 0%, color-mix(in oklab, var(--space) 40%, transparent), transparent 70%),
+    var(--set-card);
+}
+
+.settings .set-about .logo {
+  display: block;
+  width: 84px;
+  height: 84px;
+  margin: 0 auto 14px;
+  filter: drop-shadow(0 8px 18px rgb(20 10 40 / 0.25));
+}
+
+.settings .set-about h2 {
+  margin: 0 0 6px;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.settings .set-about p {
+  max-width: 380px;
+  margin: 0 auto;
+  color: var(--text-2);
+  line-height: 1.55;
+}

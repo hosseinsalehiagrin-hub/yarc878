@@ -1,21 +1,22 @@
-// Settings sheet: general options, profiles, import, extensions, shortcuts, about.
-import { useState, type ReactNode } from 'react'
+// Settings window: a section list on the left, grouped cards of options on the right.
+import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import logo from '../../../../build/icon.svg'
 import { BINDINGS, bindingLabel } from '../../../shared/keymap'
 import { SIDEBAR_WIDTH, type AppState, type Profile, type SearchEngine, type Settings as SettingsT } from '../../../shared/types'
 import { SEARCH_ENGINES } from '../../../shared/url'
 import { activeSpace, dispatch, isMac } from '../api'
-import { Icon } from '../icons'
+import { Icon, type IconName } from '../icons'
 import './panels.css'
+import './settings.css'
 
 type Section = 'general' | 'profiles' | 'import' | 'extensions' | 'shortcuts' | 'about'
 
-const SECTIONS: { id: Section; label: string }[] = [
-  { id: 'general', label: 'General' },
-  { id: 'profiles', label: 'Profiles' },
-  { id: 'import', label: 'Import' },
-  { id: 'extensions', label: 'Extensions' },
-  { id: 'shortcuts', label: 'Keyboard Shortcuts' },
+const SECTIONS: { id: Section; label: string; icon?: IconName }[] = [
+  { id: 'general', label: 'General', icon: 'settings' },
+  { id: 'profiles', label: 'Profiles', icon: 'profile' },
+  { id: 'import', label: 'Import', icon: 'download' },
+  { id: 'extensions', label: 'Extensions', icon: 'puzzle' },
+  { id: 'shortcuts', label: 'Keyboard Shortcuts', icon: 'command' },
   { id: 'about', label: 'About' }
 ]
 
@@ -27,52 +28,110 @@ const ARCHIVE_OPTIONS: { hours: number; label: string }[] = [
   { hours: 720, label: 'After 30 days' }
 ]
 
+const THEMES: { value: SettingsT['theme']; label: string }[] = [
+  { value: 'system', label: 'System' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' }
+]
+
 const patch = (p: Partial<SettingsT>) => dispatch({ type: 'settings', patch: p })
 
 export function Settings({ state, close }: { state: AppState; close: () => void }) {
   const [section, setSection] = useState<Section>('general')
+  const current = SECTIONS.find((s) => s.id === section)!
+  // Up/down arrows move through the section list, like a native sidebar.
+  const onNavKey = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
+    e.preventDefault()
+    const i = SECTIONS.findIndex((s) => s.id === section)
+    const next = SECTIONS[(i + (e.key === 'ArrowDown' ? 1 : SECTIONS.length - 1)) % SECTIONS.length]
+    setSection(next.id)
+    document.getElementById(`set-tab-${next.id}`)?.focus()
+  }
   return (
-    <div className="panel sheet">
-      <header>
-        <span>Settings</span>
-        <span className="spacer" />
-        <button className="icon-btn" title="Close" onClick={close}>
-          <Icon name="x" />
-        </button>
-      </header>
-      <div className="tabs" role="tablist">
+    <div className="panel sheet settings">
+      <nav className="set-nav" role="tablist" aria-orientation="vertical" aria-label="Settings" onKeyDown={onNavKey}>
+        <div className="set-nav-title">Settings</div>
         {SECTIONS.map((s) => (
-          <button key={s.id} role="tab" aria-selected={section === s.id} className={section === s.id ? 'on' : ''} onClick={() => setSection(s.id)}>
+          <button
+            key={s.id}
+            id={`set-tab-${s.id}`}
+            role="tab"
+            aria-selected={section === s.id}
+            tabIndex={section === s.id ? 0 : -1}
+            className="set-nav-item"
+            onClick={() => setSection(s.id)}
+          >
+            <span className="set-nav-icon">{s.icon ? <Icon name={s.icon} size={15} stroke={2} /> : <img src={logo} alt="" />}</span>
             {s.label}
           </button>
         ))}
-      </div>
-      <div className="body">
-        {section === 'general' && <General state={state} />}
-        {section === 'profiles' && <Profiles state={state} />}
-        {section === 'import' && <Import />}
-        {section === 'extensions' && <Extensions state={state} />}
-        {section === 'shortcuts' && <Shortcuts />}
-        {section === 'about' && <About />}
-      </div>
+      </nav>
+      <section className="set-main" role="tabpanel" aria-labelledby={`set-tab-${section}`}>
+        <header className="set-head">
+          <h2>{current.label}</h2>
+          <button className="icon-btn" title="Close" onClick={close}>
+            <Icon name="x" />
+          </button>
+        </header>
+        <div className="set-body" key={section}>
+          {section === 'general' && <General state={state} />}
+          {section === 'profiles' && <Profiles state={state} />}
+          {section === 'import' && <Import />}
+          {section === 'extensions' && <Extensions state={state} />}
+          {section === 'shortcuts' && <Shortcuts />}
+          {section === 'about' && <About />}
+        </div>
+      </section>
+    </div>
+  )
+}
+
+function Group({ title, children }: { title?: string; children: ReactNode }) {
+  return (
+    <div className="set-group">
+      {title && <h3>{title}</h3>}
+      <div className="set-card">{children}</div>
     </div>
   )
 }
 
 function Row({ title, hint, children }: { title: string; hint?: ReactNode; children: ReactNode }) {
   return (
-    <div className="field-row">
-      <label>
-        <span>{title}</span>
+    <div className="set-row">
+      <div className="set-row-text">
+        <span className="set-row-title">{title}</span>
         {hint && <small>{hint}</small>}
-      </label>
-      {children}
+      </div>
+      <div className="set-control">{children}</div>
     </div>
   )
 }
 
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (v: boolean) => void; label: string }) {
-  return <input type="checkbox" role="switch" aria-label={label} className="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+/** A row whose whole area flips its switch. */
+function ToggleRow({ title, hint, checked, onChange }: { title: string; hint?: ReactNode; checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <label className="set-row click">
+      <div className="set-row-text">
+        <span className="set-row-title">{title}</span>
+        {hint && <small>{hint}</small>}
+      </div>
+      <div className="set-control">
+        <input type="checkbox" role="switch" aria-label={title} className="switch" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      </div>
+    </label>
+  )
+}
+
+function Select({ label, value, onChange, children }: { label: string; value: string | number; onChange: (v: string) => void; children: ReactNode }) {
+  return (
+    <span className="set-select">
+      <select aria-label={label} value={value} onChange={(e) => onChange(e.target.value)}>
+        {children}
+      </select>
+      <Icon name="chevron" size={13} stroke={2.2} />
+    </span>
+  )
 }
 
 function General({ state }: { state: AppState }) {
@@ -82,38 +141,52 @@ function General({ state }: { state: AppState }) {
   const space = activeSpace(state)
   const spaceProfile = state.profiles.find((p) => p.id === space.profileId)
   const archiveKnown = ARCHIVE_OPTIONS.some((o) => o.hours === s.archiveAfterHours)
+  const pct = ((width - SIDEBAR_WIDTH.min) / (SIDEBAR_WIDTH.max - SIDEBAR_WIDTH.min)) * 100
   return (
     <>
-      <Row title="Search engine" hint="Used for searches typed in the command bar.">
-        <select value={s.searchEngine} onChange={(e) => dispatch({ type: 'searchEngine', engine: e.target.value as SearchEngine })}>
-          {(Object.keys(SEARCH_ENGINES) as SearchEngine[]).map((k) => (
-            <option key={k} value={k}>
-              {SEARCH_ENGINES[k].name}
-            </option>
-          ))}
-        </select>
-      </Row>
-      <Row title="Appearance">
-        <select value={s.theme} onChange={(e) => patch({ theme: e.target.value as SettingsT['theme'] })}>
-          <option value="system">Match system</option>
-          <option value="light">Light</option>
-          <option value="dark">Dark</option>
-        </select>
-      </Row>
-      <Row title="Archive unpinned tabs" hint="Tabs in Today that you haven't used for a while move to the Archive.">
-        <select value={s.archiveAfterHours} onChange={(e) => patch({ archiveAfterHours: Number(e.target.value) })}>
-          {!archiveKnown && <option value={s.archiveAfterHours}>After {s.archiveAfterHours} hours</option>}
-          {ARCHIVE_OPTIONS.map((o) => (
-            <option key={o.hours} value={o.hours}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </Row>
-      <Row title="Sidebar width">
-        <span>
+      <Group title="Browsing">
+        <Row title="Search engine" hint="Used for searches typed in the command bar.">
+          <Select label="Search engine" value={s.searchEngine} onChange={(v) => dispatch({ type: 'searchEngine', engine: v as SearchEngine })}>
+            {(Object.keys(SEARCH_ENGINES) as SearchEngine[]).map((k) => (
+              <option key={k} value={k}>
+                {SEARCH_ENGINES[k].name}
+              </option>
+            ))}
+          </Select>
+        </Row>
+        <ToggleRow
+          title="Block ads and trackers"
+          hint="Built in, using uBlock Origin / EasyList-compatible lists. Turn it off per site from the shield in the URL bar."
+          checked={s.adblock}
+          onChange={(v) => patch({ adblock: v })}
+        />
+        <Row title="Archive unpinned tabs" hint="Tabs in Today that you haven't used for a while move to the Archive.">
+          <Select label="Archive unpinned tabs" value={s.archiveAfterHours} onChange={(v) => patch({ archiveAfterHours: Number(v) })}>
+            {!archiveKnown && <option value={s.archiveAfterHours}>After {s.archiveAfterHours} hours</option>}
+            {ARCHIVE_OPTIONS.map((o) => (
+              <option key={o.hours} value={o.hours}>
+                {o.label}
+              </option>
+            ))}
+          </Select>
+        </Row>
+      </Group>
+      <Group title="Appearance">
+        <Row title="Theme">
+          <div className="set-seg" role="radiogroup" aria-label="Theme">
+            {THEMES.map((t) => (
+              <button key={t.value} role="radio" aria-checked={s.theme === t.value} className={s.theme === t.value ? 'on' : ''} onClick={() => patch({ theme: t.value })}>
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </Row>
+        <Row title="Sidebar width">
           <input
             type="range"
+            className="set-range"
+            aria-label="Sidebar width"
+            style={{ '--pct': `${pct}%` } as CSSProperties}
             min={SIDEBAR_WIDTH.min}
             max={SIDEBAR_WIDTH.max}
             step={2}
@@ -124,39 +197,46 @@ function General({ state }: { state: AppState }) {
               patch({ sidebarWidth: v })
             }}
           />
-          <span className="range-value">{width}px</span>
-        </span>
-      </Row>
-      <Row title="Block ads and trackers" hint="Built in, using uBlock Origin / EasyList-compatible lists. Turn it off per site from the shield in the URL bar.">
-        <Toggle label="Block ads and trackers" checked={s.adblock} onChange={(v) => patch({ adblock: v })} />
-      </Row>
-      <Row
-        title="Check for updates automatically"
-        hint={
-          state.platform === 'win32'
-            ? 'New versions download in the background and install when you restart YARC.'
-            : 'You’re told when a new version is out, and install it yourself.'
-        }
-      >
-        <Toggle label="Check for updates automatically" checked={s.autoUpdate} onChange={(v) => patch({ autoUpdate: v })} />
-      </Row>
-      <Row title="Sidebar on the right" hint="Arc never had this.">
-        <Toggle label="Sidebar on the right" checked={s.sidebarRight} onChange={(v) => patch({ sidebarRight: v })} />
-      </Row>
-      <Row title="Open links from other apps in Little Arc" hint="When off, they open as a new tab in the current space.">
-        <Toggle label="Open links from other apps in Little Arc" checked={s.littleArcForExternalLinks} onChange={(v) => patch({ littleArcForExternalLinks: v })} />
-        <Toggle label="Open other sites from pinned tabs and favorites in Peek" checked={s.peekPinnedLinks} onChange={(v) => patch({ peekPinnedLinks: v })} />
-      </Row>
-      <Row title="Little Arc profile" hint="Which logins and history Little Arc windows use.">
-        <select value={s.littleArcProfileId} onChange={(e) => patch({ littleArcProfileId: e.target.value })}>
-          <option value="">Current space's profile{spaceProfile ? ` (now: ${spaceProfile.name})` : ''}</option>
-          {state.profiles.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </Row>
+          <span className="set-value">{width}px</span>
+        </Row>
+        <ToggleRow title="Sidebar on the right" hint="Arc never had this." checked={s.sidebarRight} onChange={(v) => patch({ sidebarRight: v })} />
+      </Group>
+      <Group title="Little Arc and Peek">
+        <ToggleRow
+          title="Open links from other apps in Little Arc"
+          hint="When off, they open as a new tab in the current space."
+          checked={s.littleArcForExternalLinks}
+          onChange={(v) => patch({ littleArcForExternalLinks: v })}
+        />
+        <Row title="Little Arc profile" hint="Which logins and history Little Arc windows use.">
+          <Select label="Little Arc profile" value={s.littleArcProfileId} onChange={(v) => patch({ littleArcProfileId: v })}>
+            <option value="">Current space's profile{spaceProfile ? ` (now: ${spaceProfile.name})` : ''}</option>
+            {state.profiles.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </Select>
+        </Row>
+        <ToggleRow
+          title="Open other sites from pinned tabs in Peek"
+          hint="Links from pinned tabs and favorites to another site open in a Peek preview, like Arc."
+          checked={s.peekPinnedLinks}
+          onChange={(v) => patch({ peekPinnedLinks: v })}
+        />
+      </Group>
+      <Group title="Updates">
+        <ToggleRow
+          title="Check for updates automatically"
+          hint={
+            state.platform === 'win32'
+              ? 'New versions download in the background and install when you restart YARC.'
+              : 'You’re told when a new version is out, and install it yourself.'
+          }
+          checked={s.autoUpdate}
+          onChange={(v) => patch({ autoUpdate: v })}
+        />
+      </Group>
     </>
   )
 }
@@ -164,13 +244,15 @@ function General({ state }: { state: AppState }) {
 function Profiles({ state }: { state: AppState }) {
   return (
     <>
-      <p className="note">
+      <p className="set-note">
         A profile keeps its own logins, cookies, history, favorites and extensions. Each space uses one profile; several spaces can share one. Change a
         space's profile from its Edit sheet.
       </p>
-      {state.profiles.map((p) => (
-        <ProfileRow key={p.id} profile={p} state={state} />
-      ))}
+      <Group>
+        {state.profiles.map((p) => (
+          <ProfileRow key={p.id} profile={p} state={state} />
+        ))}
+      </Group>
     </>
   )
 }
@@ -184,10 +266,14 @@ function ProfileRow({ profile, state }: { profile: Profile; state: AppState }) {
     if (name !== profile.name) dispatch({ type: 'renameProfile', id: profile.id, name })
   }
   return (
-    <div className="profile-row">
+    <div className="set-row set-profile">
+      <span className="set-avatar" style={spaces[0] ? ({ '--avatar': spaces[0].color } as CSSProperties) : undefined}>
+        {(draft.trim() || profile.name).charAt(0).toUpperCase()}
+      </span>
       <input
-        className="text-input"
+        className="set-name"
         aria-label="Profile name"
+        title="Rename"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
         onBlur={commit}
@@ -211,25 +297,27 @@ function ProfileRow({ profile, state }: { profile: Profile; state: AppState }) {
 function Import() {
   return (
     <>
-      <p className="note">
+      <p className="set-note">
         Arc shuts down on 22 Dec 2026. Bring your spaces, pinned tabs, favorites and history over now. You can also pick an Arc folder copied from a Mac
         (<code>~/Library/Application Support/Arc</code>).
       </p>
-      <Row title="Arc" hint="Spaces, pinned tabs, folders, favorites and history.">
-        <button className="btn primary" onClick={() => dispatch({ type: 'import', source: 'arc' })}>
-          Import from Arc…
-        </button>
-      </Row>
-      <Row title="Zen" hint="Spaces, pinned tabs, folders, essentials and history.">
-        <button className="btn" onClick={() => dispatch({ type: 'import', source: 'zen' })}>
-          Import from Zen…
-        </button>
-      </Row>
-      <Row title="Chromium browsers" hint="History and bookmarks.">
-        <button className="btn" onClick={() => dispatch({ type: 'import', source: 'chrome' })}>
-          Import from Chrome / Edge / Brave…
-        </button>
-      </Row>
+      <Group>
+        <Row title="Arc" hint="Spaces, pinned tabs, folders, favorites and history.">
+          <button className="btn primary" onClick={() => dispatch({ type: 'import', source: 'arc' })}>
+            Import from Arc…
+          </button>
+        </Row>
+        <Row title="Zen" hint="Spaces, pinned tabs, folders, essentials and history.">
+          <button className="btn" onClick={() => dispatch({ type: 'import', source: 'zen' })}>
+            Import from Zen…
+          </button>
+        </Row>
+        <Row title="Chromium browsers" hint="History and bookmarks from Chrome, Edge or Brave.">
+          <button className="btn" onClick={() => dispatch({ type: 'import', source: 'chrome' })}>
+            Import from Chrome / Edge / Brave…
+          </button>
+        </Row>
+      </Group>
     </>
   )
 }
@@ -240,26 +328,37 @@ function Extensions({ state }: { state: AppState }) {
   const list = state.extensions[space.profileId] ?? []
   return (
     <>
-      <div className="toolbar">
-        <button className="btn primary" onClick={() => dispatch({ type: 'extensionsStore' })}>
-          Get extensions from the Chrome Web Store
-        </button>
-      </div>
-      <p className="note">
+      <Group>
+        <Row title="Chrome Web Store" hint="Install Chrome extensions into this profile.">
+          <button className="btn primary" onClick={() => dispatch({ type: 'extensionsStore' })}>
+            Get extensions
+          </button>
+        </Row>
+      </Group>
+      <p className="set-note">
         Extensions are installed per profile, so they only show up in spaces that use the same profile. Showing{' '}
         <strong>{profile?.name ?? 'this profile'}</strong> (used by {space.emoji ? `${space.emoji} ` : ''}
         {space.name}).
       </p>
-      {list.length === 0 && <div className="empty-state">No extensions installed in this profile yet.</div>}
-      {list.map((x) => (
-        <div key={x.id} className="list-row">
-          {x.icon ? <img className="fav-img" src={x.icon} alt="" /> : <Icon name="puzzle" />}
-          <span className="t">{x.name}</span>
-          <span className="s">{x.id}</span>
-        </div>
-      ))}
+      <Group title="Installed">
+        {list.length === 0 && <div className="set-empty">No extensions installed in this profile yet.</div>}
+        {list.map((x) => (
+          <div key={x.id} className="set-row set-ext">
+            {x.icon ? <img className="set-ext-icon" src={x.icon} alt="" /> : <span className="set-ext-icon"><Icon name="puzzle" /></span>}
+            <span className="set-row-title">{x.name}</span>
+            <span className="set-ext-id">{x.id}</span>
+          </div>
+        ))}
+      </Group>
     </>
   )
+}
+
+/** Splits a shortcut label into keycaps: "Ctrl+Shift+T" or "⌘⇧T". */
+function keyCaps(label: string): string[] {
+  if (!isMac) return label.split(/\+(?=.)/)
+  const mods = /^[⌘⌃⌥⇧]*/.exec(label)![0]
+  return [...Array.from(mods), label.slice(mods.length)]
 }
 
 function Shortcuts() {
@@ -274,29 +373,29 @@ function Shortcuts() {
   }
   return (
     <>
-      <p className="note">Shortcuts follow Arc's defaults{isMac ? '' : ' on Windows'}. They can't be changed yet.</p>
-      <table className="shortcuts">
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.title}>
-              <td>{r.title}</td>
-              <td>
-                <span className="kbd">{r.keys}</span>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+      <p className="set-note">Shortcuts follow Arc's defaults{isMac ? '' : ' on Windows'}. They can't be changed yet.</p>
+      <Group>
+        {rows.map((r) => (
+          <div key={r.title} className="set-row set-shortcut">
+            <span className="set-row-title">{r.title}</span>
+            <span className="set-keys">
+              {keyCaps(r.keys).map((k, i) => (
+                <kbd key={i}>{k}</kbd>
+              ))}
+            </span>
+          </div>
+        ))}
+      </Group>
     </>
   )
 }
 
 function About() {
   return (
-    <div className="about">
+    <div className="set-about">
       <img className="logo" src={logo} alt="" />
       <h2>YARC</h2>
-      <div className="muted">Yarrr! Yet Another Arc Clone: an open-source, Arc-style browser. Not affiliated with The Browser Company.</div>
+      <p>Yarrr! Yet Another Arc Clone: an open-source, Arc-style browser. Not affiliated with The Browser Company.</p>
     </div>
   )
 }
