@@ -8,6 +8,7 @@ import {
   screen,
   shell,
   WebContentsView,
+  type BaseWindow,
   type BrowserWindowConstructorOptions,
   type ContextMenuParams,
   type Event,
@@ -17,7 +18,7 @@ import {
   type Result,
   type WebContents
 } from 'electron'
-import { existsSync, readFileSync, writeFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Action, DropTarget } from '../shared/actions'
 import { IPC, type LittleAnchor, type LittleOp } from '../shared/ipc'
@@ -34,7 +35,8 @@ import type {
   Rect,
   Space,
   Split,
-  TabItem
+  TabItem,
+  WindowView
 } from '../shared/types'
 import { appendPane, groupAt, layoutPanes, newSplitRoot, paneIds, placePane, removePane, type Side } from '../shared/split'
 import { isFloating, stepAfter, type TourEvent, type TourStep } from '../shared/tour'
@@ -53,7 +55,8 @@ import { search, suggest } from './search'
 import { incognitoState, newId, SPACE_COLORS, Store } from './store'
 import { LiveTab, type OpenDisposition, type TabHost } from './tab'
 import { Updater } from './updater'
-import { MainWindow, PAD } from './window'
+import { MainWindow, PAD, type ViewSlot } from './window'
+import { applyView, captureView, cascade, inAnyView, newView, stateForView, viewFromState } from './window-state'
 
 const isMac = process.platform === 'darwin'
 
@@ -75,6 +78,31 @@ interface ClosedTab {
   spaceId: ID
 }
 
+/**
+ * One main window: its sidebar UI and overlay, what it shows (`view`, persisted), and its transient
+ * UI state. All windows share the sidebar's contents, like Arc (docs/multi-window.md).
+ */
+class Win {
+  peek: Peek | undefined
+  /** True while the collapsed sidebar is shown over the page. */
+  sidebarPeek = false
+  /** The tab being dragged from the sidebar, while the page area shows split drop zones. */
+  tabDrag: ID | undefined
+  peekWatch: ReturnType<typeof setInterval> | undefined
+  fullscreenTab: LiveTab | undefined
+  switcher: { order: ID[]; index: number } | undefined
+  layout: AppState['layout'] = { content: { x: 0, y: 0, width: 0, height: 0 }, views: [] }
+
+  constructor(
+    readonly main: MainWindow,
+    readonly view: WindowView
+  ) {}
+
+  get open(): boolean {
+    return !this.main.win.isDestroyed()
+  }
+}
+
 export class Browser implements TabHost {
   readonly store: Store
   readonly profiles: Profiles
@@ -83,27 +111,27 @@ export class Browser implements TabHost {
   readonly updater: Updater
   /** Set on an incognito window's controller: the main one, whose ad blocker and updater it shares. */
   readonly main: Browser | undefined
-  window!: MainWindow
+  /** The open main windows. */
+  private wins: Win[] = []
+  /**
+   * The window commands act on: the focused one, or the one whose UI, keys or page started the work.
+   * After the last window closes (macOS) it stays, closed, until a window opens again.
+   */
+  private cur!: Win
   readonly live = new Map<ID, LiveTab>()
   private mru: ID[] = []
   private closed: ClosedTab[] = []
   downloads: DownloadItemInfo[] = []
   extensionList: Record<ID, ExtensionInfo[]> = {}
-  private sidebarPeek = false
-  /** The tab being dragged from the sidebar, while the page area shows split drop zones. */
-  private tabDrag: ID | undefined
-  private peekWatch: ReturnType<typeof setInterval> | undefined
-  private fullscreenTab: LiveTab | undefined
-  private switcher: { order: ID[]; index: number } | undefined
   private emitTimer: NodeJS.Timeout | undefined
   readonly littles = new Set<LittleWindow>()
-  private peek: Peek | undefined
-  private windowFile: string | undefined
   /**
    * The tour's step while it runs. Its card can be out of sight while the user tries a step (the
    * command bar, the peeking sidebar, a tab drag); it comes back when that closes.
    */
   private tour: TourStep | undefined
+  /** The single window's bounds before YARC had several windows; read once, for the first window. */
+  private legacyWindowFile: string | undefined
   /** Every controller with a window: the main one, plus one per incognito window. IPC goes to the sender's. */
   private static readonly all = new Set<Browser>()
 
@@ -123,7 +151,7 @@ export class Browser implements TabHost {
     }
     const userData = app.getPath('userData')
     this.store = new Store(join(userData, 'state.json'))
-    this.windowFile = join(userData, 'window.json')
+    this.legacyWindowFile = join(userData, 'window.json')
     this.adblock = new AdBlock(join(userData, 'adblock', 'engine.bin'), () => this.emitSoon())
     this.updater = new Updater(this)
     this.syncAdblock()
@@ -133,6 +161,11 @@ export class Browser implements TabHost {
 
   get incognito(): boolean {
     return !!this.main
+  }
+
+  /** The current window's MainWindow (closed after the last window closed on macOS). */
+  get window(): MainWindow {
+    return this.cur?.main
   }
 
   /** Opens an incognito window, with `url` or with the command bar. */
@@ -159,7 +192,11 @@ export class Browser implements TabHost {
   start(): void {
     Browser.all.add(this)
     if (Browser.all.size === 1) this.registerIpc()
-    this.openWindow()
+    this.store.beforeWrite = () => this.captureCurrent()
+    const saved = this.state.windows
+    if (!saved.length) saved.push({ ...viewFromState(this.state, newId()), ...this.legacyBounds() })
+    // The last focused window is last in the list: it opens in front.
+    saved.forEach((view, i) => this.openWindow(view, i < saved.length - 1))
     if (this.incognito) return
     setInterval(() => this.autoArchive(), 5 * 60_000)
     this.autoArchive()
@@ -204,80 +241,198 @@ export class Browser implements TabHost {
     return mode.kind === 'none' || (mode.kind === 'tour' && isFloating(mode.step))
   }
 
-  openWindow(): void {
-    let saved: (Partial<Rectangle> & { maximized?: boolean }) | undefined
-    try {
-      if (this.windowFile && existsSync(this.windowFile)) saved = JSON.parse(readFileSync(this.windowFile, 'utf8'))
-    } catch {}
-    this.window = new MainWindow(saved)
-    const win = this.window.win
-    if (saved?.maximized) win.maximize()
+  /**
+   * Opens a main window showing `view`. Without one: a saved window that isn't open (the last
+   * window, closed on macOS), else a new one showing what the current window showed.
+   */
+  openWindow(view?: WindowView, background = false): Win {
+    if (!view) {
+      view = this.state.windows.find((v) => !this.wins.some((w) => w.view === v))
+      if (!view) {
+        view = viewFromState(this.state, newId())
+        this.state.windows.push(view)
+      }
+    }
+    const w = new Win(new MainWindow(view.bounds, background), view)
+    this.wins.push(w)
+    this.use(w)
+    const win = w.main.win
+    if (view.maximized) win.maximize()
     if (isMac) win.setWindowButtonVisibility(this.state.settings.sidebarVisible)
-    for (const wc of [win.webContents, this.window.overlay.webContents]) {
-      wc.on('before-input-event', (e, input) => this.handleInput(e, input))
-    }
-    const prompt = new PromptView(win, (id, answer) => this.answerPrompt(id, answer))
-    this.window.prompt = prompt
-    // Shortcuts work while the prompt has the keyboard; Escape is the prompt's own (dismiss).
-    prompt.webContents.on('before-input-event', (e, input) => {
-      if (input.key !== 'Escape') this.handleInput(e, input)
-    })
-    const relayout = () => {
-      this.layout()
-      this.saveWindowBounds()
-    }
-    win.on('resize', relayout)
-    win.on('move', () => this.saveWindowBounds())
-    for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'] as const) {
-      win.on(ev as 'maximize', () => {
-        this.layout()
-        this.emit()
-        this.saveWindowBounds()
+    for (const wc of [win.webContents, w.main.overlay.webContents]) {
+      wc.on('before-input-event', (e, input) => {
+        this.use(w)
+        this.handleInput(e, input)
       })
     }
-    win.on('closed', () => {
-      for (const t of this.live.values()) t.destroy()
-      this.live.clear()
-      this.peek?.destroy()
-      this.peek = undefined
-      if (this.incognito) this.dispose()
+    w.main.prompt = new PromptView(win, (id, answer) => {
+      this.use(w)
+      this.answerPrompt(id, answer)
     })
+    // Shortcuts work while the prompt has the keyboard; Escape is the prompt's own (dismiss).
+    w.main.prompt.webContents.on('before-input-event', (e, input) => {
+      if (input.key === 'Escape') return
+      this.use(w)
+      this.handleInput(e, input)
+    })
+    win.on('focus', () => {
+      this.use(w)
+      this.toFront(w)
+      // Pages it shares with another window come back to it, like Arc.
+      this.layout()
+    })
+    win.on('resize', () =>
+      this.on(w, () => {
+        this.layout()
+        this.saveBounds(w)
+      })
+    )
+    win.on('move', () => this.saveBounds(w))
+    for (const ev of ['maximize', 'unmaximize', 'enter-full-screen', 'leave-full-screen'] as const) {
+      win.on(ev as 'maximize', () =>
+        this.on(w, () => {
+          this.layout()
+          this.emit()
+          this.saveBounds(w)
+        })
+      )
+    }
+    // Pages stay alive for the other windows: take them out before the window goes.
+    win.on('close', () => {
+      w.main.show([])
+      w.main.setTop(undefined)
+    })
+    win.on('closed', () => this.onWindowClosed(w))
     win.webContents.once('did-finish-load', () => this.emit())
-    this.window.overlay.webContents.on('blur', () => {
+    w.main.overlay.webContents.on('blur', () => {
       // Closing the window blurs the overlay too, after the window is gone.
-      if (win.isDestroyed()) return
-      const k = this.window.overlayMode.kind
+      if (!w.open) return
+      const k = w.main.overlayMode.kind
       if (k !== 'command' && k !== 'switcher') return
       // These panels cover the whole window (clicking the backdrop closes them), so a blur while the
       // window keeps focus is a page taking the keyboard: Windows does that whenever a page finishes
       // loading. Hand the keyboard back; only leaving the window closes the panel.
       setTimeout(() => {
-        if (win.isDestroyed() || this.window.overlayMode.kind !== k) return
-        if (win.isFocused()) this.window.overlay.webContents.focus()
-        else this.setOverlay({ kind: 'none' }, false)
+        if (!w.open || w.main.overlayMode.kind !== k) return
+        if (win.isFocused()) w.main.overlay.webContents.focus()
+        else this.on(w, () => this.setOverlay({ kind: 'none' }, false))
       }, 50)
     })
     const active = this.space.activeItemId
     if (active && findItem(this.state, active)) this.activate(active)
     else this.layout()
+    return w
+  }
+
+  /** ⌘N: another window on the current window's space, with no tab selected and the command bar open, like Arc. */
+  openNewWindow(): void {
+    if (this.main) return this.main.openNewWindow()
+    // From a menu: next to the window in front.
+    this.useFocused()
+    const from = this.cur?.open ? this.cur.main.win.getNormalBounds() : undefined
+    const bounds = from ? cascade(from, screen.getDisplayMatching(from).workArea) : undefined
+    const view = newView(newId(), this.state.activeSpaceId, bounds)
+    this.state.windows.push(view)
+    const w = this.openWindow(view)
+    this.store.save()
+    // Showing moves the focus, which would close a command bar opened before.
+    w.main.win.once('show', () => this.on(w, () => this.runCommand('newTab')))
+  }
+
+  private onWindowClosed(w: Win): void {
+    this.wins = this.wins.filter((x) => x !== w)
+    clearInterval(w.peekWatch)
+    w.peek?.destroy()
+    w.peek = undefined
+    if (this.wins.length) {
+      // Its pages stay for the other windows; the window isn't restored at the next launch.
+      if (!this.quitting) this.state.windows = this.state.windows.filter((v) => v !== w.view)
+      if (this.cur === w) this.use(this.wins[this.wins.length - 1])
+      this.store.save()
+      return this.emitSoon()
+    }
+    // The last window keeps its view (reopened from the Dock on macOS, or at the next launch).
+    for (const t of this.live.values()) t.destroy()
+    this.live.clear()
+    if (this.incognito) this.dispose()
+  }
+
+  /** Makes `w` the window commands act on: the state's per-window fields become its own (window-state.ts). */
+  private use(w: Win): void {
+    if (w === this.cur) return
+    if (this.cur) captureView(this.state, this.cur.view)
+    this.cur = w
+    applyView(this.state, w.view)
+  }
+
+  /** Runs `fn` on window `w` (for timers and window events), then goes back to the current window. */
+  private on(w: Win, fn: () => void): void {
+    const prev = this.cur
+    this.use(w)
+    try {
+      fn()
+    } finally {
+      if (prev !== w && prev.open) this.use(prev)
+    }
+  }
+
+  /** The focused main window becomes current, for menu commands. */
+  useFocused(): void {
+    const focused = BrowserWindow.getFocusedWindow()
+    const w = this.wins.find((x) => x.main.win === focused)
+    if (w) this.use(w)
+  }
+
+  /** Brings the current window's values into its saved view, before the state is written. */
+  private captureCurrent(): void {
+    if (this.cur) captureView(this.state, this.cur.view)
+  }
+
+  /** Keeps the last focused window last in the saved list, so it opens in front at the next launch. */
+  private toFront(w: Win): void {
+    const list = this.state.windows
+    const i = list.indexOf(w.view)
+    if (i < 0 || i === list.length - 1) return
+    list.splice(i, 1)
+    list.push(w.view)
+    this.store.save()
+  }
+
+  /** The window whose page `tab` is (its Peek, or a page it shows), else the current one. */
+  private winOf(tab: LiveTab): Win {
+    return this.wins.find((w) => w.peek?.tab === tab || (w.open && w.main.isShown(tab.view))) ?? this.cur
+  }
+
+  isMainWindow(win: BaseWindow): boolean {
+    return this.wins.some((w) => w.main.win === win)
   }
 
   /** An incognito window closed: forget its pages, cookies, storage and history. */
   private dispose(): void {
     Browser.all.delete(this)
-    this.watchPeek(false)
     for (const l of this.littles) l.win.close()
     for (const rt of this.profiles.all()) void rt.session.clearData()
     this.profiles.closeAll()
   }
 
-  private saveWindowBounds(): void {
-    const win = this.window?.win
-    if (!this.windowFile || !win || win.isDestroyed() || win.isFullScreen()) return
+  private saveBounds(w: Win): void {
+    const win = w.main.win
+    if (win.isDestroyed() || win.isFullScreen()) return
+    // Normal bounds, so un-maximizing after a restart returns to the old size.
+    w.view.bounds = win.getNormalBounds()
+    w.view.maximized = win.isMaximized()
+    this.store.save()
+  }
+
+  /** The bounds the single window had before YARC had several (window.json). */
+  private legacyBounds(): Pick<WindowView, 'bounds' | 'maximized'> {
     try {
-      // Normal bounds, so un-maximizing after a restart returns to the old size.
-      writeFileSync(this.windowFile, JSON.stringify({ ...win.getNormalBounds(), maximized: win.isMaximized() }))
-    } catch {}
+      if (!this.legacyWindowFile || !existsSync(this.legacyWindowFile)) return {}
+      const { maximized, ...bounds } = JSON.parse(readFileSync(this.legacyWindowFile, 'utf8')) as Rect & { maximized?: boolean }
+      return { bounds, maximized }
+    } catch {
+      return {}
+    }
   }
 
   private onProfileCreated(rt: ProfileRuntime): void {
@@ -317,7 +472,12 @@ export class Browser implements TabHost {
 
   // ---------------------------------------------------------------- state out
 
-  snapshot(): AppState {
+  /** What window `w`'s sidebar and overlay show: the shared state with that window's own view of it. */
+  snapshot(w: Win = this.cur): AppState {
+    return this.snapshotWith(w, this.liveInfo())
+  }
+
+  private liveInfo(): AppState['live'] {
     const live: AppState['live'] = {}
     for (const [id, t] of this.live) {
       if (t.destroyed) continue
@@ -326,39 +486,41 @@ export class Browser implements TabHost {
       info.shielded = this.adblock.enabled && !this.adblock.isAllowed(info.url)
       live[id] = info
     }
-    const win = this.window?.win
+    return live
+  }
+
+  private snapshotWith(w: Win, live: AppState['live']): AppState {
+    const win = w.main.win
+    const open = !win.isDestroyed()
+    const mode = w.main.overlayMode
     return {
-      ...this.state,
+      // The current window's view is in the state itself; the others have theirs laid over it.
+      ...(w === this.cur ? this.state : stateForView(this.state, w.view)),
       live,
       downloads: this.downloads,
       extensions: this.extensionList,
       platform: process.platform,
-      maximized: !!win && !win.isDestroyed() && win.isMaximized(),
-      fullscreen: !!win && !win.isDestroyed() && win.isFullScreen(),
-      sidebarPeek: this.sidebarPeek,
-      tabDrag: this.tabDrag,
-      newTabOpen: this.newTabOpen(),
-      peek: this.peek && !this.peek.tab.destroyed ? this.peek.tab.info() : undefined,
-      layout: this.currentLayout,
+      maximized: open && win.isMaximized(),
+      fullscreen: open && win.isFullScreen(),
+      sidebarPeek: w.sidebarPeek,
+      tabDrag: w.tabDrag,
+      newTabOpen: mode.kind === 'command' && (mode.target ?? 'tab') === 'tab',
+      peek: w.peek && !w.peek.tab.destroyed ? w.peek.tab.info() : undefined,
+      layout: w.layout,
       update: this.updater.status
     }
   }
 
-  private currentLayout: AppState['layout'] = { content: { x: 0, y: 0, width: 0, height: 0 }, views: [] }
-
   emit(): void {
     clearTimeout(this.emitTimer)
     this.emitTimer = undefined
-    const win = this.window?.win
-    if (!win || win.isDestroyed()) return
-    const snap = this.snapshot()
-    win.webContents.send(IPC.state, snap)
-    this.window.overlay.webContents.send(IPC.state, snap)
-  }
-
-  private newTabOpen(): boolean {
-    const mode = this.window?.overlayMode
-    return mode?.kind === 'command' && (mode.target ?? 'tab') === 'tab'
+    const live = this.liveInfo()
+    for (const w of this.wins) {
+      if (!w.open) continue
+      const snap = this.snapshotWith(w, live)
+      w.main.ui.send(IPC.state, snap)
+      w.main.overlay.webContents.send(IPC.state, snap)
+    }
   }
 
   emitSoon(): void {
@@ -379,7 +541,7 @@ export class Browser implements TabHost {
 
   /** The page that commands (reload, back, find, zoom…) act on: the Peek page while one is open. */
   activeTab(): LiveTab | undefined {
-    if (this.peek && !this.peek.tab.destroyed) return this.peek.tab
+    if (this.cur.peek && !this.cur.peek.tab.destroyed) return this.cur.peek.tab
     const id = this.space.activeItemId
     const t = id ? this.live.get(id) : undefined
     return t && !t.destroyed ? t : undefined
@@ -407,8 +569,10 @@ export class Browser implements TabHost {
     const t = this.live.get(id)
     if (!t) return
     this.live.delete(id)
-    if (this.window && !this.window.win.isDestroyed()) this.window.detach(t.view)
-    if (this.fullscreenTab === t) this.fullscreenTab = undefined
+    for (const w of this.wins) {
+      if (w.open) w.main.detach(t.view)
+      if (w.fullscreenTab === t) w.fullscreenTab = undefined
+    }
     t.destroy()
   }
 
@@ -439,19 +603,19 @@ export class Browser implements TabHost {
     const w = this.window
     if (!w || w.win.isDestroyed()) return
     const s = this.state.settings
-    const fs = this.fullscreenTab
+    const fs = this.cur.fullscreenTab
     const content = w.contentRect(s.sidebarVisible, s.sidebarWidth, s.sidebarRight, !!fs)
     const views: AppState['layout']['views'] = []
     let splitId: ID | undefined
     if (fs && !fs.destroyed) {
       fs.view.setBorderRadius(0)
-      w.show([{ view: fs.view, rect: content }])
+      this.show([{ view: fs.view, rect: content }])
       views.push({ id: fs.itemId, rect: content })
     } else {
       const space = this.space
       const active = space.activeItemId && findItem(this.state, space.activeItemId) ? space.activeItemId : undefined
       if (!active) {
-        w.show([])
+        this.show([])
       } else {
         const split = this.splitOf(space, active)
         splitId = split?.id
@@ -465,14 +629,44 @@ export class Browser implements TabHost {
           slots.push({ view: tab.view, rect: pane.rect })
           views.push(pane)
         }
-        w.show(slots)
+        this.show(slots)
       }
     }
-    this.currentLayout = { content, views, splitId }
-    if (this.peek) w.setTop(this.peek.tab.view, this.peekRects().card)
+    this.cur.layout = { content, views, splitId }
+    if (this.cur.peek) w.setTop(this.cur.peek.tab.view, this.peekRects().card)
     const mode = w.overlayMode.kind === 'peek' ? this.peekMode() : w.overlayMode
     if (mode.kind !== 'none') w.setOverlay(mode, this.overlayRect(mode))
     this.syncPrompts()
+    this.emitSoon()
+  }
+
+  /**
+   * Shows these pages in the current window. A page can be in one window only: one that another
+   * window shows moves here, and that window shows a still of it until it gets it back.
+   */
+  private show(slots: ViewSlot[]): void {
+    for (const other of this.wins) {
+      if (other === this.cur || !other.open) continue
+      for (const { view } of slots) if (other.main.isShown(view)) this.lend(other, view)
+    }
+    this.window.show(slots)
+  }
+
+  /** Takes a page out of `w`, which now shows a still image of it (IPC.snapshot). */
+  private lend(w: Win, view: WebContentsView): void {
+    w.main.detach(view)
+    const pane = w.layout.views.find((v) => this.live.get(v.id)?.view === view)
+    if (!pane) return
+    pane.elsewhere = true
+    const tab = this.live.get(pane.id)!
+    void tab.wc
+      .capturePage()
+      .then((image) => {
+        if (!w.open || image.isEmpty()) return
+        const still = image.getSize().width > 1600 ? image.resize({ width: 1600 }) : image
+        w.main.ui.send(IPC.snapshot, { id: pane.id, image: `data:image/jpeg;base64,${still.toJPEG(80).toString('base64')}` })
+      })
+      .catch(() => {})
     this.emitSoon()
   }
 
@@ -484,23 +678,23 @@ export class Browser implements TabHost {
         return undefined
       case 'sidebar': {
         // While a tab is dragged out of it, the peeking sidebar's overlay also covers the page for the drop zones.
-        if (this.tabDrag) return { x: 0, y: 0, width, height }
+        if (this.cur.tabDrag) return { x: 0, y: 0, width, height }
         const w = s.sidebarWidth + PAD
         return { x: s.sidebarRight ? width - w : 0, y: 0, width: w, height }
       }
       case 'split-drop':
-        return this.currentLayout.content
+        return this.cur.layout.content
       case 'find': {
-        const c = this.currentLayout.content
+        const c = this.cur.layout.content
         const w = Math.min(380, c.width - 16)
         return { x: c.x + c.width - w - 12, y: c.y + 12, width: w, height: 60 }
       }
       case 'peek':
-        return this.currentLayout.content
+        return this.cur.layout.content
       case 'tour': {
         if (!isFloating(mode.step)) return { x: 0, y: 0, width, height }
         // A card at the bottom of the page area, leaving the page and the sidebar usable.
-        const c = this.currentLayout.content
+        const c = this.cur.layout.content
         const w = Math.min(460, c.width - 24)
         const h = 176
         return { x: Math.round(c.x + (c.width - w) / 2), y: c.y + c.height - h - 16, width: w, height: h }
@@ -521,10 +715,10 @@ export class Browser implements TabHost {
     }
     if (mode.kind !== 'peek') this.dropPeek()
     if (this.window.overlayMode.kind === 'find' && mode.kind !== 'find') this.activeTab()?.wc.stopFindInPage('keepSelection')
-    if (mode.kind !== 'sidebar') this.sidebarPeek = false
-    if (mode.kind !== 'sidebar' && mode.kind !== 'split-drop') this.tabDrag = undefined
-    this.watchPeek(mode.kind === 'sidebar' && !this.tabDrag)
-    if (mode.kind !== 'switcher') this.switcher = undefined
+    if (mode.kind !== 'sidebar') this.cur.sidebarPeek = false
+    if (mode.kind !== 'sidebar' && mode.kind !== 'split-drop') this.cur.tabDrag = undefined
+    this.watchPeek(mode.kind === 'sidebar' && !this.cur.tabDrag)
+    if (mode.kind !== 'switcher') this.cur.switcher = undefined
     this.window.setOverlay(mode, this.overlayRect(mode))
     if (isMac && !this.state.settings.sidebarVisible) this.window.win.setWindowButtonVisibility(mode.kind === 'sidebar')
     if (mode.kind === 'none' && refocus) this.activeTab()?.wc.focus()
@@ -542,10 +736,10 @@ export class Browser implements TabHost {
    */
   syncPrompts(): void {
     const queue = this.profiles.permissionQueue
-    // Pages that can show a prompt: this window's tabs, Peek and Little Arc. Anything else (an
+    // Pages that can show a prompt: tabs, each window's Peek and Little Arc. Anything else (an
     // extension page, say) has nowhere to ask, so it hears "no".
     const pages = new Set<number>([...this.live.values()].filter((t) => !t.destroyed).map((t) => t.wc.id))
-    if (this.peek && !this.peek.tab.destroyed) pages.add(this.peek.tab.wc.id)
+    for (const w of this.wins) if (w.peek && !w.peek.tab.destroyed) pages.add(w.peek.tab.wc.id)
     for (const l of this.littles) if (l.pageId !== undefined) pages.add(l.pageId)
     for (const wcId of queue.waitingPages()) {
       if (pages.has(wcId)) continue
@@ -553,8 +747,15 @@ export class Browser implements TabHost {
       if (req) queue.answer(req.id, 'dismiss')
     }
     for (const l of this.littles) l.syncPrompt(queue)
+    // Each window asks for the pages it shows live.
+    for (const w of this.wins) if (w.open) this.on(w, () => this.syncPrompt())
+  }
+
+  /** The current window's prompt: the next question from a page it shows. */
+  private syncPrompt(): void {
+    const queue = this.profiles.permissionQueue
     const w = this.window
-    if (!w?.prompt || w.win.isDestroyed()) return
+    if (!w.prompt || w.win.isDestroyed()) return
     const kind = w.overlayMode.kind
     if (kind !== 'none' && kind !== 'sidebar' && kind !== 'find' && kind !== 'peek') return w.prompt.show(undefined)
     w.prompt.show(queue.next(this.pagesOnScreen()), this.promptAnchor())
@@ -563,9 +764,9 @@ export class Browser implements TabHost {
   /** The webContents on screen, the one the URL field shows first: Peek, the active tab, then its split partners. */
   private pagesOnScreen(): number[] {
     const ids: number[] = []
-    if (this.peek && !this.peek.tab.destroyed) ids.push(this.peek.tab.wc.id)
+    if (this.cur.peek && !this.cur.peek.tab.destroyed) ids.push(this.cur.peek.tab.wc.id)
     const active = this.space.activeItemId
-    const order = [...this.currentLayout.views.map((v) => v.id)].sort((a, b) => Number(b === active) - Number(a === active))
+    const order = [...this.cur.layout.views.map((v) => v.id)].sort((a, b) => Number(b === active) - Number(a === active))
     for (const id of order) {
       const t = this.live.get(id)
       if (t && !t.destroyed && this.window.isShown(t.view)) ids.push(t.wc.id)
@@ -576,9 +777,9 @@ export class Browser implements TabHost {
   /** Arc's prompt points at the site controls at the right end of the sidebar's URL field. */
   private promptAnchor(): PromptAnchor {
     const s = this.state.settings
-    const content = this.currentLayout.content
+    const content = this.cur.layout.content
     const floating = !s.sidebarVisible && this.window.overlayMode.kind === 'sidebar'
-    if ((s.sidebarVisible || floating) && !this.fullscreenTab) {
+    if ((s.sidebarVisible || floating) && !this.cur.fullscreenTab) {
       const { width } = this.window.size()
       // The URL field: below the sidebar's 8px padding, 32px top bar and 6px gap; 36px tall (styles.css).
       const inset = floating ? 4 : 0
@@ -598,13 +799,14 @@ export class Browser implements TabHost {
 
   /** While the hidden sidebar is out, hides it once the cursor has stayed away from it (PEEK_GRACE). */
   private watchPeek(on: boolean): void {
-    clearInterval(this.peekWatch)
-    this.peekWatch = undefined
+    const w = this.cur
+    clearInterval(w.peekWatch)
+    w.peekWatch = undefined
     if (!on) return
     let awaySince = 0
-    this.peekWatch = setInterval(() => {
-      const win = this.window.win
-      if (win.isDestroyed()) return this.watchPeek(false)
+    w.peekWatch = setInterval(() => {
+      const win = w.main.win
+      if (win.isDestroyed()) return clearInterval(w.peekWatch)
       const b = win.getContentBounds()
       const s = this.state.settings
       const p = screen.getCursorScreenPoint()
@@ -612,7 +814,7 @@ export class Browser implements TabHost {
       const near = s.sidebarRight ? p.x >= b.x + b.width - reach : p.x <= b.x + reach
       if (near && p.y >= b.y - PEEK_GRACE && p.y <= b.y + b.height + PEEK_GRACE) awaySince = 0
       else if (!awaySince) awaySince = Date.now()
-      else if (Date.now() - awaySince >= PEEK_HIDE_DELAY) this.setOverlay({ kind: 'none' }, false)
+      else if (Date.now() - awaySince >= PEEK_HIDE_DELAY) this.on(w, () => this.setOverlay({ kind: 'none' }, false))
     }, 50)
   }
 
@@ -621,10 +823,10 @@ export class Browser implements TabHost {
   /** Opens a page in Peek, over the current tab, with the opener's profile. */
   openPeek(opener: LiveTab, url: string): void {
     this.dropPeek()
-    this.peek = new Peek(this, this.profiles.get(opener.profileId), url)
-    this.window.setTop(this.peek.tab.view, this.peekRects().card)
+    this.cur.peek = new Peek(this, this.profiles.get(opener.profileId), url)
+    this.window.setTop(this.cur.peek.tab.view, this.peekRects().card)
     this.setOverlay(this.peekMode())
-    this.peek.tab.wc.focus()
+    this.cur.peek.tab.wc.focus()
   }
 
   closePeek(): void {
@@ -634,9 +836,9 @@ export class Browser implements TabHost {
 
   /** Moves the Peek page into a Today tab, keeping its state (or into a split with the current tab). */
   expandPeek(split = false): void {
-    const peek = this.peek
+    const peek = this.cur.peek
     if (!peek || peek.tab.destroyed) return
-    this.peek = undefined
+    this.cur.peek = undefined
     this.window.setTop(undefined)
     this.setOverlay({ kind: 'none' }, false)
     const tab = peek.release()
@@ -649,9 +851,9 @@ export class Browser implements TabHost {
   }
 
   private dropPeek(): void {
-    const peek = this.peek
+    const peek = this.cur.peek
     if (!peek) return
-    this.peek = undefined
+    this.cur.peek = undefined
     if (!this.window.win.isDestroyed()) this.window.setTop(undefined)
     peek.destroy()
     this.emitSoon()
@@ -659,7 +861,7 @@ export class Browser implements TabHost {
 
   /** Arc's Peek card: nearly the content's height, with room beside it for the buttons. */
   private peekRects(): { card: Rectangle; local: Rect } {
-    const c = this.currentLayout.content
+    const c = this.cur.layout.content
     const margin = Math.round(Math.max(56, c.width * 0.08))
     const local = { x: margin, y: 4, width: Math.max(100, c.width - 2 * margin), height: Math.max(100, c.height - 8) }
     return { card: { ...local, x: c.x + local.x, y: c.y + local.y }, local }
@@ -768,13 +970,12 @@ export class Browser implements TabHost {
     if (!hours) return
     const cutoff = Date.now() - hours * 3600_000
     let any = false
+    this.captureCurrent()
     for (const space of this.state.spaces) {
       const keep: TabItem[] = []
       for (const t of space.today) {
-        const busy =
-          t.id === space.activeItemId ||
-          space.splits.some((sp) => paneIds(sp.root).includes(t.id)) ||
-          (this.live.get(t.id)?.info().audible ?? false)
+        // Shown in a window (selected or in a split), or playing sound.
+        const busy = inAnyView(this.state.windows, t.id) || (this.live.get(t.id)?.info().audible ?? false)
         if (!busy && t.lastActive < cutoff) {
           this.archive(t, space.id)
           this.dropLive(t.id)
@@ -953,15 +1154,15 @@ export class Browser implements TabHost {
 
   /** A sidebar tab drag starts (`id`) or ends: the page area shows split drop zones meanwhile. */
   setTabDrag(id: ID | undefined): void {
-    if (id === this.tabDrag) return
+    if (id === this.cur.tabDrag) return
     const kind = this.window.overlayMode.kind
     if (id) {
       // Drop zones only over a plain page or beside the peeking sidebar, not under panels or Peek.
       if (!this.pageInFront() && kind !== 'sidebar') return
-      this.tabDrag = id
+      this.cur.tabDrag = id
       this.setOverlay(kind === 'sidebar' ? { kind: 'sidebar' } : { kind: 'split-drop' }, false)
     } else {
-      this.tabDrag = undefined
+      this.cur.tabDrag = undefined
       if (kind === 'split-drop') this.setOverlay({ kind: 'none' }, false)
       else if (kind === 'sidebar') this.setOverlay({ kind: 'sidebar' }, false)
       else this.emitSoon()
@@ -1028,9 +1229,9 @@ export class Browser implements TabHost {
   // ---------------------------------------------------------------- input
 
   handleInput(e: Event, input: Input): void {
-    if (this.switcher && input.type === 'keyUp' && (input.key === 'Control' || input.key === 'Meta')) {
-      const target = this.switcher.order[this.switcher.index]
-      this.switcher = undefined
+    if (this.cur.switcher && input.type === 'keyUp' && (input.key === 'Control' || input.key === 'Meta')) {
+      const target = this.cur.switcher.order[this.cur.switcher.index]
+      this.cur.switcher = undefined
       this.setOverlay({ kind: 'none' }, false)
       if (target) this.activate(target)
       return
@@ -1070,7 +1271,7 @@ export class Browser implements TabHost {
         return this.setOverlay({ kind: 'command', target: 'tab' })
       case 'editUrl':
         // The command bar replaces Peek; edit the Peek page's URL as a real tab.
-        if (this.peek) this.expandPeek()
+        if (this.cur.peek) this.expandPeek()
         return this.setOverlay({ kind: 'command', target: 'current', editCurrent: true, initial: tab?.wc.getURL() ?? '' })
       case 'toggleSidebar':
         return void this.dispatch({ type: 'toggleSidebar' })
@@ -1080,10 +1281,12 @@ export class Browser implements TabHost {
         return void this.dispatch({ type: 'copyUrl', markdown: true })
       case 'littleArc':
         return void this.openLittle()
+      case 'newWindow':
+        return this.openNewWindow()
       case 'newIncognitoWindow':
         return void this.openIncognito()
       case 'closeTab':
-        if (this.peek) return this.closePeek()
+        if (this.cur.peek) return this.closePeek()
         if (space.activeItemId) this.close(space.activeItemId)
         return
       case 'reopenClosed':
@@ -1104,17 +1307,17 @@ export class Browser implements TabHost {
       case 'switcherNext':
       case 'switcherPrev': {
         const ids = new Set(spaceItems(this.state, space).map((i) => i.id))
-        if (!this.switcher) {
+        if (!this.cur.switcher) {
           const order = [...this.mru.filter((id) => ids.has(id)), ...[...ids].filter((id) => !this.mru.includes(id))]
           if (order.length < 2) return
-          this.switcher = { order, index: cmd === 'switcherNext' ? 1 : order.length - 1 }
+          this.cur.switcher = { order, index: cmd === 'switcherNext' ? 1 : order.length - 1 }
         } else {
-          const n = this.switcher.order.length
-          this.switcher.index = (this.switcher.index + (cmd === 'switcherNext' ? 1 : -1) + n) % n
+          const n = this.cur.switcher.order.length
+          this.cur.switcher.index = (this.cur.switcher.index + (cmd === 'switcherNext' ? 1 : -1) + n) % n
         }
-        const sw = this.switcher
+        const sw = this.cur.switcher
         this.setOverlay({ kind: 'switcher', order: sw.order, index: sw.index })
-        this.switcher = sw
+        this.cur.switcher = sw
         return
       }
       case 'nextSpace':
@@ -1350,7 +1553,7 @@ export class Browser implements TabHost {
       case 'toggleSidebar': {
         const s = this.state.settings
         s.sidebarVisible = !s.sidebarVisible
-        this.sidebarPeek = false
+        this.cur.sidebarPeek = false
         if (this.window.overlayMode.kind === 'sidebar') this.window.setOverlay({ kind: 'none' }, undefined)
         if (isMac) this.window.win.setWindowButtonVisibility(s.sidebarVisible)
         this.layout()
@@ -1359,9 +1562,9 @@ export class Browser implements TabHost {
         return this.tourEvent('toggleSidebar')
       }
       case 'sidebarPeek': {
-        if (this.state.settings.sidebarVisible || this.sidebarPeek === a.show) return
+        if (this.state.settings.sidebarVisible || this.cur.sidebarPeek === a.show) return
         if (!this.pageInFront() && this.window.overlayMode.kind !== 'sidebar') return
-        this.sidebarPeek = a.show
+        this.cur.sidebarPeek = a.show
         return this.setOverlay(a.show ? { kind: 'sidebar' } : { kind: 'none' }, false)
       }
       case 'overlay':
@@ -1518,11 +1721,13 @@ export class Browser implements TabHost {
     }
   }
 
-  onTabInput(_tab: LiveTab, event: Event, input: Input): void {
+  onTabInput(tab: LiveTab, event: Event, input: Input): void {
+    this.use(this.winOf(tab))
     this.handleInput(event, input)
   }
 
   onTabFocus(tab: LiveTab): void {
+    this.use(this.winOf(tab))
     const space = this.space
     if (space.activeItemId === tab.itemId) return
     const split = this.splitOf(space, tab.itemId)
@@ -1534,17 +1739,20 @@ export class Browser implements TabHost {
   }
 
   onTabFullscreen(tab: LiveTab, on: boolean): void {
-    this.fullscreenTab = on ? tab : undefined
+    this.use(this.winOf(tab))
+    this.cur.fullscreenTab = on ? tab : undefined
     const win = this.window.win
     if (on !== win.isFullScreen()) win.setFullScreen(on)
     this.layout()
   }
 
-  onFoundInPage(_tab: LiveTab, result: Result): void {
-    this.window.overlay.webContents.send(IPC.find, { matches: result.matches, active: result.activeMatchOrdinal })
+  onFoundInPage(tab: LiveTab, result: Result): void {
+    this.winOf(tab).main.overlay.webContents.send(IPC.find, { matches: result.matches, active: result.activeMatchOrdinal })
   }
 
   adoptOpenedPage(opener: LiveTab, options: BrowserWindowConstructorOptions, disposition: OpenDisposition, url: string): WebContents {
+    // The new tab opens in the opener's window (the current one for a Little Arc page).
+    this.use(this.winOf(opener))
     const openerItem = findItem(this.state, opener.itemId)
     const spaceId = openerItem && openerItem.loc.kind !== 'favorite' ? openerItem.loc.spaceId : this.space.id
     const space = this.store.space(spaceId)!
@@ -1562,6 +1770,7 @@ export class Browser implements TabHost {
   }
 
   showContextMenu(tab: LiveTab, params: ContextMenuParams): void {
+    this.use(this.winOf(tab))
     buildContextMenu(this, tab, params).popup({ window: this.window.win })
   }
 
@@ -1635,16 +1844,32 @@ export class Browser implements TabHost {
 
   // ---------------------------------------------------------------- IPC
 
-  /** Whether this controller's window (sidebar or overlay) or one of its Little Arc windows is `wc`. */
-  private owns(wc: WebContents): boolean {
-    const w = this.window
-    if (w && !w.win.isDestroyed() && (w.win.webContents === wc || w.overlay.webContents === wc)) return true
+  /** The main window whose sidebar or overlay is `wc`. */
+  private winFor(wc: WebContents): Win | undefined {
+    return this.wins.find((w) => w.open && (w.main.ui === wc || w.main.overlay.webContents === wc))
+  }
+
+  /** Whether one of this controller's Little Arc windows is `wc`. */
+  private ownsLittle(wc: WebContents): boolean {
     return [...this.littles].some((l) => !l.win.isDestroyed() && l.win.webContents === wc)
   }
 
-  /** Registered once, by the main controller; each call goes to the controller of the window that sent it. */
+  /**
+   * Registered once, by the main controller. Each call goes to the controller of the window that
+   * sent it; a main window's call makes that window the current one.
+   */
   private registerIpc(): void {
-    const of = (e: IpcMainInvokeEvent) => [...Browser.all].find((b) => b.owns(e.sender)) ?? this
+    const of = (e: IpcMainInvokeEvent): Browser => {
+      for (const b of Browser.all) {
+        const w = b.winFor(e.sender)
+        if (w) {
+          b.use(w)
+          return b
+        }
+        if (b.ownsLittle(e.sender)) return b
+      }
+      return this
+    }
     ipcMain.handle(IPC.action, (e, action: Action) => of(e).dispatch(action))
     ipcMain.handle(IPC.getState, (e) => of(e).snapshot())
     ipcMain.handle(IPC.getOverlay, (e) => of(e).window.overlayMode)
@@ -1706,22 +1931,18 @@ export class Browser implements TabHost {
     this.profiles.closeAll()
   }
 
-  /** On macOS the app outlives its main window; reopen it before using it. */
+  /** On macOS the app outlives its windows; reopen one before using it. */
   ensureWindow(): void {
-    const win = this.window?.win
-    if (!win || win.isDestroyed()) this.openWindow()
+    if (!this.cur?.open) this.openWindow()
   }
 
+  /** Brings the current (last focused) window to the front, or reopens one. */
   focusWindow(): void {
-    const win = this.window?.win
-    if (!win || win.isDestroyed()) return this.openWindow()
+    if (!this.cur?.open) return void this.openWindow()
+    const win = this.cur.main.win
     if (win.isMinimized()) win.restore()
     win.show()
     win.focus()
-  }
-
-  allWindows(): BrowserWindow[] {
-    return [this.window.win, ...[...this.littles].map((l) => l.win)]
   }
 }
 

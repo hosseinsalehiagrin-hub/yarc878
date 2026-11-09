@@ -100,6 +100,10 @@ Show up to four tabs side by side, stacked, or both (for example a grid of four)
 
 Drag the gap between panes to resize them, and double-click it to make them equal again. The focused pane has a colored outline. `Ctrl+Shift+-` closes the split.
 
+### Several windows
+
+`⌘N` / `Ctrl+N` (or File › New Window, and the Dock menu on macOS) opens another window on the space you're in, with the command bar open. Every window shows the same sidebar: a tab you pin in one shows up in the other. Each window keeps its own space, selected tab, split view and sidebar. A tab can be open in two windows at once: the window you're using has the live page, the other shows how it last looked until you click it. YARC reopens all your windows when you start it again.
+
 ### Little Arc
 
 ![Little Arc](docs/screenshots/little-arc.png)
@@ -215,6 +219,7 @@ These are Arc's shortcuts. **Mod** means `⌘` on macOS and `Ctrl` on Windows. T
 | Toggle sidebar | `⌘S` | `Ctrl+S` |
 | Copy URL | `⌘⇧C` | `Ctrl+Shift+C` |
 | Copy URL as Markdown | `⌘⇧⌥C` | `Ctrl+Shift+Alt+C` |
+| New window | `⌘N` | `Ctrl+N` |
 | New Little Arc window | `⌘⌥N` | `Ctrl+Alt+N` |
 | Close tab (unload if pinned) | `⌘W` | `Ctrl+W` / `Ctrl+F4` |
 | Reopen closed tab | `⌘⇧T` | `Ctrl+Shift+T` |
@@ -337,6 +342,7 @@ Details and gaps are in [docs/electron-notes.md](docs/electron-notes.md#6-securi
 ```
 
 - The **main process** owns all state (`src/main/browser.ts`). The UI renderers get a full snapshot whenever something changes, and send back typed actions (`src/shared/actions.ts`).
+- **Several windows** share that state; each has its own space, selected tabs, splits and sidebar visibility (`src/main/window-state.ts`, see `docs/multi-window.md`). A page lives in one window at a time.
 - Every **profile** is an Electron session partition (`persist:profile-<id>`). Each one has its own extension host (`electron-chrome-extensions`, `electron-chrome-web-store`) and its own SQLite history (`node:sqlite`, so there are no native modules).
 - Every **sidebar item** can have a live `WebContentsView`. Pages load lazily and unload when closed or archived, which keeps memory down.
 - **Shortcuts** are caught in `before-input-event` on every web contents and matched on physical key codes, so they work regardless of keyboard layout or which page has focus.

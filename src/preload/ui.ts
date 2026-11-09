@@ -19,6 +19,7 @@ const api: ArcApi = {
   onFind: (cb) => listen(IPC.find, cb),
   onLittle: (cb) => listen(IPC.little, cb),
   onEdit: (cb) => listen(IPC.edit, cb),
+  onSnapshot: (cb) => listen(IPC.snapshot, cb),
   dispatch: (action) => ipcRenderer.invoke(IPC.action, action),
   search: (query) => ipcRenderer.invoke(IPC.search, query),
   suggest: (query) => ipcRenderer.invoke(IPC.suggest, query),

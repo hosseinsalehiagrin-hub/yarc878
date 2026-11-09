@@ -44,7 +44,8 @@ export function defaultState(): PersistedState {
     activeSpaceId: space.id,
     settings: { ...DEFAULT_SETTINGS },
     archive: [],
-    littleArc: { profileByHost: {} }
+    littleArc: { profileByHost: {} },
+    windows: []
   }
 }
 
@@ -67,7 +68,8 @@ export function normalize(raw: Partial<PersistedState>): PersistedState {
     settings: { ...DEFAULT_SETTINGS, ...raw.settings },
     archive: raw.archive ?? [],
     littleArc: { size: raw.littleArc?.size, profileByHost: raw.littleArc?.profileByHost ?? {} },
-    lastSeenVersion: raw.lastSeenVersion
+    lastSeenVersion: raw.lastSeenVersion,
+    windows: (raw.windows ?? []).filter((w) => w && typeof w.id === 'string').map((w) => ({ ...w, selected: w.selected ?? {}, splits: w.splits ?? {} }))
   }
 }
 
@@ -85,6 +87,8 @@ export class Store {
   /** No state file existed before this launch: YARC's first run on this profile (the welcome screen). */
   readonly firstRun: boolean
   private timer: NodeJS.Timeout | undefined
+  /** Runs before each write, to bring per-window state into `state.windows`. */
+  beforeWrite: (() => void) | undefined
 
   /** Without a file (incognito), the state lives in memory only. */
   constructor(
@@ -117,6 +121,7 @@ export class Store {
     clearTimeout(this.timer)
     this.timer = undefined
     if (!this.file) return
+    this.beforeWrite?.()
     mkdirSync(dirname(this.file), { recursive: true })
     const tmp = `${this.file}.tmp`
     writeFileSync(tmp, JSON.stringify(this.state))

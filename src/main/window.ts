@@ -51,7 +51,8 @@ export class MainWindow {
   /** The site permission prompt, kept above everything else. */
   prompt: PromptView | undefined
 
-  constructor(bounds: Partial<Rectangle> | undefined) {
+  /** `background`: show without taking the focus (windows restored behind the front one). */
+  constructor(bounds: Partial<Rectangle> | undefined, background = false) {
     const mac = process.platform === 'darwin'
     const area = screen.getPrimaryDisplay().workArea
     // Ignore saved positions on a monitor that's no longer connected.
@@ -80,7 +81,7 @@ export class MainWindow {
     this.win = new BrowserWindow(options)
     this.win.setMenuBarVisibility(false)
     loadRenderer(this.win.webContents, 'index')
-    this.win.once('ready-to-show', () => this.win.show())
+    this.win.once('ready-to-show', () => (background ? this.win.showInactive() : this.win.show()))
 
     this.overlay = new WebContentsView({ webPreferences: uiWebPreferences() })
     this.overlay.setBackgroundColor('#00000000')

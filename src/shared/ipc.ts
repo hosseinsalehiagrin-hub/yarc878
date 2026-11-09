@@ -12,6 +12,7 @@ export const IPC = {
   find: 'arc:find',
   little: 'arc:little-state',
   edit: 'arc:edit',
+  snapshot: 'arc:snapshot',
   action: 'arc:action',
   getState: 'arc:get-state',
   getOverlay: 'arc:get-overlay',
@@ -28,6 +29,13 @@ export const IPC = {
 export interface EditRequest {
   kind: 'rename' | 'renameFolder'
   id: string
+}
+
+/** A still image of a page another window shows live, for the pane it leaves empty here. */
+export interface PageSnapshot {
+  id: string
+  /** A data: URL. */
+  image: string
 }
 
 /** Find-in-page results, or a request to step to the next/previous match (Cmd+G). */
@@ -66,6 +74,7 @@ export interface ArcApi {
   onFind(cb: (f: FindEvent) => void): () => void
   onLittle(cb: (s: LittleState) => void): () => void
   onEdit(cb: (e: EditRequest) => void): () => void
+  onSnapshot(cb: (s: PageSnapshot) => void): () => void
   dispatch(action: Action): Promise<void>
   search(query: string): Promise<SearchResult[]>
   suggest(query: string): Promise<string[]>

@@ -92,6 +92,7 @@ export function buildContextMenu(browser: Browser, tab: LiveTab, p: ContextMenuP
  */
 function commandRunner(browser: Browser): (cmd: CommandId) => () => void {
   return (cmd) => () => {
+    browser.useFocused()
     const win = browser.window?.win
     if (win && !win.isDestroyed()) {
       browser.focusWindow()
@@ -102,16 +103,15 @@ function commandRunner(browser: Browser): (cmd: CommandId) => () => void {
   }
 }
 
-/** The Dock icon's menu on macOS, like Arc's (which also has New Window). */
+/** The Dock icon's menu on macOS, like Arc's. */
 export function installDockMenu(browser: Browser): void {
   if (process.platform !== 'darwin') return
-  const run = commandRunner(browser)
   const littles = () => [...browser.littles].filter((l) => !l.win.isDestroyed())
   const build = () => {
     const open = littles().length > 0
     app.dock?.setMenu(
       Menu.buildFromTemplate([
-        { label: 'New Tab', click: run('newTab') },
+        { label: 'New Window', click: () => browser.openNewWindow() },
         { label: 'New Incognito Window', click: () => browser.openIncognito() },
         { label: 'New Little Arc Window', click: () => browser.openLittle() },
         { type: 'separator' },
@@ -165,6 +165,7 @@ export function installAppMenu(browser: Browser): void {
       label: 'File',
       submenu: [
         { label: 'New Tab', click: run('newTab') },
+        { label: 'New Window', click: () => browser.openNewWindow() },
         { label: 'New Incognito Window', click: () => browser.openIncognito() },
         { label: 'New Little Arc Window', click: run('littleArc') },
         { label: 'New Space', click: run('newSpace') },
