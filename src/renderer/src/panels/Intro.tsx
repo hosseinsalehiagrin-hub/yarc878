@@ -1,38 +1,57 @@
-// The welcome screen (first run) and What's New (first launch after an update, or from the menu
-// and command bar). Both are cards over the dimmed window, closed with Esc or their buttons.
+// The tour (first run, or Take the Tour) and What's New (first launch after an update, or from the
+// menu and command bar). The tour's setup steps and What's New are cards over the dimmed window;
+// the tour's try-it steps float over the page so the user can do what they describe.
+import { useEffect, useRef, type ReactNode } from 'react'
 import logo from '../../../../build/icon.svg'
 import { bindingLabel, type CommandId } from '../../../shared/keymap'
-import type { ReleaseNotes } from '../../../shared/types'
-import { dispatch, isMac } from '../api'
+import { isFloating, nextStep, previousStep, TOUR_STEPS, tryEvent, type TourStep } from '../../../shared/tour'
+import { spaceItems } from '../../../shared/tree'
+import type { AppState, ReleaseNotes } from '../../../shared/types'
+import { activeSpace, dispatch, isMac } from '../api'
+import { Icon } from '../icons'
 import './panels.css'
+
+const key = (id: CommandId) => <kbd className="kbd">{bindingLabel(id, isMac)}</kbd>
+
+const go = (step: TourStep | undefined) => step && dispatch({ type: 'overlay', mode: { kind: 'tour', step } })
+
+const importFrom = (source: 'arc' | 'chrome' | 'zen') => () => dispatch({ type: 'import', source, keepOverlay: true })
 
 const SHORTCUTS: { id: CommandId; label: string }[] = [
   { id: 'newTab', label: 'New tab, search or command' },
   { id: 'toggleSidebar', label: 'Show or hide the sidebar' },
   { id: 'togglePin', label: 'Pin or unpin a tab' },
   { id: 'newIncognitoWindow', label: 'New incognito window' },
-  { id: 'switcherNext', label: 'Switch to a recent tab' }
+  { id: 'switcherNext', label: 'Switch to a recent tab' },
+  { id: 'littleArc', label: 'New Little Arc window' }
 ]
 
-const importFrom = (source: 'arc' | 'chrome' | 'zen') => () => dispatch({ type: 'import', source, keepOverlay: true })
+interface StepContent {
+  title: string
+  text: ReactNode
+  /** What to do to go on, for a try-it step. */
+  tryIt?: ReactNode
+  body?: ReactNode
+}
 
-export function Welcome({ close }: { close: () => void }) {
-  return (
-    <div className="panel intro welcome" onMouseDown={(e) => e.stopPropagation()}>
-      <div className="intro-hero">
-        <img className="logo" src={logo} alt="" />
-        <h1>Welcome to YARC</h1>
-        <p>Your spaces, pinned tabs and command bar, after Arc.</p>
-      </div>
-      <div className="intro-body">
-        <section className="intro-step">
-          <div className="intro-step-text">
-            <h2>Bring your tabs</h2>
-            <p>Spaces, pinned tabs, favorites and history. From Chrome: history and bookmarks.</p>
-          </div>
-          <div className="intro-buttons">
+function content(step: TourStep, state: AppState): StepContent {
+  const s = state.settings
+  const edge = s.sidebarRight ? 'right' : 'left'
+  const tabs = spaceItems(state, activeSpace(state)).length
+  switch (step) {
+    case 'welcome':
+      return {
+        title: 'Welcome to YARC',
+        text: 'Spaces, pinned tabs, a command bar and split view, the way Arc did them. A two-minute tour shows you around.'
+      }
+    case 'import':
+      return {
+        title: 'Bring your tabs along',
+        text: 'Spaces, pinned tabs, favorites and history from Arc or Zen; history and bookmarks from Chrome, Edge or Brave.',
+        body: (
+          <div className="intro-buttons centered">
             <button className="btn primary" onClick={importFrom('arc')}>
-              Arc
+              Import from Arc
             </button>
             <button className="btn" onClick={importFrom('chrome')}>
               Chrome
@@ -41,38 +60,176 @@ export function Welcome({ close }: { close: () => void }) {
               Zen
             </button>
           </div>
-        </section>
-        <section className="intro-step">
-          <div className="intro-step-text">
-            <h2>Make YARC your default browser</h2>
-            <p>Links from other apps open in Little Arc.</p>
-          </div>
-          <div className="intro-buttons">
-            <button className="btn" onClick={() => dispatch({ type: 'command', id: 'setDefaultBrowser', keepOverlay: true })}>
-              Set as Default
+        )
+      }
+    case 'default':
+      return {
+        title: 'Make YARC your default browser',
+        text: 'Links from other apps then open in Little Arc, a small window you can keep or turn into a tab.',
+        body: (
+          <div className="intro-buttons centered">
+            <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'setDefaultBrowser', keepOverlay: true })}>
+              Set as Default Browser
             </button>
           </div>
-        </section>
-        <section className="intro-shortcuts">
-          <h2>Shortcuts to know</h2>
-          <ul>
-            {SHORTCUTS.map((s) => (
-              <li key={s.id}>
-                <kbd className="kbd">{bindingLabel(s.id, isMac)}</kbd>
-                <span>{s.label}</span>
+        )
+      }
+    case 'spaces':
+      return {
+        title: 'Spaces and the sidebar',
+        text: (
+          <>
+            Each space has its own pinned tabs, today’s tabs and profile. Switch with {key('space1')}, {key('space2')}…
+            {isMac ? ' or swipe sideways on the sidebar.' : '.'}
+          </>
+        ),
+        tryIt: <>Press {key('toggleSidebar')} to hide the sidebar</>
+      }
+    case 'peek':
+      return s.sidebarVisible
+        ? {
+            title: 'Peek at the hidden sidebar',
+            text: `With the sidebar hidden, point at the window’s ${edge} edge and it slides out over the page.`,
+            tryIt: <>Press {key('toggleSidebar')} to hide it</>
+          }
+        : {
+            title: 'Peek at the hidden sidebar',
+            text: `Point at the window’s ${edge} edge: the sidebar slides out over the page, and away again when you leave it.`,
+            tryIt: <>Press {key('toggleSidebar')} to bring it back</>
+          }
+    case 'command':
+      return {
+        title: 'The command bar',
+        text: 'Open a site, search, switch tabs or run a command. Type a site like youtube.com, then Tab, to search it.',
+        tryIt: <>Press {key('newTab')}</>
+      }
+    case 'pin':
+      return {
+        title: 'Pin what you keep',
+        text:
+          s.archiveAfterHours > 0
+            ? `Pinned tabs stay in the sidebar. Unpinned ones are archived after ${s.archiveAfterHours} hours, so the sidebar tidies itself.`
+            : 'Pinned tabs stay in the sidebar, above the tabs you open today.',
+        tryIt: tabs ? <>Press {key('togglePin')} to pin this tab</> : <>Open a tab with {key('newTab')}, then press {key('togglePin')}</>
+      }
+    case 'split':
+      return {
+        title: 'Split view',
+        text: 'Drag a tab from the sidebar onto the page to see both side by side. Up to four fit.',
+        tryIt: tabs >= 2 ? <>Drag a tab onto the page</> : <>Open two tabs, then drag one onto the page</>
+      }
+    case 'little':
+      return {
+        title: 'Little Arc',
+        text: 'A small window for a quick look, and where links from other apps open. One click makes it a tab.',
+        tryIt: <>Press {key('littleArc')}</>
+      }
+    case 'incognito':
+      return {
+        title: 'Incognito windows',
+        text: 'Browse without a trace: its history, cookies and tabs are gone once you close the window.',
+        tryIt: <>Press {key('newIncognitoWindow')}</>
+      }
+    case 'done':
+      return {
+        title: 'You’re all set',
+        text: (
+          <>
+            Shortcuts worth learning first. Take the tour again from the command bar: <em>Take the YARC Tour</em>.
+          </>
+        ),
+        body: (
+          <ul className="intro-shortcuts">
+            {SHORTCUTS.map((sc) => (
+              <li key={sc.id}>
+                {key(sc.id)}
+                <span>{sc.label}</span>
               </li>
             ))}
           </ul>
-        </section>
+        )
+      }
+  }
+}
+
+function Dots({ step }: { step: TourStep }) {
+  const at = TOUR_STEPS.indexOf(step)
+  return (
+    <span className="tour-dots" aria-label={`Step ${at + 1} of ${TOUR_STEPS.length}`}>
+      {TOUR_STEPS.map((s, i) => (
+        <i key={s} className={i === at ? 'on' : i < at ? 'done' : ''} />
+      ))}
+    </span>
+  )
+}
+
+export function Tour({ step, state, close }: { step: TourStep; state: AppState; close: () => void }) {
+  const c = content(step, state)
+  const next = nextStep(step)
+  const back = previousStep(step)
+  const primary = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (!isFloating(step)) primary.current?.focus()
+  }, [step])
+
+  if (isFloating(step)) {
+    return (
+      <div className="panel tour-float" onKeyDown={(e) => e.key === 'Escape' && close()}>
+        <div className="tour-float-head">
+          <Dots step={step} />
+          <button className="icon-btn" title="End the tour" onClick={close}>
+            <Icon name="x" size={14} />
+          </button>
+        </div>
+        <h2>{c.title}</h2>
+        <p>{c.text}</p>
+        <div className="tour-float-foot">
+          {c.tryIt ? <span className="tour-try">{c.tryIt}</span> : null}
+          <span className="spacer" />
+          {back ? (
+            <button className="btn ghost small" onClick={() => go(back)}>
+              Back
+            </button>
+          ) : null}
+          <button className="btn small" onClick={() => go(next)} title={tryEvent(step) ? 'Go on without trying it' : undefined}>
+            {tryEvent(step) ? 'Skip' : 'Next'}
+          </button>
+        </div>
       </div>
+    )
+  }
+
+  const first = step === 'welcome'
+  return (
+    <div className="panel intro tour" onMouseDown={(e) => e.stopPropagation()}>
+      <div className={`intro-hero${first ? '' : ' compact'}`}>
+        <img className="logo" src={logo} alt="" />
+        <h1>{c.title}</h1>
+        <p>{c.text}</p>
+      </div>
+      {c.body ? <div className="intro-body">{c.body}</div> : null}
       <footer className="intro-footer">
-        <button className="btn ghost" onClick={close}>
-          Skip
-        </button>
+        {first ? (
+          <button className="btn ghost" onClick={close}>
+            Skip
+          </button>
+        ) : (
+          <button className="btn ghost" onClick={() => go(back)}>
+            Back
+          </button>
+        )}
         <span className="spacer" />
-        <button className="btn primary" onClick={close}>
-          Start Browsing
-        </button>
+        {first ? null : <Dots step={step} />}
+        <span className="spacer" />
+        {step === 'done' ? (
+          <button ref={primary} className="btn primary" onClick={close}>
+            Start Browsing
+          </button>
+        ) : (
+          <button ref={primary} className="btn primary" onClick={() => go(next)}>
+            {first ? 'Take the Tour' : step === 'import' || step === 'default' ? 'Next' : 'Continue'}
+          </button>
+        )}
       </footer>
     </div>
   )
@@ -92,8 +249,8 @@ export function WhatsNew({ releases, close }: { releases: ReleaseNotes[]; close:
             <section key={r.version} className="release">
               {releases.length > 1 ? <h2>Version {r.version}</h2> : null}
               <ul>
-                {r.changes.map((c, i) => (
-                  <li key={i}>{c}</li>
+                {r.changes.map((change, i) => (
+                  <li key={i}>{change}</li>
                 ))}
               </ul>
             </section>

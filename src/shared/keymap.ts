@@ -52,6 +52,7 @@ export type CommandId =
   | 'checkForUpdates'
   | 'installUpdate'
   | 'whatsNew'
+  | 'tour'
 
 export interface Binding {
   id: CommandId
@@ -123,7 +124,8 @@ export const BINDINGS: Binding[] = [
   { id: 'checkForUpdates', title: 'Check for Updates…', mac: [], other: [], palette: true },
   // Listed only while an update is waiting, under the title Updater.actionTitle() gives it.
   { id: 'installUpdate', title: 'Install Update', mac: [], other: [], palette: true },
-  { id: 'whatsNew', title: "What's New in YARC", mac: [], other: [], palette: true }
+  { id: 'whatsNew', title: "What's New in YARC", mac: [], other: [], palette: true },
+  { id: 'tour', title: 'Take the YARC Tour', mac: [], other: [], palette: true }
 ]
 
 export interface KeyInput {

@@ -134,7 +134,7 @@ The source browser's files are never changed: YARC copies them first and reads t
 - **Open in Chrome** (`Ctrl/⌘+Alt+O`) for the rare site that only works in Google Chrome.
 - Permission prompts for the camera, microphone, location and notifications, asked once per site.
 - Light, dark or system theme, and a choice of Google, DuckDuckGo, Bing, Kagi or Brave Search.
-- **Welcome screen** on the first launch: import from Arc, Chrome or Zen, make YARC your default browser, and the shortcuts worth learning first. *Skip* or Esc closes it.
+- **A tour** on the first launch, like Arc's onboarding: import from Arc, Chrome or Zen, make YARC your default browser, then one step each for spaces and the sidebar, peeking at a hidden sidebar, the command bar, pinning, split view, Little Arc and incognito windows. Those steps float over the page; do what a step says (press `⌘S`, `⌘T`, `⌘D`, drag a tab onto the page…) and it goes on by itself, or press *Skip*. *Take the YARC Tour* in the command bar (or the **YARC** menu on macOS) runs it again.
 - **What's New** on the first launch after an update lists every change since the version you had, even when one update skips several releases. Open it again with *What's New* in the command bar (or the **YARC** menu on macOS).
 
 ## Install

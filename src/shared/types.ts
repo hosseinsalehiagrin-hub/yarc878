@@ -1,5 +1,6 @@
 // State shared between the main process and the UI renderers.
 // The main process owns the truth; renderers receive full snapshots.
+import type { TourStep } from './tour'
 
 export type ID = string
 
@@ -222,8 +223,8 @@ export type OverlayMode =
   | { kind: 'peek'; card: Rect }
   /** A sidebar tab is being dragged: the overlay covers the page area and draws split drop zones. */
   | { kind: 'split-drop' }
-  /** First run: import, default browser, a few shortcuts. */
-  | { kind: 'welcome' }
+  /** The tour: first run, or Take the Tour. Try-it steps float over the page (shared/tour.ts). */
+  | { kind: 'tour'; step: TourStep }
   /** The changes in the versions since the user's last one, newest first. */
   | { kind: 'whats-new'; releases: ReleaseNotes[] }
 

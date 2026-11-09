@@ -58,6 +58,8 @@ export type Action =
   | { type: 'toggleSidebar' }
   | { type: 'sidebarPeek'; show: boolean }
   | { type: 'overlay'; mode: OverlayMode }
+  /** Skip, Start Browsing or the close button of the tour. */
+  | { type: 'endTour' }
   | { type: 'window'; op: 'minimize' | 'maximize' | 'close' }
   | { type: 'settings'; patch: Partial<Settings> }
   | { type: 'searchEngine'; engine: SearchEngine }

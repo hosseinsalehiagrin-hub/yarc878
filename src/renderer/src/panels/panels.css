@@ -548,46 +548,24 @@
   font-weight: 650;
 }
 
-.intro-step {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
-  margin-bottom: 8px;
-  border-radius: 12px;
-  background: var(--field);
-  border: 1px solid var(--panel-line);
-}
-
-.intro-step-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.intro-step-text p {
-  margin: 3px 0 0;
-  color: var(--text-2);
-  font-size: 12px;
-  line-height: 1.45;
-}
-
 .intro-buttons {
   display: flex;
   gap: 6px;
-  flex-shrink: 0;
+  flex-wrap: wrap;
 }
 
-.intro-shortcuts {
-  padding: 10px 4px 4px;
+.intro-buttons.centered {
+  justify-content: center;
+  padding: 6px 0 4px;
 }
 
-.intro-shortcuts ul {
+.intro .intro-shortcuts {
   list-style: none;
-  margin: 8px 0 0;
-  padding: 0;
+  margin: 4px 0 0;
+  padding: 0 8px;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px 18px;
+  gap: 10px 18px;
 }
 
 .intro-shortcuts li {
@@ -603,6 +581,12 @@
   text-align: center;
   font-size: 12px;
   color: var(--text);
+}
+
+.intro.tour .intro-hero p {
+  max-width: 400px;
+  margin-inline: auto;
+  line-height: 1.5;
 }
 
 .intro .release + .release {
@@ -646,4 +630,108 @@
 
 .intro .btn.ghost:hover {
   background: var(--hover);
+}
+
+.btn.small {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Which tour step this is. */
+.tour-dots {
+  display: inline-flex;
+  gap: 5px;
+}
+
+.tour-dots i {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--line);
+}
+
+.tour-dots i.done {
+  background: color-mix(in oklab, var(--accent) 45%, transparent);
+}
+
+.tour-dots i.on {
+  width: 16px;
+  border-radius: 3px;
+  background: var(--accent);
+}
+
+/* A try-it step: a card that fills its small overlay at the bottom of the page area. */
+.panel.tour-float {
+  inset: 0;
+  left: 0;
+  transform: none;
+  display: flex;
+  flex-direction: column;
+  padding: 12px 14px 12px 18px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, color-mix(in oklab, var(--space) 22%, transparent), transparent 60%),
+    var(--panel);
+  animation: tour-rise 0.2s ease-out;
+}
+
+@keyframes tour-rise {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+}
+
+.tour-float-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-right: -6px;
+}
+
+.tour-float h2 {
+  margin: 4px 0 4px;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.tour-float p {
+  margin: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.tour-float .kbd {
+  font-size: 11.5px;
+  color: var(--text);
+}
+
+.tour-float-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tour-float-foot .spacer {
+  flex: 1;
+}
+
+/* What to do to go on: Arc's try-it pill, tinted by the space. */
+.tour-try {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: color-mix(in oklab, var(--accent) 14%, transparent);
+}
+
+.tour-try .kbd {
+  background: var(--panel);
 }
