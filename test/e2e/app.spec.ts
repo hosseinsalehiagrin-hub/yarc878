@@ -129,6 +129,14 @@ test('command bar finds and switches to open tabs', async () => {
 
 test('the command bar stays open while a page behind it finishes loading', async () => {
   // Windows gives the keyboard to a page whenever it commits a navigation; that blur used to close the bar.
+  // As if the user were in YARC: the test window needn't be the foreground app (leaving the window still closes the bar).
+  const focused = (on: boolean) =>
+    app.evaluate((_e, on) => {
+      const win = (globalThis as any).arcBrowser.window.win
+      if (on) win.isFocused = () => true
+      else delete win.isFocused
+    }, on)
+  await focused(true)
   const previous = (await space()).activeItemId!
   await dispatch({ type: 'open', url: `${base}/slow-focus`, where: 'tab' })
   await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
@@ -138,6 +146,7 @@ test('the command bar stays open while a page behind it finishes loading', async
   await dispatch({ type: 'overlay', mode: { kind: 'none' } })
   await dispatch({ type: 'close', id: (await space()).activeItemId! })
   await dispatch({ type: 'activate', id: previous })
+  await focused(false)
 })
 
 test('command bar completes the top URL inline, like Arc', async () => {
