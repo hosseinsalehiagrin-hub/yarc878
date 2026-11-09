@@ -115,12 +115,29 @@ export interface PersistedState {
   version: 1
   profiles: Profile[]
   spaces: Space[]
+  /** The current window's space. `Space.activeItemId`, `Space.splits` and `Settings.sidebarVisible` are also the current window's. */
   activeSpaceId: ID
   settings: Settings
   archive: ArchivedTab[]
   littleArc: LittleArcMemory
   /** The YARC version that last ran with this state, so the next newer one shows What's New. */
   lastSeenVersion?: string
+  /** The open main windows (the last focused one last), restored at launch. */
+  windows: WindowView[]
+}
+
+/** What one main window shows; the sidebar's contents are shared by all windows, like Arc. */
+export interface WindowView {
+  id: ID
+  activeSpaceId: ID
+  /** The tab each space shows in this window, by space id. */
+  selected: Record<ID, ID>
+  /** Each space's split views in this window, by space id. */
+  splits: Record<ID, Split[]>
+  sidebarVisible: boolean
+  /** Normal (un-maximized) bounds. */
+  bounds?: Rect
+  maximized?: boolean
 }
 
 /** One version's entries in What's New. */
@@ -187,8 +204,11 @@ export interface AppState extends PersistedState {
   newTabOpen: boolean
   /** The page shown in Peek, if one is open. */
   peek?: LiveInfo
-  /** Where web pages currently sit in the window, so the UI can draw split handles and focus rings. */
-  layout: { content: Rect; views: { id: ID; rect: Rect }[]; splitId?: ID }
+  /**
+   * Where web pages currently sit in the window, so the UI can draw split handles and focus rings.
+   * `elsewhere`: the page is shown in another window, which has it live; this one shows a still of it.
+   */
+  layout: { content: Rect; views: { id: ID; rect: Rect; elsewhere?: boolean }[]; splitId?: ID }
   update: UpdateStatus
 }
 

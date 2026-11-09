@@ -39,8 +39,8 @@ Notation: on macOS, ⌘ = Command, ⌥ = Option, ⌃ = Control, ⇧ = Shift. On 
 |---|---|---|---|
 | **Command bar (new tab / search / actions)** | ⌘T | Ctrl+T | [O] both. ⌘T opens the Command Bar centered over the content. The selected result opens as a new tab in Today. |
 | **Edit current URL** (Command Bar prefilled with the current URL) | ⌘L | Ctrl+L, also Alt+D | [O] both. Anchored to the sidebar URL field. ⌘L then Enter reloads the page [O]. |
-| New window | ⌘N | Ctrl+N | [O] both. Opens a second full window with your Spaces. |
-| Blank window (no sidebar Spaces; temporary) | ⌃⌘N | — | [O] mac (2023). Windows: [U] |
+| New window | ⌘N | Ctrl+N | [O] both. Opens a second full window with your Spaces, on the current window's space, with the command bar open (observed 2026-11-09, see §6 Multiple windows). |
+| Blank window (no sidebar Spaces; temporary) | ⌃⌘N | — | [O] mac (2023; still in the File menu, 2026-11-09). Windows: [U] |
 | New incognito window | ⇧⌘N | Ctrl+Shift+N | mac [O]; Windows [C]. Incognito windows are black, show an "Incognito" label and have no Spaces [O]. |
 | **New Little Arc window** | ⌥⌘N | — (not on Windows) | mac [O]. No Little Arc entry anywhere in the Windows release notes, so treat it as macOS-only [C]. |
 | Little Arc → move to main window (current Space) | ⌘O | n/a | [O] (2021) |
@@ -52,7 +52,7 @@ Notation: on macOS, ⌘ = Command, ⌥ = Option, ⌃ = Control, ⇧ = Shift. On 
 | **Copy URL as Markdown** | ⌥⇧⌘C | Ctrl+Alt+Shift+C | [O] both |
 | Paste clipboard URL as new tab | ⌥⌘V | [U] | mac [O] (2023) |
 | **Close tab** (unpinned tab = archive it) | ⌘W | Ctrl+W, also Ctrl+F4 | [O]. ⌘W on a pinned tab closes/unloads it but keeps the pin (see §4). With multiple tabs selected, closes all of them [O]. |
-| Close window | ⇧⌘W | Alt+F4 | mac [U] (standard binding); Windows [O] |
+| Close window | ⇧⌘W | Alt+F4 | mac [O] (File menu, 2026-11-09); Windows [O] |
 | **Reopen last closed tab** | ⇧⌘T (also ⌘Z) | Ctrl+Shift+T | [O]. Also reopens a closed Peek [O]. |
 | Undo last sidebar action (archive, move, clear) | ⌘Z | Ctrl+Z | [O] both |
 | **Pin / unpin current tab** | ⌘D | Ctrl+D | mac [O]; Windows [C] |
@@ -354,6 +354,16 @@ The last eight are Chromium's default search engines (`prepopulate_id` set, `is_
 - The Toolbar shows each pane's URL.
 - Right-click a pane for Mute, Duplicate, Share.
 - "Remove Split View" closes the pane without closing its tab. "Expand Current Split" turns the focused pane into a standalone tab.
+
+### Multiple windows [observed in Arc 1.x on macOS 26.5, 2026-11-09, unless noted]
+Checked by opening File › New Window in real Arc (System Events for the menus and clicks, `screencapture`), and by reading `~/Library/Application Support/Arc/StorableWindows.json` and `StorableSidebar.json`.
+- **Menus.** File menu: New Tab… ⌘T, **New Window ⌘N**, Blank Window ⌃⌘N, New Incognito Window ⇧⌘N, New Little Arc Window ⌥⌘N, … Close Window ⇧⌘W (from `AXMenuItemCmdChar`/`AXMenuItemCmdModifiers`). Dock menu: New Window first, then New Incognito Window, then the Little Arc items (from the task brief; not re-read here).
+- **⌘N** opens a full window, the same size as the current one, cascaded slightly below it (y + 14 pt). It shows the **space the current window shows**, with **no tab selected** (blank content card) and the **command bar open** for a new tab, the sidebar's "New Tab" row highlighted. The command bar suggests "Switch to Tab" for open tabs.
+- **The sidebar is shared.** Both windows list the same favorites, the same pinned tabs and folders and the same space switcher. `StorableSidebar.json` keeps one pinned and one unpinned (Today) container per space, not per window, so Today tabs are shared too [C: from the data file; no Today tab was created to watch it].
+- **Per window** (each entry of `StorableWindows.json`'s `windows`): its focused space (`focusedSpaceID`), its selected tab and split view (`contents.splitViewState`: `windowContentIDs`, `focusedContentID`), sidebar width and mode (`sidebarMode`, so a window can hide its sidebar while another shows it; observed), expanded folders (`expandedItems`) and per-item last-active dates. The file also has `lastFocusedSpaceID`.
+- **The same tab in two windows.** Selecting a pinned tab in window B that window A already shows: both windows show the page. The focused window has the live page (the text field there has the caret and focus ring); the other keeps showing it without focus. Arc doesn't block it or move the tab out of A's selection.
+- **Closing a window** (Close Window ⇧⌘W): the window goes; its tabs stay in the shared sidebar. `StorableWindows.json` drops the window's entry a few seconds later.
+- **Quit and relaunch** [C: from the data file, not observed, to leave the user's Arc running]: `StorableWindows.json` keeps one entry per open window, so Arc restores every window that was open at quit, each with its own space, selection and sidebar mode.
 
 ### Little Arc [O, macOS only]
 - A small floating browser window (narrow, roughly 1/3 of the screen) with a mini top bar: domain, back button, "Open in [Space]" button with a caret to choose the Space [C].
