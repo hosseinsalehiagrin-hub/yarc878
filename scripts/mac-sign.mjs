@@ -6,10 +6,10 @@
 // electron-builder only signs with certificates macOS trusts, which a self-signed one isn't, so
 // it is handed "-" (mac.identity) and this hook swaps in the certificate. codesign finds the
 // identity only in a keychain on the user's search list; release.yml puts it there.
-import { signAsync } from '@electron/osx-sign'
+import { sign as codesign } from '@electron/osx-sign'
 
 export default async function sign(options) {
   const identity = process.env.MAC_CODESIGN_IDENTITY
-  if (!identity) return signAsync(options)
-  return signAsync({ ...options, identity, keychain: process.env.MAC_CODESIGN_KEYCHAIN })
+  if (!identity) return codesign(options)
+  return codesign({ ...options, identity, keychain: process.env.MAC_CODESIGN_KEYCHAIN })
 }
