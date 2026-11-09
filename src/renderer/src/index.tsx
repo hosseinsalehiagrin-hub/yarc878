@@ -68,21 +68,36 @@ function useToast(): string | undefined {
   return text
 }
 
-/** Stays above the sidebar footer while an update waits, until dismissed for that version. */
+/**
+ * Stays above the sidebar footer while an update waits. Dismissing hides it until YARC restarts:
+ * releases can come several times a day, and the relaunch card already shows once a day.
+ */
 function UpdateNotice({ update }: { update: UpdateStatus }) {
-  const [dismissed, setDismissed] = useState('')
-  if (update.state !== 'ready' && update.state !== 'available') return null
-  if (dismissed === update.version) return null
-  const ready = update.state === 'ready'
+  const [dismissed, setDismissed] = useState(false)
+  if ((update.state !== 'ready' && update.state !== 'available') || dismissed) return null
+  if (update.state === 'available') {
+    return (
+      <div className="toast update-notice">
+        <span>YARC {update.version} is available</span>
+        <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}>
+          Download…
+        </button>
+        <button className="icon-btn" title="Dismiss" onClick={() => setDismissed(true)}>
+          <Icon name="x" />
+        </button>
+      </div>
+    )
+  }
+  const count = Math.max(1, update.notes?.length ?? 1)
   return (
     <div className="toast update-notice">
-      <span>
-        YARC {update.version} is {ready ? 'ready' : 'available'}
-      </span>
-      <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}>
-        {ready ? 'Restart to Update' : 'Download…'}
+      <button className="link" title="What's in it" onClick={() => dispatch({ type: 'overlay', mode: { kind: 'update' } })}>
+        {count > 1 ? `${count} updates ready` : `YARC ${update.version} is ready`}
       </button>
-      <button className="icon-btn" title="Dismiss" onClick={() => setDismissed(update.version)}>
+      <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}>
+        Relaunch
+      </button>
+      <button className="icon-btn" title="Dismiss" onClick={() => setDismissed(true)}>
         <Icon name="x" />
       </button>
     </div>

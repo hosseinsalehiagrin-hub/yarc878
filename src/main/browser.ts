@@ -1641,6 +1641,8 @@ export class Browser implements TabHost {
         }
         return
       }
+      case 'relaunchUpdate':
+        return void this.updater.apply(true)
       case 'command':
         if (!a.keepOverlay) this.setOverlay({ kind: 'none' }, false)
         return this.runCommand(a.id)

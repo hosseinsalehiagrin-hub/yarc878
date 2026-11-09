@@ -129,6 +129,14 @@ test('command bar finds and switches to open tabs', async () => {
 
 test('the command bar stays open while a page behind it finishes loading', async () => {
   // Windows gives the keyboard to a page whenever it commits a navigation; that blur used to close the bar.
+  // As if the user were in YARC: the test window needn't be the foreground app (leaving the window still closes the bar).
+  const focused = (on: boolean) =>
+    app.evaluate((_e, on) => {
+      const win = (globalThis as any).arcBrowser.window.win
+      if (on) win.isFocused = () => true
+      else delete win.isFocused
+    }, on)
+  await focused(true)
   const previous = (await space()).activeItemId!
   await dispatch({ type: 'open', url: `${base}/slow-focus`, where: 'tab' })
   await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
@@ -138,6 +146,7 @@ test('the command bar stays open while a page behind it finishes loading', async
   await dispatch({ type: 'overlay', mode: { kind: 'none' } })
   await dispatch({ type: 'close', id: (await space()).activeItemId! })
   await dispatch({ type: 'activate', id: previous })
+  await focused(false)
 })
 
 test('command bar completes the top URL inline, like Arc', async () => {
@@ -587,6 +596,30 @@ test('pages cannot turn themselves into window-drag areas', async () => {
   await expect
     .poll(() => page.evaluate(() => getComputedStyle(document.getElementById('d')!).getPropertyValue('-webkit-app-region')))
     .toBe('no-drag')
+})
+
+test('a downloaded update offers a relaunch card at most once a day, listing every version', async () => {
+  const offer = (iso: string) => app.evaluate((_e, iso) => (globalThis as any).arcBrowser.updater.offerRelaunch(new Date(iso)), iso)
+  const kind = () => app.evaluate(() => (globalThis as any).arcBrowser.window.overlayMode.kind)
+  await app.evaluate(() => {
+    const b = (globalThis as any).arcBrowser
+    b.updater.status = { state: 'ready', version: '9.0.2', notes: [{ version: '9.0.2', changes: ['Second'] }, { version: '9.0.1', changes: ['First'] }] }
+    b.state.updatePromptDay = undefined
+  })
+  await offer('2026-11-09T09:00:00')
+  expect(await kind()).toBe('update')
+  const overlay = await pageWithUrl('overlay.html')
+  await expect(overlay.locator('.update-ready h1')).toHaveText('2 updates are ready')
+  await expect(overlay.locator('.update-ready li')).toHaveText(['Second', 'First'])
+  await overlay.locator('.update-ready button', { hasText: 'Later' }).click()
+  expect(await kind()).toBe('none')
+  // A later update the same day stays quiet; the next day it asks again.
+  await offer('2026-11-09T21:00:00')
+  expect(await kind()).toBe('none')
+  await offer('2026-11-10T08:00:00')
+  expect(await kind()).toBe('update')
+  await dispatch({ type: 'overlay', mode: { kind: 'none' } })
+  await app.evaluate(() => ((globalThis as any).arcBrowser.updater.status = { state: 'none' }))
 })
 
 test('state survives a restart', async () => {

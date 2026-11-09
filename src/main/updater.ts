@@ -2,18 +2,19 @@
 // builds are only ad-hoc signed, which Squirrel.Mac refuses, so macOS replaces its own bundle
 // with a signed zip from the release (mac-update.ts). Linux, and a Mac that can't write to the
 // app's folder, only hear about a new release and open its download.
-// Updates are how Chromium security fixes arrive, so checks are hourly, and a downloaded update
-// asks to relaunch (again a day after each "Later") instead of waiting for a quit.
+// Updates are how Chromium security fixes arrive, so checks are hourly. A downloaded update offers a
+// relaunch in YARC's own card, listing every version since the running one, at most once a day
+// (every merge to main is a release, so several can land in a day); it also installs on quit.
 import { app, dialog, net, shell, type MessageBoxOptions } from 'electron'
 import type { NsisUpdater } from 'electron-updater'
-import type { UpdateStatus } from '../shared/types'
+import type { ReleaseNotes, UpdateStatus } from '../shared/types'
 import type { Browser } from './browser'
 import { cleanUpStaging, installStaged, stageUpdate, updatableBundle } from './mac-update'
 import { installAppMenu } from './menus'
 import { isNewer, LATEST_RELEASE_API, pickDownload, pickMacUpdate, type GithubRelease, type MacUpdate } from './release'
+import { dayKey, pendingReleases, promptDue, RELEASES_API, type GithubReleaseNotes } from './update-notes'
 
 const CHECK_EVERY = 60 * 60_000
-const REMIND_EVERY = 24 * 60 * 60_000
 
 export class Updater {
   status: UpdateStatus = { state: 'none' }
@@ -21,7 +22,6 @@ export class Updater {
   private download = { installer: '', page: '' }
   private nsis: NsisUpdater | undefined
   private timer: NodeJS.Timeout | undefined
-  private reminder: NodeJS.Timeout | undefined
   private checking = false
   /** macOS: a version that failed to update in place, offered as a download instead of retried every hour. */
   private failedVersion = ''
@@ -50,7 +50,9 @@ export class Updater {
       return
     }
     if (this.status.state === 'ready') {
+      // The hourly check is also what brings the card back on a new day.
       if (manual) this.browser.toast(`YARC ${this.status.version} is ready. Restart to update.`)
+      else this.offerRelaunch()
       return
     }
     if (this.status.state === 'downloading') {
@@ -72,9 +74,16 @@ export class Updater {
     }
   }
 
-  /** "Restart to Update" on Windows and macOS; otherwise explain the manual install and open the download. */
-  async apply(): Promise<void> {
+  /**
+   * "Restart to Update" on Windows and macOS; otherwise explain the manual install and open the download.
+   * `notesRead`: relaunched from the card, which already listed the changes, so skip What's New after.
+   */
+  async apply(notesRead = false): Promise<void> {
     if (this.status.state === 'ready') {
+      if (notesRead) {
+        this.browser.state.lastSeenVersion = this.status.version
+        this.browser.store.save()
+      }
       if (this.nsis) return this.nsis.quitAndInstall(true, true)
       // macOS: the will-quit handler from updateMac swaps the new app in before the relaunch.
       app.relaunch({ execPath: this.relaunchPath })
@@ -109,22 +118,38 @@ export class Updater {
     return undefined
   }
 
-  /** Chrome's "Relaunch to update": the default is Later, so a keystroke meant for a page can't restart the app. */
-  private async promptRelaunch(): Promise<void> {
-    clearTimeout(this.reminder)
-    if (this.status.state !== 'ready') return
-    const response = await this.ask({
-      type: 'info',
-      buttons: ['Relaunch', 'Later'],
-      defaultId: 1,
-      cancelId: 1,
-      message: `Relaunch to update to YARC ${this.status.version}`,
-      detail:
-        'The update is downloaded. Updates often include Chromium security fixes, so it’s best not to wait. ' +
-        'YARC reopens with your spaces and tabs.\n\nIf you choose Later, it installs the next time you quit.'
-    })
-    if (response === 0) return this.apply()
-    this.reminder = setTimeout(() => void this.promptRelaunch(), REMIND_EVERY)
+  /**
+   * The update is downloaded: fetch what's new in every version since the running one (the card lists
+   * them all), then offer the relaunch.
+   */
+  async ready(version: string): Promise<void> {
+    this.set({ state: 'ready', version, notes: await this.notesUpTo(version) })
+    this.offerRelaunch()
+  }
+
+  /**
+   * Shows the relaunch card, unless it already showed today or now is a bad moment (another panel is
+   * open, or the window is hidden): the hourly check tries again.
+   */
+  offerRelaunch(now = new Date()): void {
+    if (this.status.state !== 'ready' || !promptDue(this.browser.state.updatePromptDay, now)) return
+    const w = this.browser.window
+    if (!w || w.win.isDestroyed() || !w.win.isVisible() || w.win.isMinimized() || w.overlayMode.kind !== 'none') return
+    this.browser.state.updatePromptDay = dayKey(now)
+    this.browser.store.save()
+    this.browser.setOverlay({ kind: 'update' })
+  }
+
+  private async notesUpTo(version: string): Promise<ReleaseNotes[]> {
+    try {
+      const res = await net.fetch(RELEASES_API, { headers: { accept: 'application/vnd.github+json' } })
+      if (!res.ok) throw new Error(`GitHub answered ${res.status}`)
+      return pendingReleases((await res.json()) as GithubReleaseNotes[], app.getVersion(), version)
+    } catch (err) {
+      // The card still offers the relaunch, just without the list.
+      console.warn('[updater] release notes unavailable', err)
+      return []
+    }
   }
 
   /** A message box on the main window, or a free-standing one when that's closed. */
@@ -153,10 +178,7 @@ export class Updater {
     updater.autoDownload = true
     updater.autoInstallOnAppQuit = true
     updater.on('update-available', (info) => this.set({ state: 'downloading', version: info.version }))
-    updater.on('update-downloaded', (info) => {
-      this.set({ state: 'ready', version: info.version })
-      void this.promptRelaunch()
-    })
+    updater.on('update-downloaded', (info) => void this.ready(info.version))
     updater.on('error', (err) => {
       console.error('[updater]', err)
       if (this.status.state === 'downloading') this.set({ state: 'none' })
@@ -204,8 +226,7 @@ export class Updater {
           console.error('[updater] installing the update failed', err)
         }
       })
-      this.set({ state: 'ready', version })
-      void this.promptRelaunch()
+      await this.ready(version)
     } catch (err) {
       console.error('[updater] macOS update failed; offering the download instead', err)
       this.failedVersion = version

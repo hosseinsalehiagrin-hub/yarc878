@@ -1,7 +1,7 @@
 // GitHub release lookup for the macOS self-updater and the Linux notice. No Electron imports, so it unit-tests.
 
 /** Published releases only: drafts are invisible here, so a release goes out once it's published. */
-export const LATEST_RELEASE_API = 'https://api.github.com/repos/yenebeb/arc-shell/releases/latest'
+export const LATEST_RELEASE_API = 'https://api.github.com/repos/yenebeb/yarc/releases/latest'
 
 /** The fields we use from GitHub's "get the latest release" response. */
 export interface GithubRelease {
