@@ -57,6 +57,13 @@
   DeleteRegValue SHELL_CONTEXT "Software\RegisteredApplications" "Arc Shell"
   WriteRegStr SHELL_CONTEXT "Software\RegisteredApplications" "${PRODUCT_NAME}" "${ARCSHELL_CLIENT_KEY}\Capabilities"
 
+  ; Shortcuts left from an Arc Shell install that is gone (its folder deleted by hand, so its
+  ; uninstaller never ran). An in-place upgrade renames them itself.
+  ${ifNot} ${FileExists} "$LOCALAPPDATA\Programs\arc-shell\Arc Shell.exe"
+    Delete "$SMPROGRAMS\Arc Shell.lnk"
+    Delete "$DESKTOP\Arc Shell.lnk"
+  ${endIf}
+
   ; SHCNE_ASSOCCHANGED, SHCNF_IDLIST: tell Explorer/Settings the associations changed.
   System::Call 'shell32::SHChangeNotify(i 0x08000000, i 0, i 0, i 0)'
 !macroend
@@ -66,6 +73,7 @@
   ; right after; keep the keys so a user's "default browser" choice is never disturbed.
   ${ifNot} ${isUpdated}
     DeleteRegValue SHELL_CONTEXT "Software\RegisteredApplications" "${PRODUCT_NAME}"
+    DeleteRegValue SHELL_CONTEXT "Software\RegisteredApplications" "Arc Shell"
     DeleteRegKey SHELL_CONTEXT "${ARCSHELL_CLIENT_KEY}"
     DeleteRegValue SHELL_CONTEXT "Software\Classes\.html\OpenWithProgids" "${ARCSHELL_HTML_PROGID}"
     DeleteRegValue SHELL_CONTEXT "Software\Classes\.htm\OpenWithProgids" "${ARCSHELL_HTML_PROGID}"

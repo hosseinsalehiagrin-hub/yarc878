@@ -112,6 +112,19 @@ test('command bar finds and switches to open tabs', async () => {
   await expect.poll(async () => (await space()).activeItemId).toBe(s.today.find((t) => t.url.endsWith('/one'))!.id)
 })
 
+test('the command bar stays open while a page behind it finishes loading', async () => {
+  // Windows gives the keyboard to a page whenever it commits a navigation; that blur used to close the bar.
+  const previous = (await space()).activeItemId!
+  await dispatch({ type: 'open', url: `${base}/slow-focus`, where: 'tab' })
+  await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
+  await expect.poll(async () => (await state()).live[(await space()).activeItemId!]?.loading).toBe(false)
+  await new Promise((r) => setTimeout(r, 500))
+  expect(await app.evaluate(() => (globalThis as any).arcBrowser.window.overlayMode.kind)).toBe('command')
+  await dispatch({ type: 'overlay', mode: { kind: 'none' } })
+  await dispatch({ type: 'close', id: (await space()).activeItemId! })
+  await dispatch({ type: 'activate', id: previous })
+})
+
 test('command bar completes the top URL inline, like Arc', async () => {
   await dispatch({ type: 'overlay', mode: { kind: 'command', target: 'tab' } })
   const overlay = await pageWithUrl('overlay.html')
@@ -460,10 +473,18 @@ test('camera and microphone read as askable until blocked, so sites like Meet re
         .wc.executeJavaScript(`Promise.all(['camera', 'microphone'].map((name) => navigator.permissions.query({ name }).then((p) => p.state)))`)
     )
   expect(await query()).toEqual(['granted', 'granted'])
-  // Blocking is remembered per origin; Electron's check handler gets the origin as "http://host:port/".
-  await app.evaluate((_e, origin) => (globalThis as any).arcBrowser.profiles.decisions.set(`${origin}|media`, false), base)
+  // Blocking is remembered per origin and per device (see PermissionQueue): block both.
+  const remember = (allowed: boolean | undefined) =>
+    app.evaluate(
+      (_e, [origin, allowed]) => {
+        const decisions = (globalThis as any).arcBrowser.profiles.permissionQueue.decisions as Map<string, boolean>
+        for (const key of [`${origin}|media:video`, `${origin}|media:audio`]) allowed === null ? decisions.delete(key) : decisions.set(key, allowed as boolean)
+      },
+      [base, allowed ?? null] as const
+    )
+  await remember(false)
   expect(await query()).toEqual(['denied', 'denied'])
-  await app.evaluate((_e, origin) => (globalThis as any).arcBrowser.profiles.decisions.delete(`${origin}|media`), base)
+  await remember(undefined)
 })
 
 test('built-in ad blocking blocks ad requests and can be turned off per site', async () => {

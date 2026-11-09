@@ -1,7 +1,6 @@
 // A live web page attached to a sidebar item (favorite, pinned or Today tab).
 import {
   WebContentsView,
-  shell,
   type BrowserWindowConstructorOptions,
   type ContextMenuParams,
   type Event,
@@ -11,6 +10,7 @@ import {
   type WebContents
 } from 'electron'
 import type { ID, LiveInfo } from '../shared/types'
+import { openExternalLink } from './external-links'
 
 export type OpenDisposition = 'foreground-tab' | 'background-tab' | 'new-window' | 'other'
 
@@ -146,7 +146,7 @@ export class LiveTab {
     wc.on('will-navigate', (e, url) => {
       if (!WEB_SCHEMES.test(url)) {
         e.preventDefault()
-        void shell.openExternal(url)
+        void openExternalLink(wc, url)
         return
       }
       const clicked = Date.now() - this.lastClick < 1000
@@ -154,7 +154,7 @@ export class LiveTab {
     })
     wc.setWindowOpenHandler(({ url, disposition, features }) => {
       if (!WEB_SCHEMES.test(url)) {
-        void shell.openExternal(url)
+        void openExternalLink(wc, url)
         return { action: 'deny' }
       }
       // Real popups (OAuth/SSO windows opened with size features) stay popups so window.opener works.
