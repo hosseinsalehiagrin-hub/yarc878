@@ -1,7 +1,7 @@
 // What's New and the welcome screen: which one a launch shows, and which changes go in What's New.
 // No Electron imports, so it unit-tests. The changelog itself is built in by electron.vite.config.ts.
 import type { ReleaseNotes } from '../shared/types'
-import { compareVersions } from './release'
+import { compareVersions } from './release.ts'
 
 /** Version → PR titles merged in it (scripts/changelog.mjs). Versions without changes may be missing. */
 export type Changelog = Record<string, string[]>
