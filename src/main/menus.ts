@@ -1,6 +1,7 @@
 // Native menus: the page context menu and the macOS application menu.
 import { app, clipboard, dialog, Menu, type ContextMenuParams, type MenuItemConstructorOptions } from 'electron'
 import { IPC, type EditRequest } from '../shared/ipc'
+import { paneIds } from '../shared/split'
 import { findFolder, findItem, isAwayFromSaved } from '../shared/tree'
 import { SEARCH_ENGINES, searchUrl } from '../shared/url'
 import type { CommandId } from '../shared/keymap'
@@ -210,7 +211,7 @@ export function buildItemMenu(browser: Browser, id: string): Menu | undefined {
   if (item.savedUrl && isAwayFromSaved(item, url)) items.push({ label: 'Back to Pinned URL', click: d({ type: 'resetToSaved', id }) })
   items.push({ type: 'separator' })
   if (space.activeItemId && space.activeItemId !== id) items.push({ label: 'Open in Split View', click: d({ type: 'splitWith', id }) })
-  if (space.splits.some((sp) => sp.itemIds.includes(id))) items.push({ label: 'Remove from Split View', click: d({ type: 'unsplit', id }) })
+  if (space.splits.some((sp) => paneIds(sp.root).includes(id))) items.push({ label: 'Remove from Split View', click: d({ type: 'unsplit', id }) })
   items.push(
     { label: 'Duplicate', click: d({ type: 'duplicate', id }) },
     { label: 'Copy URL', click: () => clipboard.writeText(url) },

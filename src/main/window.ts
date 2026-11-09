@@ -6,7 +6,6 @@ import { join } from 'node:path'
 import type { OverlayMode } from '../shared/types'
 
 export const PAD = 8
-const SPLIT_GAP = 6
 
 export interface ViewSlot {
   view: WebContentsView
@@ -100,18 +99,6 @@ export class MainWindow {
     return { x: right ? PAD : side, y: PAD, width: w, height: Math.max(100, height - 2 * PAD) }
   }
 
-  /** Splits a rect into side-by-side columns with the given relative sizes. */
-  static splitRect(rect: Rectangle, sizes: number[]): Rectangle[] {
-    const total = rect.width - SPLIT_GAP * (sizes.length - 1)
-    let x = rect.x
-    return sizes.map((s, i) => {
-      const w = i === sizes.length - 1 ? rect.x + rect.width - x : Math.round(total * s)
-      const r = { x, y: rect.y, width: w, height: rect.height }
-      x += w + SPLIT_GAP
-      return r
-    })
-  }
-
   /** Shows exactly these views (in order), detaching any others. */
   show(slots: ViewSlot[]): void {
     const next = slots.map((s) => s.view)
@@ -157,8 +144,8 @@ export class MainWindow {
     this.overlay.setBounds(rect)
     this.overlayAttached = true
     this.raiseOverlay()
-    // Peek keeps the focus on its page.
-    if (mode.kind !== 'sidebar' && mode.kind !== 'peek') this.overlay.webContents.focus()
+    // Peek keeps the focus on its page, and drop zones on whatever had it.
+    if (mode.kind !== 'sidebar' && mode.kind !== 'peek' && mode.kind !== 'split-drop') this.overlay.webContents.focus()
   }
 
   private raiseOverlay(): void {

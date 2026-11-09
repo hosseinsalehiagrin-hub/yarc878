@@ -1,4 +1,5 @@
 // Everything a UI renderer can ask the main process to do.
+import type { Side } from './split'
 import type { ID, OverlayMode, SearchEngine, Settings } from './types'
 
 /** Where a moved item should land. `index` is within the target list. */
@@ -47,7 +48,12 @@ export type Action =
   // split view
   | { type: 'splitWith'; id: ID }
   | { type: 'unsplit'; id?: ID }
-  | { type: 'resizeSplit'; splitId: ID; sizes: number[] }
+  /** `sizes` of the group at `path` (child indexes from the split's root). */
+  | { type: 'resizeSplit'; splitId: ID; path: number[]; sizes: number[] }
+  /** Drop tab `id` on `side` of `target`, making or extending a split. */
+  | { type: 'placeInSplit'; id: ID; target: ID; side: Side }
+  /** A tab drag from the sidebar starts (`id`) or ends (no `id`). */
+  | { type: 'tabDrag'; id?: ID }
   // window & chrome
   | { type: 'toggleSidebar' }
   | { type: 'sidebarPeek'; show: boolean }

@@ -33,8 +33,10 @@ import type {
   PinnedTab,
   Rect,
   Space,
+  Split,
   TabItem
 } from '../shared/types'
+import { appendPane, groupAt, layoutPanes, newSplitRoot, paneIds, placePane, removePane, type Side } from '../shared/split'
 import { resolveInput } from '../shared/url'
 import { AdBlock, hostOf } from './adblock'
 import { openInChrome } from './chrome'
@@ -81,6 +83,8 @@ export class Browser implements TabHost {
   downloads: DownloadItemInfo[] = []
   extensionList: Record<ID, ExtensionInfo[]> = {}
   private sidebarPeek = false
+  /** The tab being dragged from the sidebar, while the page area shows split drop zones. */
+  private tabDrag: ID | undefined
   private peekWatch: ReturnType<typeof setInterval> | undefined
   private fullscreenTab: LiveTab | undefined
   private switcher: { order: ID[]; index: number } | undefined
@@ -267,6 +271,7 @@ export class Browser implements TabHost {
       maximized: !!win && !win.isDestroyed() && win.isMaximized(),
       fullscreen: !!win && !win.isDestroyed() && win.isFullScreen(),
       sidebarPeek: this.sidebarPeek,
+      tabDrag: this.tabDrag,
       newTabOpen: this.newTabOpen(),
       peek: this.peek && !this.peek.tab.destroyed ? this.peek.tab.info() : undefined,
       layout: this.currentLayout,
@@ -383,18 +388,17 @@ export class Browser implements TabHost {
       if (!active) {
         w.show([])
       } else {
-        const split = space.splits.find((sp) => sp.itemIds.includes(active))
+        const split = this.splitOf(space, active)
         splitId = split?.id
-        const ids = split ? split.itemIds : [active]
-        const rects = split ? MainWindow.splitRect(content, split.sizes) : [content]
+        const panes = split ? layoutPanes(split.root, content) : [{ id: active, rect: content }]
         const slots = []
-        for (let i = 0; i < ids.length; i++) {
-          const item = findItem(this.state, ids[i])?.item
+        for (const pane of panes) {
+          const item = findItem(this.state, pane.id)?.item
           if (!item) continue
           const tab = this.liveFor(item)
           tab.view.setBorderRadius(8)
-          slots.push({ view: tab.view, rect: rects[i] })
-          views.push({ id: ids[i], rect: rects[i] })
+          slots.push({ view: tab.view, rect: pane.rect })
+          views.push(pane)
         }
         w.show(slots)
       }
@@ -413,9 +417,13 @@ export class Browser implements TabHost {
       case 'none':
         return undefined
       case 'sidebar': {
+        // While a tab is dragged out of it, the peeking sidebar's overlay also covers the page for the drop zones.
+        if (this.tabDrag) return { x: 0, y: 0, width, height }
         const w = s.sidebarWidth + PAD
         return { x: s.sidebarRight ? width - w : 0, y: 0, width: w, height }
       }
+      case 'split-drop':
+        return this.currentLayout.content
       case 'find': {
         const c = this.currentLayout.content
         const w = Math.min(380, c.width - 16)
@@ -432,7 +440,8 @@ export class Browser implements TabHost {
     if (mode.kind !== 'peek') this.dropPeek()
     if (this.window.overlayMode.kind === 'find' && mode.kind !== 'find') this.activeTab()?.wc.stopFindInPage('keepSelection')
     if (mode.kind !== 'sidebar') this.sidebarPeek = false
-    this.watchPeek(mode.kind === 'sidebar')
+    if (mode.kind !== 'sidebar' && mode.kind !== 'split-drop') this.tabDrag = undefined
+    this.watchPeek(mode.kind === 'sidebar' && !this.tabDrag)
     if (mode.kind !== 'switcher') this.switcher = undefined
     this.window.setOverlay(mode, this.overlayRect(mode))
     if (isMac && !this.state.settings.sidebarVisible) this.window.win.setWindowButtonVisibility(mode.kind === 'sidebar')
@@ -552,16 +561,17 @@ export class Browser implements TabHost {
     this.newTab(url, { activate: where === 'tab' })
   }
 
+  private splitOf(space: Space, id: ID): Split | undefined {
+    return space.splits.find((sp) => paneIds(sp.root).includes(id))
+  }
+
+  /** Takes a tab out of its split; a split left with one tab ends. */
   private removeFromSplits(space: Space, id: ID): void {
-    for (const sp of space.splits) {
-      const i = sp.itemIds.indexOf(id)
-      if (i < 0) continue
-      sp.itemIds.splice(i, 1)
-      sp.sizes.splice(i, 1)
-      const sum = sp.sizes.reduce((a, b) => a + b, 0) || 1
-      sp.sizes = sp.sizes.map((x) => x / sum)
-    }
-    space.splits = space.splits.filter((sp) => sp.itemIds.length > 1)
+    space.splits = space.splits.flatMap((sp) => {
+      if (!paneIds(sp.root).includes(id)) return [sp]
+      const root = removePane(sp.root, id)
+      return root ? [{ ...sp, root }] : []
+    })
   }
 
   private nextActiveAfter(space: Space, closedId: ID, splitPartner?: ID): ID | undefined {
@@ -578,8 +588,8 @@ export class Browser implements TabHost {
     if (!found) return
     const loc = found.loc
     const space = loc.kind === 'favorite' ? this.space : this.store.space(loc.spaceId)!
-    const split = space.splits.find((sp) => sp.itemIds.includes(id))
-    const partner = split?.itemIds.find((x) => x !== id)
+    const split = this.splitOf(space, id)
+    const partner = split && paneIds(split.root).find((x) => x !== id)
     const wasActive = space.activeItemId === id
     this.removeFromSplits(space, id)
     this.dropLive(id)
@@ -616,7 +626,7 @@ export class Browser implements TabHost {
       for (const t of space.today) {
         const busy =
           t.id === space.activeItemId ||
-          space.splits.some((sp) => sp.itemIds.includes(t.id)) ||
+          space.splits.some((sp) => paneIds(sp.root).includes(t.id)) ||
           (this.live.get(t.id)?.info().audible ?? false)
         if (!busy && t.lastActive < cutoff) {
           this.archive(t, space.id)
@@ -758,21 +768,60 @@ export class Browser implements TabHost {
     if (found.loc.kind !== 'favorite' && found.loc.spaceId !== space.id) this.moveToSpace(id, space.id)
     if (!active || active === id || !findItem(this.state, active)) return this.activate(id)
     this.removeFromSplits(space, id)
-    let split = space.splits.find((sp) => sp.itemIds.includes(active))
-    if (split && split.itemIds.length < 4) {
-      split.itemIds.push(id)
-    } else if (!split) {
-      split = { id: newId(), itemIds: [active, id], sizes: [] }
-      space.splits.push(split)
-    } else return this.activate(id)
-    split.sizes = split.itemIds.map(() => 1 / split!.itemIds.length)
+    const split = this.splitOf(space, active)
+    if (!split) {
+      space.splits.push({ id: newId(), root: newSplitRoot(active, id, 'right') })
+    } else {
+      const root = appendPane(split.root, id)
+      if (root) split.root = root
+    }
     this.activate(id)
+  }
+
+  /**
+   * A tab dragged onto `side` of `target` (a sidebar row or a page): both show as a split, the
+   * dragged tab on that side. A page already in a split gets the tab next to it; a tab already in
+   * the split moves. Does nothing when the split is full (four tabs).
+   */
+  placeInSplit(id: ID, target: ID, side: Side): void {
+    const space = this.space
+    const visible = new Set(spaceItems(this.state, space).map((i) => i.id))
+    if (id === target || !visible.has(id) || !visible.has(target)) return
+    const split = this.splitOf(space, target)
+    const root = placePane(split?.root, target, id, side)
+    if (!root) return
+    // Leaving another split, the tab can't take that split with it.
+    space.splits = space.splits.flatMap((sp) => {
+      if (sp === split || !paneIds(sp.root).includes(id)) return [sp]
+      const rest = removePane(sp.root, id)
+      return rest ? [{ ...sp, root: rest }] : []
+    })
+    if (split) split.root = root
+    else space.splits.push({ id: newId(), root })
+    this.activate(id)
+  }
+
+  /** A sidebar tab drag starts (`id`) or ends: the page area shows split drop zones meanwhile. */
+  setTabDrag(id: ID | undefined): void {
+    if (id === this.tabDrag) return
+    const kind = this.window.overlayMode.kind
+    if (id) {
+      // Drop zones only over a plain page or beside the peeking sidebar, not under panels or Peek.
+      if (kind !== 'none' && kind !== 'sidebar') return
+      this.tabDrag = id
+      this.setOverlay(kind === 'sidebar' ? { kind: 'sidebar' } : { kind: 'split-drop' }, false)
+    } else {
+      this.tabDrag = undefined
+      if (kind === 'split-drop') this.setOverlay({ kind: 'none' }, false)
+      else if (kind === 'sidebar') this.setOverlay({ kind: 'sidebar' }, false)
+      else this.emitSoon()
+    }
   }
 
   unsplit(id?: ID): void {
     const space = this.space
     const target = id ?? space.activeItemId
-    space.splits = space.splits.filter((sp) => !target || !sp.itemIds.includes(target))
+    space.splits = space.splits.filter((sp) => !target || !paneIds(sp.root).includes(target))
     this.layout()
     this.changed()
   }
@@ -1129,11 +1178,17 @@ export class Browser implements TabHost {
         return this.splitWith(a.id)
       case 'unsplit':
         return this.unsplit(a.id)
+      case 'placeInSplit':
+        this.setTabDrag(undefined)
+        return this.placeInSplit(a.id, a.target, a.side)
+      case 'tabDrag':
+        return this.setTabDrag(a.id)
       case 'resizeSplit': {
         const sp = space.splits.find((x) => x.id === a.splitId)
-        if (!sp || a.sizes.length !== sp.itemIds.length) return
+        const group = sp && groupAt(sp.root, a.path)
+        if (!group || a.sizes.length !== group.children.length) return
         const sum = a.sizes.reduce((x, y) => x + y, 0)
-        sp.sizes = a.sizes.map((x) => Math.max(0.1, x / sum))
+        group.sizes = a.sizes.map((x) => Math.max(0.1, x / sum))
         this.layout()
         return this.changed()
       }
@@ -1311,8 +1366,8 @@ export class Browser implements TabHost {
   onTabFocus(tab: LiveTab): void {
     const space = this.space
     if (space.activeItemId === tab.itemId) return
-    const split = space.splits.find((sp) => sp.itemIds.includes(tab.itemId))
-    if (split && split.itemIds.includes(space.activeItemId ?? '')) {
+    const split = this.splitOf(space, tab.itemId)
+    if (split && paneIds(split.root).includes(space.activeItemId ?? '')) {
       space.activeItemId = tab.itemId
       this.mru = [tab.itemId, ...this.mru.filter((m) => m !== tab.itemId)]
       this.changed()

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type DragEvent, type MouseEvent, type ReactNode } from 'react'
 import type { DropTarget } from '../../shared/actions'
 import type { EditRequest } from '../../shared/ipc'
+import { paneIds } from '../../shared/split'
 import { isAwayFromSaved } from '../../shared/tree'
 import { SIDEBAR_WIDTH, type AppState, type ID, type PinnedNode, type Space, type TabItem } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac } from './api'
@@ -8,7 +9,10 @@ import { Favicon, Icon } from './icons'
 
 const DRAG_TYPE = 'application/x-arc-item'
 
-type DropHint = { id: string; pos: 'before' | 'after' | 'into' } | { section: 'favorites' | 'pinned' | 'today' | `space:${string}` }
+/** Where a dragged item would land: between rows, into a folder, or beside a tab as a split view. */
+type RowDrop = 'before' | 'after' | 'into' | 'split-left' | 'split-right'
+
+type DropHint = { id: string; pos: RowDrop } | { section: 'favorites' | 'pinned' | 'today' | `space:${string}` }
 
 interface Ctx {
   state: AppState
@@ -18,6 +22,8 @@ interface Ctx {
   hint: DropHint | undefined
   setHint: (h: DropHint | undefined) => void
   dragging: boolean
+  /** The tab being dragged, if a tab (not a folder) is. */
+  dragTab: TabItem | undefined
 }
 
 function itemTitle(state: AppState, item: TabItem): string {
@@ -39,6 +45,7 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
   const [edit, setEdit] = useState<EditRequest>()
   const [hint, setHint] = useState<DropHint>()
   const [dragging, setDragging] = useState(false)
+  const [dragId, setDragId] = useState<ID>()
   const swipe = useRef({ x: 0, t: 0 })
   const newTabRow = useRef<HTMLDivElement>(null)
 
@@ -48,7 +55,8 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
     if (state.newTabOpen) newTabRow.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   }, [state.newTabOpen])
 
-  const ctx: Ctx = { state, space, edit, setEdit, hint, setHint, dragging }
+  const dragTab = dragId ? findTab(state, space, dragId) : undefined
+  const ctx: Ctx = { state, space, edit, setEdit, hint, setHint, dragging, dragTab }
   const activeId = space.activeItemId
   // While Peek is open, the URL field shows the Peek page, like Arc.
   const live = state.peek ?? (activeId ? state.live[activeId] : undefined)
@@ -85,10 +93,19 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
       className={`sidebar${floating ? ' floating' : ''}${right ? ' right' : ''}`}
       style={{ width: state.settings.sidebarWidth, [right ? 'right' : 'left']: 0 }}
       onWheel={onWheel}
-      onDragStart={() => setDragging(true)}
+      onDragStart={(e) => {
+        setDragging(true)
+        // The item handlers below have just set what's dragged. A tab can also go onto the page, as a split.
+        const id = readDrag(e)
+        setDragId(id)
+        if (id && findTab(state, space, id)) dispatch({ type: 'tabDrag', id })
+      }}
       onDragEnd={() => {
+        // Fires however the drag ends: a drop anywhere, Escape, or a drop outside the window.
         setDragging(false)
+        setDragId(undefined)
         setHint(undefined)
+        dispatch({ type: 'tabDrag' })
       }}
     >
       {/* The hidden sidebar goes away once the cursor stays away from it: the main process watches (watchPeek). */}
@@ -313,19 +330,45 @@ function PinnedList({ nodes, ctx, onDrop, folderId }: { nodes: PinnedNode[]; ctx
   )
 }
 
-function useRowDrop(ctx: Ctx, id: ID, allowInto: boolean) {
+/**
+ * What dropping on a row does. A folder row's middle drops into the folder. A tab row's middle
+ * makes a split view with the dragged tab, on the left or right as the cursor is (Arc); its top
+ * and bottom quarters reorder, like the edges of every row.
+ */
+function useRowDrop(ctx: Ctx, id: ID, middle: 'into' | 'split' | undefined) {
   const { hint, setHint } = ctx
   const pos = hint && 'id' in hint && hint.id === id ? hint.pos : undefined
+  const canSplit = middle === 'split' && !!ctx.dragTab && ctx.dragTab.id !== id
   const onDragOver = (e: DragEvent) => {
     e.preventDefault()
     e.stopPropagation()
     const r = e.currentTarget.getBoundingClientRect()
     const y = e.clientY - r.top
-    const next = allowInto && y > r.height * 0.3 && y < r.height * 0.7 ? 'into' : y < r.height / 2 ? 'before' : 'after'
+    let next: RowDrop = y < r.height / 2 ? 'before' : 'after'
+    if (middle === 'into' && y > r.height * 0.3 && y < r.height * 0.7) next = 'into'
+    if (canSplit && y > r.height * 0.25 && y < r.height * 0.75) next = e.clientX < r.left + r.width / 2 ? 'split-left' : 'split-right'
     if (pos !== next) setHint({ id, pos: next })
   }
-  const cls = pos === 'before' ? ' drop-before' : pos === 'after' ? ' drop-after' : pos === 'into' ? ' drop-into' : ''
+  const cls =
+    pos === 'before' ? ' drop-before' : pos === 'after' ? ' drop-after' : pos === 'into' ? ' drop-into' : pos === 'split-left' || pos === 'split-right' ? ' drop-split' : ''
   return { pos, onDragOver, cls }
+}
+
+/** Over a tab row: the row as the split it would become, the dragged tab on its side (like Arc's split rows). */
+function SplitPreview({ state, target, dragged, side }: { state: AppState; target: TabItem; dragged: TabItem; side: 'left' | 'right' }) {
+  const half = (item: TabItem, incoming: boolean) => (
+    <span className={`half${incoming ? ' incoming' : ''}`}>
+      <Favicon url={item.url} favicon={state.live[item.id]?.favicon ?? item.favicon} />
+      <span className="title">{itemTitle(state, item)}</span>
+    </span>
+  )
+  return (
+    <span className="split-preview">
+      {side === 'left' ? half(dragged, true) : half(target, false)}
+      <span className="split-divider" />
+      {side === 'left' ? half(target, false) : half(dragged, true)}
+    </span>
+  )
 }
 
 function RenameInput({ initial, onDone }: { initial: string; onDone: (value: string | undefined) => void }) {
@@ -362,7 +405,7 @@ function FolderRow({
   parentId?: ID
   onDrop: (e: DragEvent, to: DropTarget) => void
 }) {
-  const { pos, onDragOver, cls } = useRowDrop(ctx, node.id, true)
+  const { pos, onDragOver, cls } = useRowDrop(ctx, node.id, 'into')
   const editing = ctx.edit?.kind === 'renameFolder' && ctx.edit.id === node.id
   return (
     <>
@@ -418,9 +461,12 @@ function TabRow({
   const { state, space } = ctx
   const live = state.live[item.id]
   const active = space.activeItemId === item.id
-  const inSplit = space.splits.some((sp) => sp.itemIds.includes(item.id) && sp.itemIds.includes(space.activeItemId ?? ''))
+  const inSplit = space.splits.some((sp) => {
+    const ids = paneIds(sp.root)
+    return ids.includes(item.id) && ids.includes(space.activeItemId ?? '')
+  })
   const away = section === 'pinned' && isAwayFromSaved(item, live?.url)
-  const { pos, onDragOver, cls } = useRowDrop(ctx, item.id, false)
+  const { pos, onDragOver, cls } = useRowDrop(ctx, item.id, 'split')
   const editing = ctx.edit?.kind === 'rename' && ctx.edit.id === item.id
   const title = itemTitle(state, item)
 
@@ -446,7 +492,16 @@ function TabRow({
       draggable={!editing}
       onDragStart={(e) => startDrag(e, item.id)}
       onDragOver={onDragOver}
-      onDrop={(e) => onDrop(e, section === 'pinned' ? { section, folderId, index: pos === 'after' ? index + 1 : index } : { section, index: pos === 'after' ? index + 1 : index })}
+      onDrop={(e) => {
+        if ((pos === 'split-left' || pos === 'split-right') && ctx.dragTab) {
+          e.preventDefault()
+          e.stopPropagation()
+          ctx.setHint(undefined)
+          dispatch({ type: 'placeInSplit', id: ctx.dragTab.id, target: item.id, side: pos === 'split-left' ? 'left' : 'right' })
+          return
+        }
+        onDrop(e, section === 'pinned' ? { section, folderId, index: pos === 'after' ? index + 1 : index } : { section, index: pos === 'after' ? index + 1 : index })
+      }}
       onClick={(e: MouseEvent) => {
         if (e.shiftKey && !active) dispatch({ type: 'splitWith', id: item.id })
         else dispatch({ type: 'activate', id: item.id })
@@ -486,6 +541,9 @@ function TabRow({
         </span>
       )}
       {status}
+      {(pos === 'split-left' || pos === 'split-right') && ctx.dragTab ? (
+        <SplitPreview state={state} target={item} dragged={ctx.dragTab} side={pos === 'split-left' ? 'left' : 'right'} />
+      ) : null}
       <button
         className="icon-btn close"
         title={section === 'today' ? 'Close tab' : 'Close (stays pinned)'}
