@@ -21,9 +21,10 @@ export class History {
   /** Pages can still report navigations while the app quits; writes after close are dropped. */
   private closed = false
 
-  constructor(dir: string) {
-    mkdirSync(dir, { recursive: true })
-    this.db = new DatabaseSync(join(dir, 'history.sqlite'))
+  /** Without a folder (incognito), the history lives in memory and is gone when it closes. */
+  constructor(dir: string | undefined) {
+    if (dir) mkdirSync(dir, { recursive: true })
+    this.db = new DatabaseSync(dir ? join(dir, 'history.sqlite') : ':memory:')
     this.db.exec(`
       PRAGMA journal_mode = WAL;
       CREATE TABLE IF NOT EXISTS urls (

@@ -12,6 +12,7 @@ import {
   type ContextMenuParams,
   type Event,
   type Input,
+  type IpcMainInvokeEvent,
   type Rectangle,
   type Result,
   type WebContents
@@ -44,7 +45,7 @@ import { Peek, sameSite } from './peek'
 import { buildContextMenu, buildFolderMenu, buildItemMenu, buildSpaceMenu } from './menus'
 import { Profiles, type ProfileRuntime } from './profiles'
 import { search, suggest } from './search'
-import { newId, SPACE_COLORS, Store } from './store'
+import { incognitoState, newId, SPACE_COLORS, Store } from './store'
 import { LiveTab, type OpenDisposition, type TabHost } from './tab'
 import { Updater } from './updater'
 import { MainWindow, PAD } from './window'
@@ -70,7 +71,9 @@ export class Browser implements TabHost {
   readonly profiles: Profiles
   readonly extensions: Extensions
   readonly adblock: AdBlock
-  readonly updater = new Updater(this)
+  readonly updater: Updater
+  /** Set on an incognito window's controller: the main one, whose ad blocker and updater it shares. */
+  readonly main: Browser | undefined
   window!: MainWindow
   readonly live = new Map<ID, LiveTab>()
   private mru: ID[] = []
@@ -84,18 +87,45 @@ export class Browser implements TabHost {
   private emitTimer: NodeJS.Timeout | undefined
   readonly littles = new Set<LittleWindow>()
   private peek: Peek | undefined
-  private windowFile: string
+  private windowFile: string | undefined
+  /** Every controller with a window: the main one, plus one per incognito window. IPC goes to the sender's. */
+  private static readonly all = new Set<Browser>()
 
-  constructor() {
+  /**
+   * Pass `main` for an incognito window: a temporary profile, state and history in memory, no
+   * extensions, all thrown away when its window closes, like Arc's incognito windows.
+   */
+  constructor(main?: Browser) {
+    this.main = main
+    this.extensions = new Extensions(this)
+    this.profiles = new Profiles((rt) => this.onProfileCreated(rt), !!main)
+    if (main) {
+      this.store = new Store(undefined, incognitoState(main.state.settings))
+      this.adblock = main.adblock
+      this.updater = main.updater
+      return
+    }
     const userData = app.getPath('userData')
     this.store = new Store(join(userData, 'state.json'))
     this.windowFile = join(userData, 'window.json')
-    this.extensions = new Extensions(this)
     this.adblock = new AdBlock(join(userData, 'adblock', 'engine.bin'), () => this.emitSoon())
+    this.updater = new Updater(this)
     this.syncAdblock()
     void this.adblock.load()
-    this.profiles = new Profiles((rt) => this.onProfileCreated(rt))
     nativeTheme.themeSource = this.store.state.settings.theme
+  }
+
+  get incognito(): boolean {
+    return !!this.main
+  }
+
+  /** Opens an incognito window, with `url` or with the command bar. */
+  openIncognito(url?: string): Browser {
+    const b = new Browser(this.main ?? this)
+    b.start()
+    if (url) b.newTab(url)
+    else b.window.win.once('show', () => b.runCommand('newTab'))
+    return b
   }
 
   get state() {
@@ -109,8 +139,10 @@ export class Browser implements TabHost {
   // ---------------------------------------------------------------- startup
 
   start(): void {
-    this.registerIpc()
+    Browser.all.add(this)
+    if (Browser.all.size === 1) this.registerIpc()
     this.openWindow()
+    if (this.incognito) return
     setInterval(() => this.autoArchive(), 5 * 60_000)
     this.autoArchive()
     this.updater.sync()
@@ -119,7 +151,7 @@ export class Browser implements TabHost {
   openWindow(): void {
     let saved: (Partial<Rectangle> & { maximized?: boolean }) | undefined
     try {
-      if (existsSync(this.windowFile)) saved = JSON.parse(readFileSync(this.windowFile, 'utf8'))
+      if (this.windowFile && existsSync(this.windowFile)) saved = JSON.parse(readFileSync(this.windowFile, 'utf8'))
     } catch {}
     this.window = new MainWindow(saved)
     const win = this.window.win
@@ -146,6 +178,7 @@ export class Browser implements TabHost {
       this.live.clear()
       this.peek?.destroy()
       this.peek = undefined
+      if (this.incognito) this.dispose()
     })
     win.webContents.once('did-finish-load', () => this.emit())
     this.window.overlay.webContents.on('blur', () => {
@@ -160,9 +193,18 @@ export class Browser implements TabHost {
     else this.layout()
   }
 
+  /** An incognito window closed: forget its pages, cookies, storage and history. */
+  private dispose(): void {
+    Browser.all.delete(this)
+    this.watchPeek(false)
+    for (const l of this.littles) l.win.close()
+    for (const rt of this.profiles.all()) void rt.session.clearData()
+    this.profiles.closeAll()
+  }
+
   private saveWindowBounds(): void {
     const win = this.window?.win
-    if (!win || win.isDestroyed() || win.isFullScreen()) return
+    if (!this.windowFile || !win || win.isDestroyed() || win.isFullScreen()) return
     try {
       // Normal bounds, so un-maximizing after a restart returns to the old size.
       writeFileSync(this.windowFile, JSON.stringify({ ...win.getNormalBounds(), maximized: win.isMaximized() }))
@@ -200,7 +242,8 @@ export class Browser implements TabHost {
       this.emitSoon()
     })
     this.adblock.attach(rt.session)
-    void this.extensions.setup(rt)
+    // Like Chrome, extensions stay out of incognito.
+    if (!this.incognito) void this.extensions.setup(rt)
   }
 
   // ---------------------------------------------------------------- state out
@@ -837,6 +880,8 @@ export class Browser implements TabHost {
         return void this.dispatch({ type: 'copyUrl', markdown: true })
       case 'littleArc':
         return void this.openLittle()
+      case 'newIncognitoWindow':
+        return void this.openIncognito()
       case 'closeTab':
         if (this.peek) return this.closePeek()
         if (space.activeItemId) this.close(space.activeItemId)
@@ -1373,18 +1418,31 @@ export class Browser implements TabHost {
 
   // ---------------------------------------------------------------- IPC
 
+  /** Whether this controller's window (sidebar or overlay) or one of its Little Arc windows is `wc`. */
+  private owns(wc: WebContents): boolean {
+    const w = this.window
+    if (w && !w.win.isDestroyed() && (w.win.webContents === wc || w.overlay.webContents === wc)) return true
+    return [...this.littles].some((l) => !l.win.isDestroyed() && l.win.webContents === wc)
+  }
+
+  /** Registered once, by the main controller; each call goes to the controller of the window that sent it. */
   private registerIpc(): void {
-    ipcMain.handle(IPC.action, (_e, action: Action) => this.dispatch(action))
-    ipcMain.handle(IPC.getState, () => this.snapshot())
-    ipcMain.handle(IPC.getOverlay, () => this.window.overlayMode)
-    ipcMain.handle(IPC.search, (_e, q: string) => search(this, q))
-    ipcMain.handle(IPC.suggest, (_e, q: string) => suggest(this, q))
-    ipcMain.handle(IPC.history, (_e, q: string, offset: number) =>
-      this.profiles.get(this.space.profileId).history.recent(200, offset, q)
-    )
-    ipcMain.handle(IPC.historyDelete, (_e, url: string) => this.profiles.get(this.space.profileId).history.deleteUrl(url))
+    const of = (e: IpcMainInvokeEvent) => [...Browser.all].find((b) => b.owns(e.sender)) ?? this
+    ipcMain.handle(IPC.action, (e, action: Action) => of(e).dispatch(action))
+    ipcMain.handle(IPC.getState, (e) => of(e).snapshot())
+    ipcMain.handle(IPC.getOverlay, (e) => of(e).window.overlayMode)
+    ipcMain.handle(IPC.search, (e, q: string) => search(of(e), q))
+    ipcMain.handle(IPC.suggest, (e, q: string) => suggest(of(e), q))
+    ipcMain.handle(IPC.history, (e, q: string, offset: number) => {
+      const b = of(e)
+      return b.profiles.get(b.space.profileId).history.recent(200, offset, q)
+    })
+    ipcMain.handle(IPC.historyDelete, (e, url: string) => {
+      const b = of(e)
+      return b.profiles.get(b.space.profileId).history.deleteUrl(url)
+    })
     ipcMain.handle(IPC.littleOp, (e, op: LittleOp, at?: LittleAnchor) => {
-      for (const l of this.littles) if (l.win.webContents === e.sender) return l.op(op, at)
+      for (const l of of(e).littles) if (l.win.webContents === e.sender) return l.op(op, at)
     })
   }
 

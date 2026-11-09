@@ -19,6 +19,7 @@ export function buildContextMenu(browser: Browser, tab: LiveTab, p: ContextMenuP
       { label: 'Open Link in New Tab', click: () => browser.open(p.linkURL, 'background') },
       { label: 'Open Link in Split View', click: () => browser.open(p.linkURL, 'split') },
       { label: 'Open Link in Little Arc', click: () => browser.openLittle(p.linkURL) },
+      { label: 'Open Link in Incognito Window', click: () => browser.openIncognito(p.linkURL) },
       { label: 'Copy Link', click: () => clipboard.writeText(p.linkURL) }
     )
     sep()
@@ -83,14 +84,13 @@ export function buildContextMenu(browser: Browser, tab: LiveTab, p: ContextMenuP
 }
 
 /** macOS needs an application menu for Cmd+C/V/Q etc. Arc shortcuts are handled separately. */
-export function installAppMenu(browser: Browser): void {
-  if (process.platform !== 'darwin') {
-    Menu.setApplicationMenu(null)
-    return
-  }
-  // The app outlives its last window on macOS; menu commands reopen it first, like Arc.
-  // Wait until it shows: showing moves focus, which would close a just-opened command bar.
-  const run = (cmd: CommandId) => () => {
+/**
+ * A menu item's click that runs a command in the main window. The app outlives its last window on
+ * macOS; menu commands reopen it first, like Arc. Wait until it shows: showing moves focus, which
+ * would close a just-opened command bar.
+ */
+function commandRunner(browser: Browser): (cmd: CommandId) => () => void {
+  return (cmd) => () => {
     const win = browser.window?.win
     if (win && !win.isDestroyed()) {
       browser.focusWindow()
@@ -99,6 +99,40 @@ export function installAppMenu(browser: Browser): void {
     browser.openWindow()
     browser.window.win.once('show', () => browser.runCommand(cmd))
   }
+}
+
+/** The Dock icon's menu on macOS, like Arc's (which also has New Window). */
+export function installDockMenu(browser: Browser): void {
+  if (process.platform !== 'darwin') return
+  const run = commandRunner(browser)
+  const littles = () => [...browser.littles].filter((l) => !l.win.isDestroyed())
+  const build = () => {
+    const open = littles().length > 0
+    app.dock?.setMenu(
+      Menu.buildFromTemplate([
+        { label: 'New Tab', click: run('newTab') },
+        { label: 'New Incognito Window', click: () => browser.openIncognito() },
+        { label: 'New Little Arc Window', click: () => browser.openLittle() },
+        { type: 'separator' },
+        { label: 'Show Little Arc Windows', enabled: open, click: () => littles().forEach((l) => l.win.show()) },
+        { label: 'Close Little Arc Windows', enabled: open, click: () => littles().forEach((l) => l.win.close()) }
+      ])
+    )
+  }
+  build()
+  // Little Arc windows come and go: the last two items are only enabled while there are some.
+  app.on('browser-window-created', (_e, win) => {
+    setImmediate(build)
+    win.on('closed', () => setImmediate(build))
+  })
+}
+
+export function installAppMenu(browser: Browser): void {
+  if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null)
+    return
+  }
+  const run = commandRunner(browser)
   // Like Arc: "Update Available…" replaces "Check for Updates…" once a new version is known.
   const updateItem = (): MenuItemConstructorOptions => {
     const { state } = browser.updater.status
@@ -128,6 +162,7 @@ export function installAppMenu(browser: Browser): void {
       label: 'File',
       submenu: [
         { label: 'New Tab', click: run('newTab') },
+        { label: 'New Incognito Window', click: () => browser.openIncognito() },
         { label: 'New Little Arc Window', click: run('littleArc') },
         { label: 'New Space', click: run('newSpace') },
         { type: 'separator' },

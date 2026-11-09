@@ -69,15 +69,29 @@ export function normalize(raw: Partial<PersistedState>): PersistedState {
   }
 }
 
+/** An incognito window's state: one black space on a temporary profile, with the main window's settings. */
+export function incognitoState(settings: Settings): PersistedState {
+  const state = defaultState()
+  state.profiles[0].name = 'Incognito'
+  Object.assign(state.spaces[0], { name: 'Incognito', emoji: '🥷', color: '#161616', appearance: 'dark' })
+  state.settings = structuredClone(settings)
+  return state
+}
+
 export class Store {
   state: PersistedState
   private timer: NodeJS.Timeout | undefined
 
-  constructor(private file: string) {
-    this.state = this.load()
+  /** Without a file (incognito), the state lives in memory only. */
+  constructor(
+    private file: string | undefined,
+    initial?: PersistedState
+  ) {
+    this.state = initial ?? this.load()
   }
 
   private load(): PersistedState {
+    if (!this.file) return defaultState()
     try {
       if (existsSync(this.file)) return normalize(JSON.parse(readFileSync(this.file, 'utf8')))
     } catch (err) {
@@ -97,6 +111,7 @@ export class Store {
   flush(): void {
     clearTimeout(this.timer)
     this.timer = undefined
+    if (!this.file) return
     mkdirSync(dirname(this.file), { recursive: true })
     const tmp = `${this.file}.tmp`
     writeFileSync(tmp, JSON.stringify(this.state))
