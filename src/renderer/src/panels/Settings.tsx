@@ -220,6 +220,11 @@ function Import() {
           Import from Arc…
         </button>
       </Row>
+      <Row title="Zen" hint="Spaces, pinned tabs, folders, essentials and history.">
+        <button className="btn" onClick={() => dispatch({ type: 'import', source: 'zen' })}>
+          Import from Zen…
+        </button>
+      </Row>
       <Row title="Chromium browsers" hint="History and bookmarks.">
         <button className="btn" onClick={() => dispatch({ type: 'import', source: 'chrome' })}>
           Import from Chrome / Edge / Brave…

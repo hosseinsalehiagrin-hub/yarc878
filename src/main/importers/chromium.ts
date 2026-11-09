@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { copyFile, mkdtemp, rm } from 'node:fs/promises'
 import { homedir, tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
 import type { ImportedVisit } from '../history'
 import type { PinnedFolder, PinnedNode } from '../../shared/types'
@@ -113,13 +113,11 @@ export function listProfiles(userDataDir: string): ChromiumProfile[] {
     .filter((p) => existsSync(join(p.path, 'History')) || existsSync(join(p.path, 'Bookmarks')))
 }
 
-/** Most recent visits (oldest first), excluding subframes and hidden URLs. Times in ms epoch. */
-export async function readHistory(profileDir: string, limit = 50_000): Promise<ImportedVisit[]> {
-  const src = join(profileDir, 'History')
-  if (!existsSync(src)) return []
+/** Runs `read` on a temp copy of a SQLite database and its -wal/-journal, so a running browser's files are never opened. */
+export async function readDatabaseCopy<T>(src: string, read: (db: DatabaseSync) => T): Promise<T> {
   const tmp = await mkdtemp(join(tmpdir(), 'yarc-import-'))
   try {
-    const copy = join(tmp, 'History')
+    const copy = join(tmp, basename(src))
     try {
       await copyFile(src, copy)
       for (const suffix of ['-wal', '-journal']) {
@@ -128,33 +126,42 @@ export async function readHistory(profileDir: string, limit = 50_000): Promise<I
     } catch (err) {
       throw new Error(`Could not read ${src}. Quit the browser and try again. (${(err as Error).message})`)
     }
-    const query = (readOnly: boolean): ImportedVisit[] => {
+    const open = (readOnly: boolean): T => {
       const db = new DatabaseSync(copy, { readOnly })
       try {
-        const cols = db.prepare('PRAGMA table_info(urls)').all() as { name: string }[]
-        const hidden = cols.some((c) => c.name === 'hidden') ? 'AND u.hidden = 0' : ''
-        const rows = db
-          .prepare(
-            `SELECT u.url AS url, COALESCE(u.title, '') AS title, (v.visit_time / 1000 - ${WEBKIT_EPOCH_OFFSET_MS}) AS time
-             FROM visits v JOIN urls u ON u.id = v.url
-             WHERE v.visit_time > 0 AND (v.transition & 255) NOT IN (3, 4) ${hidden}
-             ORDER BY v.visit_time DESC LIMIT ?`
-          )
-          .all(limit) as unknown as ImportedVisit[]
-        return rows.reverse()
+        return read(db)
       } finally {
         db.close()
       }
     }
     try {
-      return query(true)
+      return open(true)
     } catch {
       // A hot journal / WAL needs a writable connection to recover; this only touches our temp copy.
-      return query(false)
+      return open(false)
     }
   } finally {
     await rm(tmp, { recursive: true, force: true }).catch(() => {})
   }
+}
+
+/** Most recent visits (oldest first), excluding subframes and hidden URLs. Times in ms epoch. */
+export async function readHistory(profileDir: string, limit = 50_000): Promise<ImportedVisit[]> {
+  const src = join(profileDir, 'History')
+  if (!existsSync(src)) return []
+  return readDatabaseCopy(src, (db) => {
+    const cols = db.prepare('PRAGMA table_info(urls)').all() as { name: string }[]
+    const hidden = cols.some((c) => c.name === 'hidden') ? 'AND u.hidden = 0' : ''
+    const rows = db
+      .prepare(
+        `SELECT u.url AS url, COALESCE(u.title, '') AS title, (v.visit_time / 1000 - ${WEBKIT_EPOCH_OFFSET_MS}) AS time
+         FROM visits v JOIN urls u ON u.id = v.url
+         WHERE v.visit_time > 0 AND (v.transition & 255) NOT IN (3, 4) ${hidden}
+         ORDER BY v.visit_time DESC LIMIT ?`
+      )
+      .all(limit) as unknown as ImportedVisit[]
+    return rows.reverse()
+  })
 }
 
 interface BookmarkNode {
