@@ -42,7 +42,7 @@ export class Extensions {
       },
       removeWindow: (win) => {
         // Also called after a window has already closed.
-        if (!win.isDestroyed() && win !== b.window.win) win.close()
+        if (!win.isDestroyed() && !b.isMainWindow(win)) win.close()
       }
     })
     this.byProfile.set(rt.id, ext)
