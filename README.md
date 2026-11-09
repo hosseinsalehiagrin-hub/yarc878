@@ -90,8 +90,10 @@ Unpinned tabs you haven't looked at for **12 hours** move to the Archive automat
 
 ![Split view](docs/screenshots/split-view.png)
 
-Show up to four tabs side by side. There are several ways to start one:
+Show up to four tabs side by side, stacked, or both (for example a grid of four). There are several ways to start one:
 
+- drag a tab from the sidebar onto the page: drop it near the left, right, top or bottom edge of a page, and it takes that half. Drop it on a page that's already split to add it next to that pane;
+- drag a tab onto the middle of another tab in the sidebar: dropping it on the left or right half puts it on that side. Drop near a tab's top or bottom edge to reorder instead;
 - press `Ctrl+Shift+=` and pick a tab or URL;
 - Shift-click a tab in the sidebar;
 - choose "Open Link in Split View" from a link's context menu.

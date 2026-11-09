@@ -279,6 +279,85 @@ test('split view shows two pages side by side and can be closed', async () => {
   await expect.poll(async () => (await state()).layout.views.length).toBe(1)
 })
 
+/** Fires an HTML drag event on the sidebar row titled `title` (a real mouse drag can't be held from here). */
+const dragRow = (p: Page, title: string, type: string, fx = 0.5, fy = 0.5) =>
+  p.evaluate(
+    ({ title, type, fx, fy }) => {
+      const row = [...document.querySelectorAll('.row')].find((r) => r.querySelector('.title')?.textContent === title)!
+      const w = window as unknown as { dt?: DataTransfer }
+      if (type === 'dragstart') w.dt = new DataTransfer()
+      const r = row.getBoundingClientRect()
+      row.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, dataTransfer: w.dt }))
+    },
+    { title, type, fx, fy }
+  )
+
+/** Fires a drag event over the page area's drop layer, at a fraction of its size. */
+const dragOverPage = (p: Page, type: 'dragover' | 'drop', fx: number, fy: number) =>
+  p.evaluate(
+    ({ type, fx, fy }) => {
+      const el = document.querySelector('.split-drop')!
+      const r = el.getBoundingClientRect()
+      el.dispatchEvent(new DragEvent(type, { bubbles: true, cancelable: true, clientX: r.left + r.width * fx, clientY: r.top + r.height * fy, dataTransfer: new DataTransfer() }))
+    },
+    { type, fx, fy }
+  )
+
+const dropLayerShown = () =>
+  app.evaluate(() => {
+    const w = (globalThis as any).arcBrowser.window
+    return w.win.contentView.children.includes(w.overlay)
+  })
+
+const splitTitles = async () => {
+  const s = await state()
+  const sp = s.spaces.find((x) => x.id === s.activeSpaceId)!
+  const items = [...sp.today, ...s.profiles.flatMap((p) => p.favorites)]
+  const shape = (n: any): string => (n.itemId ? items.find((t) => t.id === n.itemId)!.url.split('/').pop()! : `${n.dir}(${n.children.map(shape).join(', ')})`)
+  return sp.splits.map((x) => shape(x.root))
+}
+
+test('dragging a sidebar tab onto the page or onto another tab makes a split, and leaves nothing behind', async () => {
+  await dispatch({ type: 'unsplit' })
+  for (const n of ['drag-a', 'drag-b', 'drag-c']) await dispatch({ type: 'open', url: `${base}/${n}`, where: 'tab' })
+  const ui = await pageWithUrl('index.html')
+  await expect(ui.locator('.row .title', { hasText: 'Page drag-c' })).toBeVisible()
+  const b = (await space()).today.find((t) => t.url.endsWith('/drag-b'))!
+  await dispatch({ type: 'activate', id: b.id })
+
+  // Onto the left edge of the page: the tab takes the left half.
+  await dragRow(ui, 'Page drag-a', 'dragstart')
+  await expect.poll(dropLayerShown).toBe(true)
+  const overlay = await pageWithUrl('overlay.html')
+  await expect(async () => {
+    await dragOverPage(overlay, 'dragover', 0.1, 0.5)
+    await expect(overlay.locator('.split-drop-zone.left')).toBeVisible({ timeout: 200 })
+  }).toPass()
+  await dragOverPage(overlay, 'drop', 0.1, 0.5)
+  await dragRow(ui, 'Page drag-a', 'dragend')
+  await expect.poll(splitTitles).toEqual(['row(drag-a, drag-b)'])
+  await expect.poll(dropLayerShown).toBe(false)
+
+  // A drag that ends without a drop (Escape, or outside the window) changes nothing.
+  await dragRow(ui, 'Page drag-c', 'dragstart')
+  await expect.poll(dropLayerShown).toBe(true)
+  await dragRow(ui, 'Page drag-c', 'dragend')
+  await expect.poll(dropLayerShown).toBe(false)
+  expect(await splitTitles()).toEqual(['row(drag-a, drag-b)'])
+
+  // Onto the middle-right of a sidebar row: the tab joins as the pane right of that tab.
+  await dragRow(ui, 'Page drag-c', 'dragstart')
+  await expect(async () => {
+    await dragRow(ui, 'Page drag-a', 'dragover', 0.75, 0.5)
+    await expect(ui.locator('.split-preview')).toBeVisible({ timeout: 200 })
+  }).toPass()
+  await dragRow(ui, 'Page drag-a', 'drop', 0.75, 0.5)
+  await dragRow(ui, 'Page drag-c', 'dragend')
+  await expect.poll(splitTitles).toEqual(['row(drag-a, drag-c, drag-b)'])
+  await expect.poll(dropLayerShown).toBe(false)
+  await dispatch({ type: 'unsplit' })
+})
+
 test('closing a Today tab archives it and it can be reopened', async () => {
   const s = await space()
   const left = s.today.find((t) => t.url.endsWith('/left'))!

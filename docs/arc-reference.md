@@ -347,6 +347,10 @@ The last eight are Chromium's default search engines (`prepopulate_id` set, `is_
   - the "+" menu;
   - the Peek "Split" button.
 - Resize panes by dragging the divider.
+- Drop indicators while dragging a tab [U, not yet compared with real Arc; this is what YARC does]:
+  - Over the page: the pane under the cursor is cut corner to corner into four triangles. The nearest edge (left, right, top, bottom) is where the tab goes, and a highlighted card shows the half of that pane it would take. On a split page the zones belong to the pane under the cursor. A full split (four tabs) shows no zone.
+  - Over a sidebar tab row: the middle half of the row (vertically) means split. The row turns into a preview of the split row, both favicons and titles, the dragged tab on the half the cursor is over. The top and bottom quarters keep reordering.
+  - Escape or a drop outside the window cancels the drag and changes nothing.
 - The Toolbar shows each pane's URL.
 - Right-click a pane for Mute, Duplicate, Share.
 - "Remove Split View" closes the pane without closing its tab. "Expand Current Split" turns the focused pane into a standalone tab.

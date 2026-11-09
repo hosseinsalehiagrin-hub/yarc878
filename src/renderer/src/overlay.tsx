@@ -4,8 +4,9 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { bindingLabel, type CommandId } from '../../shared/keymap'
 import { matchSiteSearch, siteSearchUrl, type SiteSearch } from '../../shared/site-search'
+import { paneIds, placePane, previewRect, sideAt, type Side } from '../../shared/split'
 import { findItem } from '../../shared/tree'
-import type { AppState, OverlayMode, Rect, SearchResult } from '../../shared/types'
+import type { AppState, ID, OverlayMode, Rect, SearchResult } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac, useAppState, useOverlayMode, useSpaceTheme } from './api'
 import { Favicon, Icon, type IconName } from './icons'
 import { Library } from './panels/Library'
@@ -37,6 +38,8 @@ function App() {
       return (
         <div className={`${isMac ? 'mac' : 'win'}${state.fullscreen ? ' fullscreen' : ''}`} style={{ height: '100%' }}>
           <Sidebar state={state} floating />
+          {/* A tab dragged out of the peeking sidebar: this overlay then covers the whole window. */}
+          {state.tabDrag ? <SplitDropZones state={state} origin={{ x: 0, y: 0 }} /> : null}
         </div>
       )
     case 'find':
@@ -73,7 +76,92 @@ function App() {
       )
     case 'peek':
       return <PeekFrame card={mode.card} />
+    case 'split-drop':
+      return <SplitDropZones state={state} origin={state.layout.content} />
   }
+}
+
+// ------------------------------------------------------------------ split drop zones
+
+const distance = (r: Rect, x: number, y: number) => Math.hypot(Math.max(r.x - x, 0, x - r.x - r.width), Math.max(r.y - y, 0, y - r.y - r.height))
+
+/**
+ * While a sidebar tab is dragged over the page: the half of the pane under the cursor that the
+ * tab would take, like Arc. Left or right of a pane makes a side-by-side split, top or bottom a
+ * stacked one. `origin` is where this overlay sits in the window (layout rects are in window pixels).
+ */
+function SplitDropZones({ state, origin }: { state: AppState; origin: { x: number; y: number } }) {
+  const [zone, setZone] = useState<{ target: ID; side: Side; rect: Rect }>()
+  const dragged = state.tabDrag ? findItem(state, state.tabDrag)?.item : undefined
+  const { content, views, splitId } = state.layout
+  const split = splitId ? activeSpace(state).splits.find((sp) => sp.id === splitId) : undefined
+
+  // Every drag end reaches the sidebar, which tells the main process. Should that ever miss, the
+  // first ordinary mouse move ends it here, so this layer never keeps the page's clicks.
+  useEffect(() => {
+    const shown = Date.now()
+    const end = (e: MouseEvent) => {
+      if (e.type === 'mousedown' || (e.buttons === 0 && Date.now() - shown > 300)) dispatch({ type: 'tabDrag' })
+    }
+    window.addEventListener('mousemove', end)
+    window.addEventListener('mousedown', end)
+    return () => {
+      window.removeEventListener('mousemove', end)
+      window.removeEventListener('mousedown', end)
+    }
+  }, [])
+
+  const zoneAt = (clientX: number, clientY: number) => {
+    if (!dragged || views.length === 0) return undefined
+    const x = clientX + origin.x
+    const y = clientY + origin.y
+    // The nearest pane, so the gaps between panes don't flicker.
+    const pane = views.reduce((a, b) => (distance(b.rect, x, y) < distance(a.rect, x, y) ? b : a))
+    const side = sideAt(pane.rect, x, y)
+    const root = split && paneIds(split.root).includes(pane.id) ? split.root : undefined
+    if (!placePane(root, pane.id, dragged.id, side)) return undefined
+    return { target: pane.id, side, rect: previewRect(pane.rect, side) }
+  }
+
+  const full = !!split && paneIds(split.root).length >= 4 && !paneIds(split.root).includes(dragged?.id ?? '')
+  return (
+    <div
+      className="split-drop"
+      style={{ left: content.x - origin.x, top: content.y - origin.y, width: content.width, height: content.height }}
+      onDragOver={(e) => {
+        const next = zoneAt(e.clientX, e.clientY)
+        if (next) {
+          e.preventDefault()
+          e.dataTransfer.dropEffect = 'move'
+        }
+        if (next?.target !== zone?.target || next?.side !== zone?.side) setZone(next)
+      }}
+      onDragLeave={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setZone(undefined)
+      }}
+      onDrop={(e) => {
+        e.preventDefault()
+        const z = zoneAt(e.clientX, e.clientY)
+        setZone(undefined)
+        if (z && dragged) dispatch({ type: 'placeInSplit', id: dragged.id, target: z.target, side: z.side })
+        else dispatch({ type: 'tabDrag' })
+      }}
+    >
+      {zone && dragged ? (
+        <div
+          className={`split-drop-zone ${zone.side}`}
+          style={{ left: zone.rect.x - content.x, top: zone.rect.y - content.y, width: zone.rect.width, height: zone.rect.height }}
+        >
+          <span className="split-drop-tab">
+            <Favicon url={dragged.url} favicon={state.live[dragged.id]?.favicon ?? dragged.favicon} />
+            <span>{state.live[dragged.id]?.title || dragged.title || displayHost(dragged.url)}</span>
+          </span>
+        </div>
+      ) : full ? (
+        <div className="split-drop-full">Split View holds up to 4 tabs</div>
+      ) : null}
+    </div>
+  )
 }
 
 // ------------------------------------------------------------------ peek

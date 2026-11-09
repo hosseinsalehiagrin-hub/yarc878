@@ -1,6 +1,7 @@
 // The main window UI: docked sidebar plus what sits around the web page views.
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
+import { dividers, dragBorder, type Divider } from '../../shared/split'
 import type { AppState, UpdateStatus } from '../../shared/types'
 import { activeSpace, arc, dispatch, isMac, useAppState, useSpaceTheme } from './api'
 import { Icon } from './icons'
@@ -82,7 +83,7 @@ function UpdateNotice({ update }: { update: UpdateStatus }) {
 function ContentDecor({ state }: { state: AppState }) {
   const { content, views, splitId } = state.layout
   const space = activeSpace(state)
-  const drag = useRef<{ splitId: string; index: number; startX: number; sizes: number[] } | undefined>(undefined)
+  const drag = useRef<{ splitId: string; divider: Divider; start: number } | undefined>(undefined)
 
   if (views.length === 0) {
     return (
@@ -90,40 +91,40 @@ function ContentDecor({ state }: { state: AppState }) {
       <div className="content-empty" style={{ left: content.x, top: content.y, width: content.width, height: content.height }} />
     )
   }
-  if (!splitId || views.length < 2) return null
-  const split = space.splits.find((sp) => sp.id === splitId)
+  const split = splitId ? space.splits.find((sp) => sp.id === splitId) : undefined
+  if (!split || views.length < 2) return null
   const active = views.find((v) => v.id === space.activeItemId)
+  const along = (d: Divider, e: { clientX: number; clientY: number }) => (d.dir === 'row' ? e.clientX : e.clientY)
 
   return (
     <>
       {active ? (
         <div className="focus-ring" style={{ left: active.rect.x - 3, top: active.rect.y - 3, width: active.rect.width + 6, height: active.rect.height + 6 }} />
       ) : null}
-      {views.slice(0, -1).map((v, i) => (
-        <div
-          key={v.id}
-          className="split-handle"
-          style={{ left: v.rect.x + v.rect.width - 2, top: v.rect.y, width: 10, height: v.rect.height }}
-          onPointerDown={(e) => {
-            if (!split) return
-            e.currentTarget.setPointerCapture(e.pointerId)
-            drag.current = { splitId: split.id, index: i, startX: e.clientX, sizes: [...split.sizes] }
-          }}
-          onPointerMove={(e) => {
-            const d = drag.current
-            if (!d) return
-            const delta = (e.clientX - d.startX) / content.width
-            const sizes = [...d.sizes]
-            const a = Math.max(0.15, sizes[d.index] + delta)
-            const b = Math.max(0.15, sizes[d.index + 1] - (a - sizes[d.index]))
-            sizes[d.index] = sizes[d.index] + sizes[d.index + 1] - b
-            sizes[d.index + 1] = b
-            dispatch({ type: 'resizeSplit', splitId: d.splitId, sizes })
-          }}
-          onPointerUp={() => (drag.current = undefined)}
-          onDoubleClick={() => split && dispatch({ type: 'resizeSplit', splitId: split.id, sizes: split.sizes.map(() => 1) })}
-        />
-      ))}
+      {dividers(split.root, content).map((d) => {
+        // A handle a little wider than the gap, so it's easy to grab.
+        const rect = d.dir === 'row' ? { ...d.rect, x: d.rect.x - 2, width: d.rect.width + 4 } : { ...d.rect, y: d.rect.y - 2, height: d.rect.height + 4 }
+        return (
+          <div
+            key={`${d.path.join('.')}-${d.index}`}
+            className={`split-handle ${d.dir}`}
+            style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+            onPointerDown={(e) => {
+              e.currentTarget.setPointerCapture(e.pointerId)
+              drag.current = { splitId: split.id, divider: d, start: along(d, e) }
+            }}
+            onPointerMove={(e) => {
+              const g = drag.current
+              if (!g) return
+              const length = g.divider.dir === 'row' ? g.divider.group.width : g.divider.group.height
+              const sizes = dragBorder(g.divider.sizes, g.divider.index, along(g.divider, e) - g.start, length)
+              dispatch({ type: 'resizeSplit', splitId: g.splitId, path: g.divider.path, sizes })
+            }}
+            onPointerUp={() => (drag.current = undefined)}
+            onDoubleClick={() => dispatch({ type: 'resizeSplit', splitId: split.id, path: d.path, sizes: d.sizes.map(() => 1) })}
+          />
+        )
+      })}
     </>
   )
 }

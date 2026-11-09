@@ -37,12 +37,25 @@ export interface Profile {
   favorites: TabItem[]
 }
 
+/** One page in a split view. */
+export interface SplitPane {
+  itemId: ID
+}
+
+/** Panes or nested groups laid out side by side ('row') or stacked ('column'). */
+export interface SplitGroup {
+  dir: 'row' | 'column'
+  children: SplitNode[]
+  /** Relative sizes along `dir`, one per child, summing to 1. */
+  sizes: number[]
+}
+
+export type SplitNode = SplitPane | SplitGroup
+
+/** A split view: 2-4 tabs shown together, in any mix of side-by-side and stacked panes. */
 export interface Split {
   id: ID
-  /** 2-4 item ids shown side by side, in order. */
-  itemIds: ID[]
-  /** Relative widths, sums to 1. */
-  sizes: number[]
+  root: SplitGroup
 }
 
 export interface Space {
@@ -159,6 +172,8 @@ export interface AppState extends PersistedState {
   fullscreen: boolean
   /** True while the collapsed sidebar is temporarily shown over the page. */
   sidebarPeek: boolean
+  /** The tab being dragged from the sidebar, while the page area shows split drop zones. */
+  tabDrag?: ID
   /** The command bar is open to make a new tab (the sidebar highlights "New Tab", like Arc). */
   newTabOpen: boolean
   /** The page shown in Peek, if one is open. */
@@ -197,6 +212,8 @@ export type OverlayMode =
   | { kind: 'switcher'; order: ID[]; index: number }
   /** A Peek page floats over the content; the overlay draws the dimmed backdrop and its buttons beside `card`. */
   | { kind: 'peek'; card: Rect }
+  /** A sidebar tab is being dragged: the overlay covers the page area and draws split drop zones. */
+  | { kind: 'split-drop' }
 
 export interface SearchResult {
   kind: 'tab' | 'favorite' | 'pinned' | 'history' | 'suggestion' | 'url' | 'command' | 'archive'

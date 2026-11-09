@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 import { SPACE_COLORS } from '../shared/colors'
+import { upgradeSplit } from '../shared/split'
 import type { PersistedState, Profile, Settings, Space } from '../shared/types'
 
 export const newId = (): string => randomUUID()
@@ -55,7 +56,7 @@ export function normalize(raw: Partial<PersistedState>): PersistedState {
     ...s,
     pinned: s.pinned ?? [],
     today: s.today ?? [],
-    splits: s.splits ?? [],
+    splits: (s.splits ?? []).flatMap((sp) => upgradeSplit(sp) ?? []),
     profileId: profiles.some((p) => p.id === s.profileId) ? s.profileId : profiles[0].id
   }))
   return {
