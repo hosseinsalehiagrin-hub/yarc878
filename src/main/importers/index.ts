@@ -1,4 +1,5 @@
-// Importers for Arc (spaces, pinned tabs, favorites, archive, history) and Chromium browsers (history, bookmarks).
+// Importers for Arc and Zen (spaces, pinned tabs, favorites, history; Arc's archive too) and
+// Chromium browsers (history, bookmarks).
 import { dialog, type BrowserWindow, type MessageBoxOptions, type OpenDialogOptions } from 'electron'
 import { createHash } from 'node:crypto'
 import { existsSync, readFileSync, statSync } from 'node:fs'
@@ -6,16 +7,20 @@ import { readFile } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import type { Browser } from '../browser'
 import { newId, SPACE_COLORS } from '../store'
-import { SIDEBAR_WIDTH, type ArchivedTab, type PersistedState, type Profile, type Space } from '../../shared/types'
+import { SIDEBAR_WIDTH, type ArchivedTab, type PersistedState, type PinnedNode, type Profile, type Space, type TabItem } from '../../shared/types'
 import { parseArcSidebar, readArcJson } from './arc-sidebar'
 import { countTabs, findArcRoot, findChromiumBrowsers, listProfiles, readBookmarks, readHistory, readProfileNames } from './chromium'
+import { findZenProfiles, findZenRoots, readZenContainers, readZenHistory, readZenPrefs, readZenSession, resolveZenProfile, type ZenProfile } from './zen'
+import { parseZenSession } from './zen-session'
 
-export type ImportSource = 'arc' | 'chrome'
+export type ImportSource = 'arc' | 'zen' | 'chrome'
 
 const MAX_ARCHIVE = 1000
 
 export async function runImport(browser: Browser, source: ImportSource, path?: string): Promise<string | undefined> {
-  return source === 'arc' ? importArc(browser, path) : importChromium(browser, path)
+  if (source === 'arc') return importArc(browser, path)
+  if (source === 'zen') return importZen(browser, path)
+  return importChromium(browser, path)
 }
 
 // ---------------------------------------------------------------- dialogs
@@ -142,6 +147,77 @@ function isUntouchedDefault(state: PersistedState): boolean {
   )
 }
 
+interface SourceProfile {
+  key: string
+  name: string
+  favorites: TabItem[]
+}
+
+interface SourceSpace {
+  key: string
+  name: string
+  emoji?: string
+  color: string
+  appearance?: 'light' | 'dark'
+  profileKey: string
+  pinned: PinnedNode[]
+  today: TabItem[]
+}
+
+interface AddedSpaces {
+  /** App profile and space ids by the source browser's keys. */
+  profileIds: Map<string, string>
+  spaceIds: Map<string, string>
+  spaces: Space[]
+  /** A fresh install's empty default space was replaced: the caller picks the active space. */
+  replace: boolean
+  /** The replaced space was the active one: switch to the new active space after saving. */
+  replacedActive: boolean
+}
+
+/** Adds another browser's profiles and spaces to the state (not saved yet). */
+function addSpaces(browser: Browser, from: string, profiles: SourceProfile[], spaces: SourceSpace[]): AddedSpaces {
+  const state = browser.state
+  const replace = isUntouchedDefault(state)
+  const replacedActive = replace && state.spaces.some((s) => s.id === state.activeSpaceId)
+  if (replace) {
+    const old = new Set(state.profiles.map((p) => p.id))
+    state.spaces = []
+    state.profiles = []
+    if (old.has(state.settings.littleArcProfileId)) state.settings.littleArcProfileId = ''
+  }
+
+  const profileIds = new Map<string, string>()
+  const taken = new Set(state.profiles.map((p) => p.name))
+  for (const p of profiles) {
+    let name = p.name
+    if (taken.has(name)) name = `${name} (${from})`
+    taken.add(name)
+    const profile: Profile = { id: newId(), name, favorites: p.favorites }
+    state.profiles.push(profile)
+    profileIds.set(p.key, profile.id)
+  }
+
+  const spaceIds = new Map<string, string>()
+  const added: Space[] = spaces.map((s) => {
+    const space: Space = {
+      id: newId(),
+      name: s.name,
+      emoji: s.emoji,
+      color: s.color,
+      appearance: s.appearance,
+      profileId: profileIds.get(s.profileKey)!,
+      pinned: s.pinned,
+      today: s.today,
+      splits: []
+    }
+    spaceIds.set(s.key, space.id)
+    return space
+  })
+  state.spaces.push(...added)
+  return { profileIds, spaceIds, spaces: added, replace, replacedActive }
+}
+
 async function importArc(browser: Browser, path?: string): Promise<string | undefined> {
   const src = await chooseArcSource(browser, path)
   if (!src) return undefined
@@ -162,46 +238,14 @@ async function importArc(browser: Browser, path?: string): Promise<string | unde
 
   const state = browser.state
   const names = src.userData ? readProfileNames(src.userData) : new Map<string, string>()
-  const replace = isUntouchedDefault(state)
-  const replacedActive = replace && state.spaces.some((s) => s.id === state.activeSpaceId)
-  if (replace) {
-    const old = new Set(state.profiles.map((p) => p.id))
-    state.spaces = []
-    state.profiles = []
-    if (old.has(state.settings.littleArcProfileId)) state.settings.littleArcProfileId = ''
-  }
-
   // One app profile per Arc profile that a space uses.
   const used = new Set(parsed.spaces.map((s) => s.profileKey))
-  const profileIds = new Map<string, string>()
-  const taken = new Set(state.profiles.map((p) => p.name))
-  for (const p of parsed.profiles) {
-    if (!used.has(p.key)) continue
-    let name = names.get(p.key) || p.key
-    if (taken.has(name)) name = `${name} (Arc)`
-    taken.add(name)
-    const profile: Profile = { id: newId(), name, favorites: p.favorites }
-    state.profiles.push(profile)
-    profileIds.set(p.key, profile.id)
-  }
-
-  const spaceIds = new Map<string, string>()
-  const added: Space[] = parsed.spaces.map((s) => {
-    const space: Space = {
-      id: newId(),
-      name: s.name,
-      emoji: s.emoji,
-      color: s.color,
-      appearance: s.appearance,
-      profileId: profileIds.get(s.profileKey)!,
-      pinned: s.pinned,
-      today: s.today,
-      splits: []
-    }
-    spaceIds.set(s.arcId, space.id)
-    return space
-  })
-  state.spaces.push(...added)
+  const { profileIds, spaceIds, spaces: added, replace, replacedActive } = addSpaces(
+    browser,
+    'Arc',
+    parsed.profiles.filter((p) => used.has(p.key)).map((p) => ({ key: p.key, name: names.get(p.key) || p.key, favorites: p.favorites })),
+    parsed.spaces.map((s) => ({ ...s, key: s.arcId }))
+  )
 
   const archived: ArchivedTab[] = (parsed.archive ?? []).map((a) => ({
     id: newId(),
@@ -249,6 +293,75 @@ async function importArc(browser: Browser, path?: string): Promise<string | unde
   if (src.userData) parts.push(plural(visits, 'history entry', 'history entries'))
   let summary = `Imported ${list(parts)} from Arc`
   if (failed.length) summary += ` (couldn't read history of ${list(failed)}; quit Arc and import again)`
+  return summary
+}
+
+// ---------------------------------------------------------------- Zen
+
+async function chooseZenProfile(browser: Browser, path?: string): Promise<ZenProfile | undefined> {
+  if (path) return resolveZenProfile(path)
+  const found = findZenProfiles()
+  if (found.length) {
+    const several = found.length > 1
+    const buttons = [...(several ? found.map((p) => p.name) : ['Import']), 'Use a Different Copy…', 'Cancel']
+    const choice = await ask(browser, {
+      type: 'question',
+      message: several ? 'Which Zen profile do you want to import?' : 'Import your spaces, pinned tabs, essentials and history from Zen?',
+      detail: `${several ? 'Its spaces, pinned tabs, essentials and history are added.' : `Found Zen data in ${found[0].path}.`} Quitting Zen first gives the most complete result.`,
+      buttons,
+      defaultId: 0,
+      cancelId: buttons.length - 1
+    })
+    if (choice < 0 || choice === buttons.length - 1) return undefined
+    if (choice < found.length) return found[choice]
+  }
+  const picked = await pick(browser, { title: 'Choose a Zen profile folder', defaultPath: findZenRoots()[0], properties: ['openDirectory', 'showHiddenFiles'] })
+  return picked ? resolveZenProfile(picked) : undefined
+}
+
+async function importZen(browser: Browser, path?: string): Promise<string | undefined> {
+  const profile = await chooseZenProfile(browser, path)
+  if (!profile) return undefined
+
+  const prefs = readZenPrefs(profile.path)
+  const active = prefs.get('zen.workspaces.active')
+  const parsed = parseZenSession(await readZenSession(profile.path), {
+    palette: SPACE_COLORS,
+    containers: readZenContainers(profile.path),
+    containerEssentials: prefs.get('zen.workspaces.container-specific-essentials-enabled') === true,
+    activeSpace: typeof active === 'string' ? active : undefined
+  })
+  if (!parsed.spaces.length) throw new Error(`No Zen spaces found in ${profile.path}`)
+
+  const state = browser.state
+  const added = addSpaces(
+    browser,
+    'Zen',
+    parsed.profiles,
+    parsed.spaces.map((s) => ({ ...s, key: s.zenId }))
+  )
+  // Open where Zen was.
+  if (added.replace) state.activeSpaceId = (parsed.activeSpaceId && added.spaceIds.get(parsed.activeSpaceId)) || added.spaces[0].id
+  browser.store.save()
+  browser.emit()
+  if (added.replacedActive) browser.switchSpace(state.activeSpaceId)
+
+  // Zen keeps one history for all its spaces, so every imported profile gets it.
+  let visits = 0
+  let historyFailed = false
+  try {
+    const history = await readZenHistory(profile.path)
+    for (const id of added.profileIds.values()) visits = Math.max(visits, browser.profiles.get(id).history.import(history))
+  } catch (err) {
+    console.warn('[import] Zen history', err)
+    historyFailed = true
+  }
+
+  const pinned = added.spaces.reduce((n, s) => n + countTabs(s.pinned), 0)
+  const parts = [plural(added.spaces.length, 'space'), plural(pinned, 'pinned tab'), plural(parsed.essentials, 'favorite')]
+  if (!historyFailed) parts.push(plural(visits, 'history entry', 'history entries'))
+  let summary = `Imported ${list(parts)} from Zen`
+  if (historyFailed) summary += " (couldn't read its history; quit Zen and import again)"
   return summary
 }
 

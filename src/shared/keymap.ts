@@ -44,6 +44,7 @@ export type CommandId =
   | 'duplicate'
   | 'openInChrome'
   | 'importArc'
+  | 'importZen'
   | 'importChrome'
   | 'extensions'
   | 'focusPage'
@@ -113,6 +114,7 @@ export const BINDINGS: Binding[] = [
   { id: 'duplicate', title: 'Duplicate Tab', ...both('Mod+Shift+D'), palette: true },
   { id: 'openInChrome', title: 'Open in Chrome', ...both('Mod+Alt+O'), palette: true },
   { id: 'importArc', title: 'Import from Arc', mac: [], other: [], palette: true },
+  { id: 'importZen', title: 'Import from Zen', mac: [], other: [], palette: true },
   { id: 'importChrome', title: 'Import History & Bookmarks from Chrome', mac: [], other: [], palette: true },
   { id: 'extensions', title: 'Get Extensions (Chrome Web Store)', mac: [], other: [], palette: true },
   { id: 'focusPage', title: 'Focus Page', mac: [], other: [] },

@@ -117,6 +117,7 @@ Install extensions straight from the **Chrome Web Store** by visiting it and cli
 ### Importing
 
 - **From Arc:** Spaces (with their emoji and colors), profiles, Favorites, pinned tabs, folders, Today tabs, the archive and browsing history. See [Moving from Arc](#moving-from-arc).
+- **From Zen:** spaces (with their colors), pinned tabs, folders, Essentials (as Favorites), Today tabs and browsing history. Each container your spaces use becomes a YARC profile, since both keep cookies apart. Run *Import from Zen* from the command bar, the File menu or Settings → Import; pick another profile, or a copied Zen folder, with **Use a Different Copy…**. Quitting Zen first gives the most complete result.
 - **From Chrome, Edge or Brave:** browsing history and bookmarks. Bookmarks arrive as a pinned folder.
 
 The source browser's files are never changed: YARC copies them first and reads the copy.
@@ -342,7 +343,7 @@ Details and gaps are in [docs/electron-notes.md](docs/electron-notes.md#6-securi
 | `src/main/adblock.ts` | Built-in ad and tracker blocking for every profile |
 | `src/main/little.ts` | Little Arc windows |
 | `src/main/peek.ts` | Peek: pages from pinned tabs and favorites floating over the current tab |
-| `src/main/importers/` | Arc and Chromium importers |
+| `src/main/importers/` | Arc, Zen and Chromium importers |
 | `src/shared/` | State types, actions, keymap, URL helpers (unit tested) |
 | `src/renderer/` | React UI: `index` (sidebar), `overlay` (command bar and panels), `little` |
 | `docs/` | Research notes: Arc's behavior and shortcuts, Arc's data format, Electron notes |

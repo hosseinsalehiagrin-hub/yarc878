@@ -64,7 +64,7 @@ export type Action =
   | { type: 'downloadsClear' }
   | { type: 'archiveRestore'; id: ID }
   | { type: 'archiveClear' }
-  | { type: 'import'; source: 'arc' | 'chrome'; path?: string }
+  | { type: 'import'; source: 'arc' | 'zen' | 'chrome'; path?: string }
   | { type: 'command'; id: string }
   | { type: 'itemMenu'; id: ID }
   | { type: 'folderMenu'; id: ID }

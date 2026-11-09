@@ -167,6 +167,7 @@ export function installAppMenu(browser: Browser): void {
         { label: 'New Space', click: run('newSpace') },
         { type: 'separator' },
         { label: 'Import from Arc…', click: run('importArc') },
+        { label: 'Import from Zen…', click: run('importZen') },
         { label: 'Import from Chrome…', click: run('importChrome') }
       ]
     },

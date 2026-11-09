@@ -967,6 +967,8 @@ export class Browser implements TabHost {
         return void this.dispatch({ type: 'openInChrome' })
       case 'importArc':
         return void this.dispatch({ type: 'import', source: 'arc' })
+      case 'importZen':
+        return void this.dispatch({ type: 'import', source: 'zen' })
       case 'importChrome':
         return void this.dispatch({ type: 'import', source: 'chrome' })
       case 'extensions':
