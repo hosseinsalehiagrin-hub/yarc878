@@ -507,7 +507,8 @@ export class Browser implements TabHost {
       newTabOpen: mode.kind === 'command' && (mode.target ?? 'tab') === 'tab',
       peek: w.peek && !w.peek.tab.destroyed ? w.peek.tab.info() : undefined,
       layout: w.layout,
-      update: this.updater.status
+      update: this.updater.status,
+      sitePermissions: Object.fromEntries(this.state.profiles.map((p) => [p.id, this.profiles.decisions(p.id).list()]))
     }
   }
 
@@ -1662,6 +1663,14 @@ export class Browser implements TabHost {
         this.toast(allowed ? `Blocking ads on ${host}` : `Ads allowed on ${host}`)
         this.reloadSoon(t!)
         return this.changed()
+      }
+      case 'sitePermission': {
+        const decisions = this.profiles.decisions(a.profileId)
+        if (a.setting === 'reset') decisions.reset(a.origin, a.key)
+        else decisions.set(a.origin, a.key, a.setting)
+        // A question waiting on this site may be answered now.
+        this.profiles.permissionQueue.settle()
+        return this.emitSoon()
       }
       case 'itemMenu':
         return buildItemMenu(this, a.id)?.popup({ window: this.window.win })
