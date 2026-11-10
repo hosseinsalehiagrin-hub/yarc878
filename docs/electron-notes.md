@@ -672,18 +672,27 @@ are what catch them.
 4. **Auto-merge** (`.github/workflows/dependabot-automerge.yml`): if the PR is Dependabot's and a
    semver *patch* or *minor* (`dependabot/fetch-metadata`; for a group, its biggest bump), it runs
    `gh pr merge --auto --merge`, so the PR merges once `check` passes. This covers every package,
-   not just `electron`; majors wait for a person, because CI doesn't run the e2e tests. Against
+   not just `electron`, but only `electron` bumps are released (step 5); the others get the
+   `release:skip` label and ship with the next real change. Majors wait for a person, because CI
+   doesn't run the e2e tests. Against
    supply-chain attacks, Dependabot only proposes a new version of any other package once it has
    been out for 3 days (`cooldown` in `.github/dependabot.yml`; security updates skip it). Needs
    the repo setting `allow_auto_merge`.
 5. **Release**: GitHub starts no workflows for a push made with `GITHUB_TOKEN`, so the auto-merge
    doesn't trigger `release.yml` on its own. The auto-merge job waits for the merge and then runs
    `gh workflow run release.yml -f bump=patch` (dispatch is the exception to that rule). The
-   release builds Windows, macOS and Linux and publishes once all three pass.
+   release builds Windows, macOS and Linux and publishes once all three pass. The Linux job also
+   uploads `release.json` (`{ "electron": "<version>" }`).
 6. **Users**: installed copies check GitHub every hour (`CHECK_EVERY` in `src/main/updater.ts`).
-   - Windows downloads the update in the background (electron-updater, `latest.yml`), then asks
-     *Relaunch to update*. *Later* asks again a day later; the sidebar and command bar keep a
-     *Restart to Update* button, and the update installs on the next quit anyway.
+   - Windows downloads the update in the background (electron-updater, `latest.yml`) and installs
+     it on the next quit. Meanwhile the sidebar shows a *Restart to Update* pill (also in the
+     command bar and menu). The relaunch card (listing what's new) only opens by itself once the
+     update has waited without a restart: 1 day when its `release.json` names a different
+     Electron than `process.versions.electron`, else 7 days (Chrome's escalation); *Later* keeps
+     it away a day (`src/main/update-escalation.ts`). The
+     start of the wait is kept in `state.json` (`waitingUpdate`), so a restart that didn't install
+     doesn't reset it. While an update is ready, no newer release is downloaded, so a newer one
+     never causes a second notice; it arrives with the next check after the restart.
    - macOS does the same with its own updater (section 7), since Squirrel.Mac refuses ad-hoc
      signatures.
    - Linux only gets a notice and a download link; users replace the AppImage by hand.

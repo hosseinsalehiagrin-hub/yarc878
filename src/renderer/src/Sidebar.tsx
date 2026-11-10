@@ -3,7 +3,7 @@ import type { DropTarget } from '../../shared/actions'
 import type { EditRequest } from '../../shared/ipc'
 import { paneIds } from '../../shared/split'
 import { isAwayFromSaved } from '../../shared/tree'
-import { SIDEBAR_WIDTH, type AppState, type ID, type PinnedNode, type Space, type TabItem } from '../../shared/types'
+import { SIDEBAR_WIDTH, type AppState, type ID, type PinnedNode, type Space, type TabItem, type UpdateStatus } from '../../shared/types'
 import { activeSpace, arc, dispatch, displayHost, isMac } from './api'
 import { Favicon, Icon } from './icons'
 
@@ -198,7 +198,36 @@ export function Sidebar({ state, floating }: { state: AppState; floating?: boole
         </div>
       </div>
 
+      <UpdatePill update={state.update} />
       <BottomBar ctx={ctx} />
+    </div>
+  )
+}
+
+/**
+ * Arc's sidebar update banner, as a small pill above the bottom bar: a downloaded update installs
+ * on quit, and this restarts into it now. The relaunch card only opens by itself after a long wait.
+ * Hiding it lasts until YARC restarts, so a newer release doesn't bring it back.
+ */
+function UpdatePill({ update }: { update: UpdateStatus }) {
+  const [dismissed, setDismissed] = useState(false)
+  if ((update.state !== 'ready' && update.state !== 'available') || dismissed) return null
+  const ready = update.state === 'ready'
+  const count = ready ? Math.max(1, update.notes?.length ?? 1) : 1
+  const what = count > 1 ? `${count} updates are ready (YARC ${update.version})` : `YARC ${update.version} is ready`
+  return (
+    <div className="update-pill">
+      <button
+        className="update-pill-main"
+        title={ready ? `${what}. It also installs the next time you quit.` : `Download YARC ${update.version}`}
+        onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}
+      >
+        <Icon name={ready ? 'reload' : 'download'} size={13} />
+        <span>{ready ? 'Restart to Update' : 'Update Available'}</span>
+      </button>
+      <button className="icon-btn update-pill-close" title="Hide until YARC restarts" onClick={() => setDismissed(true)}>
+        <Icon name="x" size={12} />
+      </button>
     </div>
   )
 }

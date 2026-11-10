@@ -527,6 +527,11 @@ export class Browser implements TabHost {
     if (!this.emitTimer) this.emitTimer = setTimeout(() => this.emit(), 30)
   }
 
+  /** Re-render every window, incognito ones too: for state they share, like the updater's. */
+  emitAll(): void {
+    for (const b of Browser.all) b.emitSoon()
+  }
+
   toast(text: string): void {
     const win = this.window?.win
     if (win && !win.isDestroyed()) win.webContents.send(IPC.toast, text)

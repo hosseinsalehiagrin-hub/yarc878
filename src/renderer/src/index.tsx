@@ -2,9 +2,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { createRoot } from 'react-dom/client'
 import { dividers, dragBorder, type Divider } from '../../shared/split'
-import type { AppState, UpdateStatus } from '../../shared/types'
+import type { AppState } from '../../shared/types'
 import { activeSpace, arc, dispatch, isMac, useAppState, useSpaceTheme } from './api'
-import { Icon } from './icons'
 import { Sidebar } from './Sidebar'
 import './styles.css'
 
@@ -38,7 +37,6 @@ function App() {
       <ContentDecor state={state} />
       <div className="notices">
         {toast ? <div className="toast">{toast}</div> : null}
-        <UpdateNotice update={state.update} />
       </div>
     </div>
   )
@@ -66,42 +64,6 @@ function useToast(): string | undefined {
     []
   )
   return text
-}
-
-/**
- * Stays above the sidebar footer while an update waits. Dismissing hides it until YARC restarts:
- * releases can come several times a day, and the relaunch card already shows once a day.
- */
-function UpdateNotice({ update }: { update: UpdateStatus }) {
-  const [dismissed, setDismissed] = useState(false)
-  if ((update.state !== 'ready' && update.state !== 'available') || dismissed) return null
-  if (update.state === 'available') {
-    return (
-      <div className="toast update-notice">
-        <span>YARC {update.version} is available</span>
-        <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}>
-          Download…
-        </button>
-        <button className="icon-btn" title="Dismiss" onClick={() => setDismissed(true)}>
-          <Icon name="x" />
-        </button>
-      </div>
-    )
-  }
-  const count = Math.max(1, update.notes?.length ?? 1)
-  return (
-    <div className="toast update-notice">
-      <button className="link" title="What's in it" onClick={() => dispatch({ type: 'overlay', mode: { kind: 'update' } })}>
-        {count > 1 ? `${count} updates ready` : `YARC ${update.version} is ready`}
-      </button>
-      <button className="btn primary" onClick={() => dispatch({ type: 'command', id: 'installUpdate' })}>
-        Relaunch
-      </button>
-      <button className="icon-btn" title="Dismiss" onClick={() => setDismissed(true)}>
-        <Icon name="x" />
-      </button>
-    </div>
-  )
 }
 
 /** Still images of pages another window shows live (IPC.snapshot), by item id. */

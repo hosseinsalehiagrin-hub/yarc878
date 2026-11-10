@@ -1,7 +1,9 @@
 name: dependabot-automerge
 
-# Dependabot's patch and minor bumps merge as soon as the `check` CI job passes, and are released.
-# Electron's carry Chromium and V8 security fixes, so they shouldn't wait for someone to notice.
+# Dependabot's patch and minor bumps merge as soon as the `check` CI job passes. Electron's are
+# released right away: they carry Chromium and V8 security fixes, so they shouldn't wait for
+# someone to notice. The others get the `release:skip` label and no release of their own, so users
+# aren't asked to update for a dev dependency; they ship with the next release of a real change.
 # Majors wait for a person: CI doesn't run the e2e tests, and a major can break the app at runtime.
 # Supply-chain risk is limited by Dependabot's cooldown (.github/dependabot.yml): a new version of
 # any package but electron is only proposed after it has been out for a few days.
@@ -9,7 +11,7 @@ on: pull_request
 
 permissions:
   contents: write # merge
-  pull-requests: write # enable auto-merge
+  pull-requests: write # enable auto-merge, label
   actions: write # start release.yml
 
 concurrency:
@@ -24,14 +26,27 @@ jobs:
     steps:
       - id: meta
         uses: dependabot/fetch-metadata@v3
-      - name: Merge once CI passes, then release
+      - name: Merge once CI passes, then release Electron bumps
         if: contains(fromJSON('["version-update:semver-patch", "version-update:semver-minor"]'), steps.meta.outputs.update-type)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           PR: ${{ github.event.pull_request.number }}
+          NAMES: ${{ steps.meta.outputs.dependency-names }}
         run: |
+          case ",$(printf '%s' "$NAMES" | tr -d ' ')," in
+            *,electron,*) electron=true ;;
+            *) electron=false ;;
+          esac
+          if [ "$electron" = false ]; then
+            # For release.yml if someone merges it by hand: the auto-merge's push starts no workflows.
+            gh api -X POST "repos/$GH_REPO/issues/$PR/labels" -f 'labels[]=release:skip' > /dev/null
+          fi
           gh pr merge "$PR" --auto --merge
+          if [ "$electron" = false ]; then
+            echo "Not an Electron bump: it ships with the next release."
+            exit 0
+          fi
           # GitHub starts no workflows for a push made with this token, so the merge doesn't
           # trigger release.yml: wait for it, then start the release by hand (dispatch is allowed).
           for _ in $(seq 100); do

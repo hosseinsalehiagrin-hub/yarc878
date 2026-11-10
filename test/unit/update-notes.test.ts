@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { changesFromBody, dayKey, pendingReleases, promptDue } from '../../src/main/update-notes.ts'
+import { changesFromBody, pendingReleases } from '../../src/main/update-notes.ts'
 
 const body = (...titles: string[]) =>
   [
@@ -43,14 +43,4 @@ test('lists every version between the running one and the download, newest first
     { version: '0.1.31', changes: ['Caption buttons'] },
     { version: '0.1.30', changes: [] }
   ])
-})
-
-test('the relaunch card is due once per local calendar day', () => {
-  const morning = new Date(2026, 10, 9, 8, 30)
-  const evening = new Date(2026, 10, 9, 23, 59)
-  const nextDay = new Date(2026, 10, 10, 0, 1)
-  assert.equal(dayKey(morning), '2026-11-09')
-  assert.equal(promptDue(undefined, morning), true)
-  assert.equal(promptDue(dayKey(morning), evening), false)
-  assert.equal(promptDue(dayKey(evening), nextDay), true)
 })

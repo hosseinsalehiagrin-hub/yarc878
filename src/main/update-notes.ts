@@ -1,6 +1,5 @@
-// What a downloaded update brings, and when to say so. No Electron imports, so it unit-tests.
-// Every merge to main is a release, so several updates can arrive in one day: the relaunch card
-// shows at most once a day and lists every version since the one running.
+// What a downloaded update brings. No Electron imports, so it unit-tests. Every merge to main is a
+// release, so several updates can pile up: the relaunch card lists every version since the one running.
 import type { ReleaseNotes } from '../shared/types'
 import { compareVersions } from './release.ts'
 
@@ -39,15 +38,4 @@ export function pendingReleases(releases: GithubReleaseNotes[], current: string,
     .map((r) => ({ version: r.tag_name.replace(/^v/i, ''), changes: changesFromBody(r.body) }))
     .filter((r) => compareVersions(r.version, current) > 0 && compareVersions(r.version, target) <= 0)
     .sort((a, b) => compareVersions(b.version, a.version))
-}
-
-/** The local calendar day, "2026-11-09", which the once-a-day relaunch card is keyed on. */
-export function dayKey(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
-}
-
-/** True when the relaunch card hasn't been shown yet today. */
-export function promptDue(lastPromptDay: string | undefined, now: Date): boolean {
-  return lastPromptDay !== dayKey(now)
 }
